@@ -28,10 +28,6 @@ file(GLOB_RECURSE HEADER_FILES LIST_DIRECTORIES false RELATIVE ${CMAKE_CURRENT_S
 include_directories(src)
 add_executable(${PROJECT_NAME} ${SRC_FILES} ${HEADER_FILES})
 
-if(MSVC)
-	set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT foton)
-endif()
-
 macro(SETUP_GROUPS src_files)
 	foreach(FILE ${src_files})
 		get_filename_component(PARENT_DIR "${FILE}" PATH)
@@ -46,6 +42,13 @@ endmacro()
 
 SETUP_GROUPS("${SRC_FILES}")
 SETUP_GROUPS("${HEADER_FILES}")
+
+set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD 11)
+set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD_REQUIRED ON)
+
+if(MSVC)
+	set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT foton)
+endif()
 
 # Vulkan
 find_package(Vulkan REQUIRED)
