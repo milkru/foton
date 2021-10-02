@@ -5,7 +5,7 @@ project(foton CXX)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 # Bootstrap
-if(WIN32)
+if (WIN32)
 	set(PYTHON_EXECUTABLE "python")
 else()
 	set(PYTHON_EXECUTABLE "python3")
@@ -28,11 +28,10 @@ file(GLOB_RECURSE HEADER_FILES LIST_DIRECTORIES false RELATIVE ${CMAKE_CURRENT_S
 include_directories(src)
 add_executable(${PROJECT_NAME} ${SRC_FILES} ${HEADER_FILES})
 
-macro(SETUP_GROUPS src_files)
-	foreach(FILE ${src_files})
+macro(SETUP_GROUPS INPUT_FILES)
+	foreach(FILE ${INPUT_FILES})
 		get_filename_component(PARENT_DIR "${FILE}" PATH)
 
-		# skip src or include and changes /'s to \\'s
 		set(GROUP "${PARENT_DIR}")
 		string(REPLACE "/" "\\" GROUP "${GROUP}")
 
@@ -46,7 +45,7 @@ SETUP_GROUPS("${HEADER_FILES}")
 set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD 11)
 set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD_REQUIRED ON)
 
-if(MSVC)
+if (MSVC)
 	set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT foton)
 endif()
 
@@ -71,11 +70,39 @@ set_property(TARGET glfw PROPERTY FOLDER "3rdParty")
 set(GLM_DIR 3rdparty/src/glm)
 target_include_directories(${PROJECT_NAME} PRIVATE ${GLM_DIR})
 
+# GLSLANG
+set(ENABLE_GLSLANG_BINARIES OFF CACHE BOOL "")
+set(ENABLE_HLSL OFF CACHE BOOL "")
+set(ENABLE_CTEST OFF CACHE BOOL "")
+set(ENABLE_OPT OFF CACHE BOOL "")
+set(SKIP_GLSLANG_INSTALL ON CACHE BOOL "")
+set(GLSLANG_DIR 3rdparty/src/glslang)
+
+# !!!!!!!!!!!!!!!! FIX ME !!!!!!!!!!!!!!!!!!
+add_compile_definitions(ENABLE_OPT=0)
+
+add_subdirectory(${GLSLANG_DIR})
+add_subdirectory(${GLSLANG_DIR}/StandAlone)
+target_include_directories(${PROJECT_NAME} PRIVATE ${GLSLANG_DIR}/glslang/Include)
+target_include_directories(glslang PRIVATE ${GLSLANG_DIR})
+target_include_directories(glslang PRIVATE ${GLSLANG_DIR}/src)
+target_link_libraries(${PROJECT_NAME} PRIVATE glslang SPIRV glslang-default-resource-limits)
+set_property(TARGET glslang PROPERTY FOLDER "3rdParty/glslang")
+set_property(TARGET OGLCompiler PROPERTY FOLDER "3rdParty/glslang")
+set_property(TARGET OSDependent PROPERTY FOLDER "3rdParty/glslang")
+set_property(TARGET SPIRV PROPERTY FOLDER "3rdParty/glslang")
+set_property(TARGET GenericCodeGen PROPERTY FOLDER "3rdParty/glslang")
+set_property(TARGET SPVRemapper PROPERTY FOLDER "3rdParty/glslang")
+set_property(TARGET glslang-default-resource-limits PROPERTY FOLDER "3rdParty/glslang")
+set_property(TARGET MachineIndependent PROPERTY FOLDER "3rdParty/glslang")
+set_property(TARGET glslangValidator PROPERTY FOLDER "3rdParty/glslang")
+set_property(TARGET spirv-remap PROPERTY FOLDER "3rdParty/glslang")
+
 # STB
 set(STB_DIR 3rdparty/src/stb)
 target_include_directories(${PROJECT_NAME} PRIVATE ${STB_DIR})
 
-# Dear ImGui
+# ImGui
 set(IMGUI_DIR 3rdparty/src/imgui)
 set(IMGUI_TEXTEDIT_DIR 3rdparty/src/ImGuiColorTextEdit)
 set(IMGUI_SOURCES

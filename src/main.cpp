@@ -6,6 +6,9 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
+#include "glslang_c_interface.h"
+#include "StandAlone/ResourceLimits.h"
+
 #define GLM_FORCE_RADIANS
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -25,8 +28,8 @@
 #include <array>
 #include <set>
 
-const uint32_t WIDTH = 800;
-const uint32_t HEIGHT = 600;
+const uint32_t WIDTH = 1280;
+const uint32_t HEIGHT = 720;
 
 const int MAX_FRAMES_IN_FLIGHT = 2;
 
@@ -76,6 +79,7 @@ struct UniformBufferObject {
 class HelloTriangleApplication {
 public:
 	void run() {
+		glslang_initialize_process();
 		initWindow();
 		initVulkan();
 		initImGui();
@@ -139,9 +143,11 @@ private:
 
 		glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 
-		window = glfwCreateWindow(WIDTH, HEIGHT, "Vulkan", nullptr, nullptr);
+		window = glfwCreateWindow(WIDTH, HEIGHT, "Foton", nullptr, nullptr);
 		glfwSetWindowUserPointer(window, this);
 		glfwSetFramebufferSizeCallback(window, framebufferResizeCallback);
+
+		glfwMaximizeWindow(window);
 	}
 
 	static void framebufferResizeCallback(GLFWwindow* window, int width, int height) {
@@ -301,6 +307,8 @@ private:
 		glfwDestroyWindow(window);
 
 		glfwTerminate();
+
+		glslang_finalize_process();
 	}
 
 	void recreateSwapChain() {
@@ -580,9 +588,160 @@ private:
 		}
 	}
 
+	void printShaderSource(const char* text)
+	{
+		int line = 1;
+
+		printf("\n(%3i) ", line);
+
+		while (text && *text++)
+		{
+			if (*text == '\n')
+			{
+				printf("\n(%3i) ", ++line);
+			}
+			else if (*text == '\r')
+			{
+			}
+			else
+			{
+				printf("%c", *text);
+			}
+		}
+
+		printf("\n");
+	}
+
+	size_t compileShader(glslang_stage_t stage, const char* shaderSource, std::vector<unsigned int>& SPIRV)
+	{
+		glslang_input_t input{};
+		input.language = GLSLANG_SOURCE_GLSL;
+		input.stage = stage;
+		input.client = GLSLANG_CLIENT_VULKAN;
+		input.client_version = GLSLANG_TARGET_VULKAN_1_0;
+		input.target_language = GLSLANG_TARGET_SPV;
+		input.target_language_version = GLSLANG_TARGET_SPV_1_3;
+		input.code = shaderSource;
+		input.default_version = 100;
+		input.default_profile = GLSLANG_NO_PROFILE;
+		input.force_default_version_and_profile = false;
+		input.forward_compatible = false;
+		input.messages = GLSLANG_MSG_DEFAULT_BIT;
+		input.resource = (const glslang_resource_t*)&glslang::DefaultTBuiltInResource;
+
+		glslang_shader_t* shader = glslang_shader_create(&input);
+
+		if (!glslang_shader_preprocess(shader, &input))
+		{
+			fprintf(stderr, "GLSL preprocessing failed\n");
+			fprintf(stderr, "\n%s", glslang_shader_get_info_log(shader));
+			fprintf(stderr, "\n%s", glslang_shader_get_info_debug_log(shader));
+			printShaderSource(input.code);
+			return 0;
+		}
+
+		if (!glslang_shader_parse(shader, &input))
+		{
+			fprintf(stderr, "GLSL parsing failed\n");
+			fprintf(stderr, "\n%s", glslang_shader_get_info_log(shader));
+			fprintf(stderr, "\n%s", glslang_shader_get_info_debug_log(shader));
+			printShaderSource(glslang_shader_get_preprocessed_code(shader));
+			return 0;
+		}
+
+		glslang_program_t* program = glslang_program_create();
+		glslang_program_add_shader(program, shader);
+
+		if (!glslang_program_link(program, GLSLANG_MSG_SPV_RULES_BIT | GLSLANG_MSG_VULKAN_RULES_BIT))
+		{
+			fprintf(stderr, "GLSL linking failed\n");
+			fprintf(stderr, "\n%s", glslang_program_get_info_log(program));
+			fprintf(stderr, "\n%s", glslang_program_get_info_debug_log(program));
+			return 0;
+		}
+
+		glslang_program_SPIRV_generate(program, stage);
+
+		SPIRV.resize(glslang_program_SPIRV_get_size(program));
+		glslang_program_SPIRV_get(program, SPIRV.data());
+
+		{
+			const char* spirv_messages =
+				glslang_program_SPIRV_get_messages(program);
+
+			if (spirv_messages)
+				fprintf(stderr, "%s", spirv_messages);
+		}
+
+		glslang_program_delete(program);
+		glslang_shader_delete(shader);
+
+		return SPIRV.size();
+	}
+
+	std::string readShaderFile(const char* fileName)
+	{
+		FILE* file = fopen(fileName, "r");
+
+		if (!file)
+		{
+			printf("I/O error. Cannot open shader file '%s'\n", fileName);
+			return std::string();
+		}
+
+		fseek(file, 0L, SEEK_END);
+		const auto bytesinfile = ftell(file);
+		fseek(file, 0L, SEEK_SET);
+
+		char* buffer = (char*)alloca(bytesinfile + 1);
+		const size_t bytesread = fread(buffer, 1, bytesinfile, file);
+		fclose(file);
+
+		buffer[bytesread] = 0;
+
+		static constexpr unsigned char BOM[] = { 0xEF, 0xBB, 0xBF };
+
+		if (bytesread > 3)
+		{
+			if (!memcmp(buffer, BOM, 3))
+				memset(buffer, ' ', 3);
+		}
+
+		std::string code(buffer);
+
+		while (code.find("#include ") != code.npos)
+		{
+			const auto pos = code.find("#include ");
+			const auto p1 = code.find('<', pos);
+			const auto p2 = code.find('>', pos);
+			if (p1 == code.npos || p2 == code.npos || p2 <= p1)
+			{
+				printf("Error while loading shader program: %s\n", code.c_str());
+				return std::string();
+			}
+			const std::string name = code.substr(p1 + 1, p2 - p1 - 1);
+			const std::string include = readShaderFile(name.c_str());
+			code.replace(pos, p2 - pos + 1, include.c_str());
+		}
+
+		return code;
+	}
+
 	void createGraphicsPipeline() {
-		auto vertShaderCode = readFile("C:/Users/MilosKruskonja/source/repos/VulkanTutorial/shaders/vert.spv");
-		auto fragShaderCode = readFile("C:/Users/MilosKruskonja/source/repos/VulkanTutorial/shaders/frag.spv");
+		// TODO: DONT RECOMPILE SHADERS ON GRAPHICS PIPELINE CREATE (SWAPCHAIN RECREATE CALLS THIS METHOD).
+
+		auto vertShaderCodeGLSL = readShaderFile("C:/Dev/foton/src/shaders/fullscreen.vert");
+		auto fragShaderCodeGLSL = readShaderFile("C:/Dev/foton/src/shaders/default.frag");
+
+		std::vector<unsigned int> vertShaderCode;
+		if (compileShader(GLSLANG_STAGE_VERTEX, vertShaderCodeGLSL.c_str(), vertShaderCode) < 1) {
+			throw std::runtime_error("failed to compile vertex shader!");
+		}
+
+		std::vector<unsigned int> fragShaderCode;
+		if (compileShader(GLSLANG_STAGE_FRAGMENT, fragShaderCodeGLSL.c_str(), fragShaderCode) < 1) {
+			throw std::runtime_error("failed to compile vertex shader!");
+		}
 
 		VkShaderModule vertShaderModule = createShaderModule(vertShaderCode);
 		VkShaderModule fragShaderModule = createShaderModule(fragShaderCode);
@@ -1279,10 +1438,10 @@ private:
 		currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 	}
 
-	VkShaderModule createShaderModule(const std::vector<char>& code) {
+	VkShaderModule createShaderModule(const std::vector<unsigned int>& code) {
 		VkShaderModuleCreateInfo createInfo{};
 		createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-		createInfo.codeSize = code.size();
+		createInfo.codeSize = 4 * code.size();
 		createInfo.pCode = reinterpret_cast<const uint32_t*>(code.data());
 
 		VkShaderModule shaderModule;
@@ -1497,24 +1656,6 @@ private:
 		if (vkEndCommandBuffer(commandBuffers[i]) != VK_SUCCESS) {
 			throw std::runtime_error("failed to record command buffer!");
 		}
-	}
-
-	static std::vector<char> readFile(const std::string& filename) {
-		std::ifstream file(filename, std::ios::ate | std::ios::binary);
-
-		if (!file.is_open()) {
-			throw std::runtime_error("failed to open file!");
-		}
-
-		size_t fileSize = (size_t)file.tellg();
-		std::vector<char> buffer(fileSize);
-
-		file.seekg(0);
-		file.read(buffer.data(), fileSize);
-
-		file.close();
-
-		return buffer;
 	}
 
 	static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData) {
