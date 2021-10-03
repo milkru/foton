@@ -109,6 +109,8 @@ private:
 	VkRenderPass renderPass;
 	VkDescriptorSetLayout descriptorSetLayout;
 	VkPipelineLayout pipelineLayout;
+	VkShaderModule vertShaderModule;
+	VkShaderModule fragShaderModule;
 	VkPipeline graphicsPipeline;
 
 	VkCommandPool commandPool;
@@ -138,6 +140,8 @@ private:
 	uint32_t swapchainImageCount;
 	uint32_t graphicsQueueFamilyIndex;
 
+	TextEditor editor;
+
 	void initWindow() {
 		glfwInit();
 
@@ -165,6 +169,7 @@ private:
 		createImageViews();
 		createRenderPass();
 		createDescriptorSetLayout();
+		createShaders();
 		createGraphicsPipeline();
 		createFramebuffers();
 		createCommandPool();
@@ -272,6 +277,9 @@ private:
 	}
 
 	void cleanup() {
+		vkDestroyShaderModule(device, fragShaderModule, nullptr);
+		vkDestroyShaderModule(device, vertShaderModule, nullptr);
+
 		cleanupSwapChain();
 
 		ImGui_ImplVulkan_Shutdown();
@@ -727,11 +735,12 @@ private:
 		return code;
 	}
 
-	void createGraphicsPipeline() {
-		// TODO: DONT RECOMPILE SHADERS ON GRAPHICS PIPELINE CREATE (SWAPCHAIN RECREATE CALLS THIS METHOD).
-
+	void createShaders()
+	{
 		auto vertShaderCodeGLSL = readShaderFile("C:/Dev/foton/src/shaders/fullscreen.vert");
 		auto fragShaderCodeGLSL = readShaderFile("C:/Dev/foton/src/shaders/default.frag");
+
+		editor.SetText(fragShaderCodeGLSL);
 
 		std::vector<unsigned int> vertShaderCode;
 		if (compileShader(GLSLANG_STAGE_VERTEX, vertShaderCodeGLSL.c_str(), vertShaderCode) < 1) {
@@ -743,9 +752,11 @@ private:
 			throw std::runtime_error("failed to compile vertex shader!");
 		}
 
-		VkShaderModule vertShaderModule = createShaderModule(vertShaderCode);
-		VkShaderModule fragShaderModule = createShaderModule(fragShaderCode);
+		vertShaderModule = createShaderModule(vertShaderCode);
+		fragShaderModule = createShaderModule(fragShaderCode);
+	}
 
+	void createGraphicsPipeline() {
 		VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
 		vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 		vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
@@ -844,9 +855,6 @@ private:
 		if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &graphicsPipeline) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create graphics pipeline!");
 		}
-
-		vkDestroyShaderModule(device, fragShaderModule, nullptr);
-		vkDestroyShaderModule(device, vertShaderModule, nullptr);
 	}
 
 	void createFramebuffers() {
@@ -1279,7 +1287,6 @@ private:
 		vkUnmapMemory(device, uniformBuffersMemory[currentImage]);
 	}
 
-	TextEditor editor;
 	void imguiNewFrame()
 	{
 		ImGui_ImplVulkan_NewFrame();
@@ -1294,8 +1301,10 @@ private:
 		//ImGui::ShowTestWindow();
 
 		auto cpos = editor.GetCursorPosition();
+		ImGui::SetNextWindowBgAlpha(0.25f);
 		ImGui::Begin("Text Editor Demo", nullptr, ImGuiWindowFlags_HorizontalScrollbar | ImGuiWindowFlags_MenuBar);
-		ImGui::SetWindowSize(ImVec2(800, 600), ImGuiCond_FirstUseEver);
+		ImGui::SetWindowSize(ImVec2(1920, 1080), ImGuiCond_FirstUseEver);
+		ImGui::SetWindowFontScale(1.5f);
 		if (ImGui::BeginMenuBar())
 		{
 			if (ImGui::BeginMenu("File"))
@@ -1332,6 +1341,11 @@ private:
 					editor.Delete();
 				if (ImGui::MenuItem("Paste", "Ctrl-V", nullptr, !ro && ImGui::GetClipboardText() != nullptr))
 					editor.Paste();
+				if (ImGui::MenuItem("Compile", "Ctrl-S", nullptr, !ro))
+				{
+					editor.Paste();
+					recompileFragmentShader();
+				}
 
 				ImGui::Separator();
 
@@ -1359,6 +1373,7 @@ private:
 		//	editor.CanUndo() ? "*" : " ",
 		//	editor.GetLanguageDefinition().mName.c_str(), fileToEdit);
 
+		ImGui::SetNextWindowBgAlpha(0.15f);
 		editor.Render("TextEditor");
 		ImGui::End();
 
@@ -1366,6 +1381,23 @@ private:
 
 
 		ImGui::Render();
+	}
+
+	void recompileFragmentShader()
+	{
+		vkDestroyShaderModule(device, fragShaderModule, nullptr);
+		vkDestroyPipeline(device, graphicsPipeline, nullptr);
+
+		auto fragShaderCodeGLSL = editor.GetText();
+
+		std::vector<unsigned int> fragShaderCode;
+		if (compileShader(GLSLANG_STAGE_FRAGMENT, fragShaderCodeGLSL.c_str(), fragShaderCode) < 1) {
+			throw std::runtime_error("failed to compile vertex shader!");
+		}
+
+		fragShaderModule = createShaderModule(fragShaderCode);
+
+		createGraphicsPipeline();
 	}
 
 	void drawFrame() {
