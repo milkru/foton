@@ -212,6 +212,7 @@ private:
 
 		glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 		glfwWindowHint(GLFW_MAXIMIZED, GLFW_TRUE);
+		glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
 
 		window = glfwCreateWindow(WIDTH, HEIGHT, "Foton", nullptr, nullptr);
 		glfwSetWindowUserPointer(window, this);
@@ -384,6 +385,8 @@ private:
 	// TODO: Check Photon.
 	void MainLoop()
 	{
+		glfwShowWindow(window);
+
 		while (!glfwWindowShouldClose(window))
 		{
 			glfwPollEvents();
