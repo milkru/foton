@@ -1573,7 +1573,7 @@ private:
 				if (ImGui::MenuItem("Save"))
 				{
 					auto textToSave = editor.GetText();
-					/// save text....
+					// TODO: save text....
 				}
 				if (ImGui::MenuItem("Quit", "Alt-F4"))
 					throw std::runtime_error("???"); // TODO: Quit
@@ -2094,7 +2094,10 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 {
-	renderer.UpdateCodeFontSize(static_cast<float>(yoffset));
+	if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) || glfwGetKey(window, GLFW_KEY_RIGHT_CONTROL))
+	{
+		renderer.UpdateCodeFontSize(static_cast<float>(yoffset));
+	}
 }
 
 // TODO: Use asserts instead of exceptions.
