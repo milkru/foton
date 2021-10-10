@@ -4,14 +4,8 @@
 #include <TextEditor.h>
 
 // TOOD: Since transparent window background blending with the viewport is really bad, make it completely transparent and emulate blending somehow.
-
 // TODO: There is literally no need for multiple opened shaders in tabs. Scrap that.
-
-// TOOD: Docking and content browser.
-
 // TODO: Separate Runtime and Editor?
-
-// TODO: ImGui project doesn't have .h files in the Source folder.
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
@@ -86,7 +80,7 @@ const std::vector<const char*> deviceExtensions =
 	VK_KHR_SWAPCHAIN_EXTENSION_NAME
 };
 
-// TODO: pch?
+// TODO: .pch?
 // TODO: FT_DEBUG
 #ifdef NDEBUG
 const bool enableValidationLayers = false;
@@ -131,6 +125,9 @@ struct UniformBufferObject
 	alignas(16) glm::mat4 view;
 	alignas(16) glm::mat4 proj;
 };
+
+void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
+void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 
 // TODO: using uint32_t uint
 // TODO: Change the name to vulkancore and move it to another file.
@@ -203,6 +200,9 @@ private:
 	uint32_t swapchainImageCount;
 	uint32_t graphicsQueueFamilyIndex;
 
+	// TODO: Move this to config. Make foton.ini
+	float codeFontSize = 1.5f;
+	bool showImGui = true;
 	TextEditor editor;
 	ImLogger logger;
 
@@ -216,6 +216,9 @@ private:
 		window = glfwCreateWindow(WIDTH, HEIGHT, "Foton", nullptr, nullptr);
 		glfwSetWindowUserPointer(window, this);
 		glfwSetFramebufferSizeCallback(window, FramebufferResizeCallback);
+
+		glfwSetKeyCallback(window, key_callback);
+		glfwSetScrollCallback(window, scroll_callback);
 
 		//glfwSetWindowIcon(window, 0, nullptr);
 	}
@@ -384,7 +387,12 @@ private:
 		while (!glfwWindowShouldClose(window))
 		{
 			glfwPollEvents();
-			imguiNewFrame();
+			
+			if (showImGui)
+			{
+				imguiNewFrame();
+			}
+
 			DrawFrame();
 		}
 
@@ -1574,30 +1582,30 @@ private:
 			}
 			if (ImGui::BeginMenu("Edit"))
 			{
-				bool ro = editor.IsReadOnly();
-				if (ImGui::MenuItem("Read-only mode", nullptr, &ro))
-					editor.SetReadOnly(ro);
+				bool readOnly = editor.IsReadOnly();
+				if (ImGui::MenuItem("Read-only mode", nullptr, &readOnly))
+					editor.SetReadOnly(readOnly);
 				ImGui::Separator();
 
-				if (ImGui::MenuItem("Undo", "ALT-Backspace", nullptr, !ro && editor.CanUndo()))
+				if (ImGui::MenuItem("Undo", "ALT-Backspace", nullptr, !readOnly && editor.CanUndo()))
 					editor.Undo();
-				if (ImGui::MenuItem("Redo", "Ctrl-Y", nullptr, !ro && editor.CanRedo()))
+				if (ImGui::MenuItem("Redo", "Ctrl-Y", nullptr, !readOnly && editor.CanRedo()))
 					editor.Redo();
 
 				ImGui::Separator();
 
 				if (ImGui::MenuItem("Copy", "Ctrl-C", nullptr, editor.HasSelection()))
 					editor.Copy();
-				if (ImGui::MenuItem("Cut", "Ctrl-X", nullptr, !ro && editor.HasSelection()))
+				if (ImGui::MenuItem("Cut", "Ctrl-X", nullptr, !readOnly && editor.HasSelection()))
 					editor.Cut();
-				if (ImGui::MenuItem("Delete", "Del", nullptr, !ro && editor.HasSelection()))
+				if (ImGui::MenuItem("Delete", "Del", nullptr, !readOnly && editor.HasSelection()))
 					editor.Delete();
-				if (ImGui::MenuItem("Paste", "Ctrl-V", nullptr, !ro && ImGui::GetClipboardText() != nullptr))
+				if (ImGui::MenuItem("Paste", "Ctrl-V", nullptr, !readOnly && ImGui::GetClipboardText() != nullptr))
 					editor.Paste();
 
 				ImGui::Separator();
 
-				if (ImGui::MenuItem("Compile", "", nullptr, !ro))
+				if (ImGui::MenuItem("Compile", "Ctrl-S", nullptr, !readOnly))
 					RecompileFragmentShader();
 
 				ImGui::Separator();
@@ -1610,12 +1618,8 @@ private:
 
 			if (ImGui::BeginMenu("View"))
 			{
-				if (ImGui::MenuItem("Dark palette"))
-					editor.SetPalette(TextEditor::GetDarkPalette());
-				if (ImGui::MenuItem("Light palette"))
-					editor.SetPalette(TextEditor::GetLightPalette());
-				if (ImGui::MenuItem("Retro blue palette"))
-					editor.SetPalette(TextEditor::GetRetroBluePalette());
+				if (ImGui::MenuItem("Show UI", "Ctrl-F"))
+					ToggleImGui();
 				ImGui::EndMenu();
 			}
 
@@ -1639,12 +1643,40 @@ private:
 		ImGui::Begin("Code Editor", nullptr, ImGuiWindowFlags_HorizontalScrollbar);
 		ImGui::SetWindowSize(ImVec2(WIDTH, HEIGHT), ImGuiCond_FirstUseEver); // TODO: Change this!!!
 		ImGui::SetNextWindowBgAlpha(0.f);
+		ImGui::SetWindowFontScale(codeFontSize);
+		editor.SetShowWhitespaces(false); // TODO: Settings.
 		editor.Render("TextEditor");
 		ImGui::End();
 
 		logger.Draw("Log");
 
 		ImGui::Render();
+	}
+
+	public: // TOOD: HACK.
+	void UpdateCodeFontSize(float offset)
+	{
+		const static float MinCodeFontSize = 1.f;
+		const static float MaxCodeFontSize = 3.f;
+		const static float CodeFontSizeMul = 0.1f;
+
+		codeFontSize += offset * CodeFontSizeMul; // TODO: Multiplier
+
+		// TODO: Clamp.
+		if (codeFontSize < MinCodeFontSize)
+		{
+			codeFontSize = MinCodeFontSize;
+		}
+
+		if (codeFontSize > MaxCodeFontSize)
+		{
+			codeFontSize = MaxCodeFontSize;
+		}
+	}
+
+	void ToggleImGui()
+	{
+		showImGui = !showImGui;
 	}
 
 	void RecompileFragmentShader()
@@ -1670,6 +1702,7 @@ private:
 
 		CreateGraphicsPipeline();
 	}
+	private:
 
 	void DrawFrame()
 	{
@@ -1997,7 +2030,10 @@ private:
 
 		vkCmdDraw(commandBuffers[i], 3, 1, 0, 0);
 
-		ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffers[i]);
+		if (showImGui)
+		{
+			ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffers[i]);
+		}
 
 		vkCmdEndRenderPass(commandBuffers[i]);
 
@@ -2040,11 +2076,30 @@ private:
 	}
 };
 
+// TODO: HACK.
+Renderer renderer;
+
+void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
+{
+	if (key == GLFW_KEY_S && action == GLFW_PRESS && mods == GLFW_MOD_CONTROL)
+	{
+		renderer.RecompileFragmentShader();
+	}
+
+	if (key == GLFW_KEY_F && action == GLFW_PRESS && mods == GLFW_MOD_CONTROL)
+	{
+		renderer.ToggleImGui();
+	}
+}
+
+void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
+{
+	renderer.UpdateCodeFontSize(static_cast<float>(yoffset));
+}
+
 // TODO: Use asserts instead of exceptions.
 int main()
 {
-	Renderer renderer;
-
 	try
 	{
 		renderer.Run();
