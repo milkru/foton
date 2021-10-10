@@ -22,6 +22,9 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
+#define NFD_THROWS_EXCEPTIONS
+#include <nfd.hpp>
+
 // TODO: Strip down some of these includes.
 #include <iostream>
 #include <stdexcept>
@@ -141,6 +144,7 @@ public:
 	{
 		glslang_initialize_process();
 		InitializeWindow();
+		InitializeNFD();
 		InitializeVulkan();
 		InitializeImGui();
 		MainLoop();
@@ -149,6 +153,7 @@ public:
 
 private:
 	GLFWwindow* window;
+	NFD::Guard* nfd;
 
 	VkInstance instance;
 	VkDebugUtilsMessengerEXT debugMessenger;
@@ -205,6 +210,7 @@ private:
 	bool showImGui = true;
 	TextEditor editor;
 	ImLogger logger;
+	std::string currentShaderFilePath = "new"; // TODO: Move to config.
 
 	void InitializeWindow()
 	{
@@ -222,6 +228,13 @@ private:
 		glfwSetScrollCallback(window, scroll_callback);
 
 		//glfwSetWindowIcon(window, 0, nullptr);
+	}
+
+	void InitializeNFD()
+	{
+		// TODO: Is this to correct usage?
+		// TODO: After added NFD_THROWS_EXCEPTIONS define, this will throw a runtime exception if it's not initialized correctly. Handle it properly.
+		nfd = new NFD::Guard();
 	}
 
 	static void FramebufferResizeCallback(GLFWwindow* window, int width, int height)
@@ -345,7 +358,8 @@ private:
 		pool_info.poolSizeCount = static_cast<uint32_t>(std::size(pool_sizes));
 		pool_info.pPoolSizes = pool_sizes;
 
-		if (vkCreateDescriptorPool(device, &pool_info, nullptr, &imguiDescPool) != VK_SUCCESS) {
+		if (vkCreateDescriptorPool(device, &pool_info, nullptr, &imguiDescPool) != VK_SUCCESS)
+		{
 			throw std::runtime_error("failed to create descriptor pool!");
 		}
 
@@ -469,6 +483,9 @@ private:
 
 		vkDestroySurfaceKHR(instance, surface, nullptr);
 		vkDestroyInstance(instance, nullptr);
+
+		// TODO: Is this to correct usage?
+		delete(nfd);
 
 		glfwDestroyWindow(window);
 
@@ -1574,11 +1591,25 @@ private:
 		{
 			if (ImGui::BeginMenu("File"))
 			{
+				// TOOD: Make shortcuts for these.
 				if (ImGui::MenuItem("Save"))
 				{
 					auto textToSave = editor.GetText();
 					// TODO: save text....
 				}
+
+				// TODO: Make "New" button.
+
+				if (ImGui::MenuItem("Open"))
+				{
+					NFD::UniquePath codeFilePath;
+					OpenFileDialog(codeFilePath);
+					CreateShader_FromNFD(codeFilePath);
+					RecompileFragmentShader();
+					currentShaderFilePath.erase();
+					currentShaderFilePath = codeFilePath.get();
+				}
+
 				if (ImGui::MenuItem("Quit", "Alt-F4"))
 					throw std::runtime_error("???"); // TODO: Quit
 
@@ -1644,7 +1675,11 @@ private:
 
 		ImGui::ShowDemoWindow();
 
-		ImGui::Begin("Editor", nullptr, ImGuiWindowFlags_HorizontalScrollbar);
+		// TODO: Refactor a bit.
+		char buf[128];
+		sprintf_s(buf, "%s###ShaderTitle", currentShaderFilePath.c_str());
+
+		ImGui::Begin(buf, nullptr, ImGuiWindowFlags_HorizontalScrollbar);
 		ImGui::SetWindowSize(ImVec2(WIDTH, HEIGHT), ImGuiCond_FirstUseEver); // TODO: Change this!!!
 		ImGui::SetNextWindowBgAlpha(0.f);
 		ImGui::SetWindowFontScale(codeFontSize);
@@ -1700,13 +1735,30 @@ private:
 			return;
 		}
 
-		logger.AddLog("Compilation of *INSERT_SHADER_FILE_NAME* finished successfully.\n");
+		// TODO: Use file name here instead.
+		logger.AddLog("Compilation of %s finished successfully.\n", currentShaderFilePath);
 
 		fragShaderModule = CreateShaderModule(fragShaderCode);
 
 		CreateGraphicsPipeline();
 	}
 	private:
+
+	// TODO: Refactor. No need for multiple methods with double code.
+	void CreateShader_FromNFD(const NFD::UniquePath& filePath)
+	{
+		auto fragShaderCodeGLSL = ReadShaderFile(filePath.get());
+
+		editor.SetText(fragShaderCodeGLSL);
+
+		std::vector<unsigned int> fragShaderCode;
+		if (CompileShader(GLSLANG_STAGE_FRAGMENT, fragShaderCodeGLSL.c_str(), fragShaderCode) < 1)
+		{
+			throw std::runtime_error("failed to compile fragment shader!");
+		}
+
+		fragShaderModule = CreateShaderModule(fragShaderCode);
+	}
 
 	void DrawFrame()
 	{
@@ -2069,6 +2121,25 @@ private:
 		TextEditor::ErrorMarkers ems;
 		ems[lineInt] = message;
 		editor.SetErrorMarkers(ems);
+	}
+
+	void OpenFileDialog(NFD::UniquePath& outPath)
+	{
+		nfdfilteritem_t filterItem[3] = { {"GLSL", "glsl"}, {"HLSL", "hlsl"}, {"SpirV", "spv"} };
+
+		nfdresult_t result = NFD::OpenDialog(outPath, filterItem, 3);
+		if (result == NFD_OKAY)
+		{
+			std::cout << "Success!" << std::endl << outPath.get() << std::endl;
+		}
+		else if (result == NFD_CANCEL)
+		{
+			std::cout << "User pressed cancel." << std::endl;
+		}
+		else
+		{
+			std::cout << "Error: " << NFD::GetError() << std::endl;
+		}
 	}
 
 	// TODO: Format this better.

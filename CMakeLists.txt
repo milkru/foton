@@ -135,3 +135,11 @@ target_include_directories(imgui PRIVATE ${GLFW_DIR}/include)
 target_link_libraries(${PROJECT_NAME} PRIVATE imgui)
 
 set_property(TARGET imgui PROPERTY FOLDER "3rdParty")
+
+# NFD
+set(NFD_DIR 3rdparty/src/nativefiledialog-extended)
+
+add_subdirectory(${NFD_DIR})
+target_include_directories(${PROJECT_NAME} PRIVATE ${NFD_DIR}/src/include)
+target_link_libraries(${PROJECT_NAME} PRIVATE nfd)
+set_property(TARGET nfd PROPERTY FOLDER "3rdParty")
