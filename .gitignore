@@ -1,4 +1,7 @@
-bin/
-3rdparty/.bootstrap.json
-3rdparty/archives/
-3rdparty/src/
+bin/*
+!bin/imgui.ini
+
+3rdparty/*
+!3rdparty/bootstrap.py
+!3rdparty/bootstrap.json
+!3rdparty/LICENSE
