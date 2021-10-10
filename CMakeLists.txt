@@ -87,6 +87,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE ${GLSLANG_DIR}/glslang/Includ
 target_include_directories(glslang PRIVATE ${GLSLANG_DIR})
 target_include_directories(glslang PRIVATE ${GLSLANG_DIR}/src)
 target_link_libraries(${PROJECT_NAME} PRIVATE glslang SPIRV glslang-default-resource-limits)
+
 set_property(TARGET glslang PROPERTY FOLDER "3rdParty/glslang")
 set_property(TARGET OGLCompiler PROPERTY FOLDER "3rdParty/glslang")
 set_property(TARGET OSDependent PROPERTY FOLDER "3rdParty/glslang")
@@ -97,6 +98,16 @@ set_property(TARGET glslang-default-resource-limits PROPERTY FOLDER "3rdParty/gl
 set_property(TARGET MachineIndependent PROPERTY FOLDER "3rdParty/glslang")
 set_property(TARGET glslangValidator PROPERTY FOLDER "3rdParty/glslang")
 set_property(TARGET spirv-remap PROPERTY FOLDER "3rdParty/glslang")
+
+# SPIRV-Reflect
+set(SPIRV_REFLECT_DIR 3rdparty/src/SPIRV-Reflect)
+set(SPIRV_REFLECT_SOURCES ${SPIRV_REFLECT_DIR}/spirv_reflect.c)
+
+add_library(SPIRV-Reflect STATIC ${SPIRV_REFLECT_SOURCES})
+target_include_directories(${PROJECT_NAME} PRIVATE ${SPIRV_REFLECT_DIR})
+target_link_libraries(${PROJECT_NAME} PRIVATE SPIRV-Reflect)
+
+set_property(TARGET SPIRV-Reflect PROPERTY FOLDER "3rdParty")
 
 # STB
 set(STB_DIR 3rdparty/src/stb)
@@ -122,4 +133,5 @@ target_include_directories(imgui PRIVATE ${IMGUI_DIR})
 target_include_directories(imgui PRIVATE ${Vulkan_INCLUDE_DIRS})
 target_include_directories(imgui PRIVATE ${GLFW_DIR}/include)
 target_link_libraries(${PROJECT_NAME} PRIVATE imgui)
+
 set_property(TARGET imgui PROPERTY FOLDER "3rdParty")

@@ -24,6 +24,14 @@
 		}
 	},
 	{
+		"name": "SPIRV-Reflect",
+		"source": {
+			"type": "git",
+			"url": "https://github.com/KhronosGroup/SPIRV-Reflect.git",
+			"revision": "cc937caab141d889c9c9dff572c5a6854d5cf9b4"
+		}
+	},
+	{
 		"name": "stb",
 		"source": {
 			"type": "git",
@@ -36,7 +44,7 @@
 		"source": {
 			"type": "git",
 			"url": "https://github.com/ocornut/imgui.git",
-			"revision": "v1.83"
+			"revision": "1780579403f07158adef7ac2f1e15d7990e732df"
 		}
 	},
 	{
