@@ -178,7 +178,7 @@ private:
 
 	VkRenderPass renderPass;
 	VkDescriptorSetLayout descriptorSetLayout = VK_NULL_HANDLE;
-	VkPipelineLayout pipelineLayout;
+	VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;
 	VkShaderModule vertShaderModule;
 	VkShaderModule fragShaderModule = VK_NULL_HANDLE;
 	VkPipeline graphicsPipeline = VK_NULL_HANDLE;
@@ -1035,6 +1035,7 @@ private:
 		colorBlending.blendConstants[2] = 0.0f;
 		colorBlending.blendConstants[3] = 0.0f;
 
+		// TODO: Move pipeline layout creation outside this method, since it doesn't need to be recreated each time we recompile the shader.
 		VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
 		pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 		pipelineLayoutInfo.setLayoutCount = 1;
@@ -1734,6 +1735,7 @@ private:
 
 			vkDestroyShaderModule(device, fragShaderModule, nullptr);
 			vkDestroyPipeline(device, graphicsPipeline, nullptr);
+			vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
 		}
 
 		// TODO: Use file name here instead.
