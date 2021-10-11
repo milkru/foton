@@ -3,9 +3,14 @@
 #include <backends/imgui_impl_vulkan.h>
 #include <TextEditor.h>
 
+// TODO: Add all relevant messages to logger, like: "shader loaded successfully" etc.
+
 // TOOD: Since transparent window background blending with the viewport is really bad, make it completely transparent and emulate blending somehow.
 // TODO: There is literally no need for multiple opened shaders in tabs. Scrap that.
 // TODO: Separate Runtime and Editor?
+
+// TODO: Add language definitions to editor: static const LanguageDefinition& HLSL();
+// TODO: Add language definitions to editor: static const LanguageDefinition& GLSL();
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
@@ -172,7 +177,7 @@ private:
 	std::vector<VkFramebuffer> swapChainFramebuffers;
 
 	VkRenderPass renderPass;
-	VkDescriptorSetLayout descriptorSetLayout;
+	VkDescriptorSetLayout descriptorSetLayout = VK_NULL_HANDLE;
 	VkPipelineLayout pipelineLayout;
 	VkShaderModule vertShaderModule;
 	VkShaderModule fragShaderModule = VK_NULL_HANDLE;
@@ -253,7 +258,6 @@ private:
 		CreateSwapChain();
 		CreateImageViews();
 		CreateRenderPass();
-		CreateDescriptorSetLayout();
 		CreateShaders();
 		CreateGraphicsPipeline();
 		CreateFramebuffers();
@@ -268,8 +272,6 @@ private:
 		CreateSyncObjects();
 	}
 
-	// TODO: Temp.
-	static inline ImVec4 ImLerp(const ImVec4& a, const ImVec4& b, float t) { return ImVec4(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t, a.z + (b.z - a.z) * t, a.w + (b.w - a.w) * t); }
 	void ImGuiStyle2()
 	{
 		ImGuiStyle* style = &ImGui::GetStyle();
@@ -326,7 +328,7 @@ private:
 		colors[ImGuiCol_TableRowBgAlt] = ImVec4(1.00f, 1.00f, 1.00f, 0.07f);
 		colors[ImGuiCol_TextSelectedBg] = ImVec4(0.00f, 0.00f, 1.00f, 0.35f);
 		colors[ImGuiCol_DragDropTarget] = ImVec4(1.00f, 1.00f, 0.00f, 0.90f);
-		colors[ImGuiCol_NavHighlight] = colors[ImGuiCol_HeaderHovered];
+		colors[ImGuiCol_NavHighlight] = ImVec4(0.45f, 0.45f, 0.45f, 0.80f);
 		colors[ImGuiCol_NavWindowingHighlight] = ImVec4(1.00f, 1.00f, 1.00f, 0.70f);
 		colors[ImGuiCol_NavWindowingDimBg] = ImVec4(0.80f, 0.80f, 0.80f, 0.20f);
 		colors[ImGuiCol_ModalWindowDimBg] = ImVec4(0.20f, 0.20f, 0.20f, 0.35f);
@@ -571,7 +573,7 @@ private:
 	{
 		createInfo = {};
 		createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-		createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+		createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
 		createInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
 		createInfo.pfnUserCallback = debugCallback;
 	}
@@ -773,23 +775,13 @@ private:
 		}
 	}
 
-	void CreateDescriptorSetLayout()
+	void CreateDescriptorSetLayout(const std::vector<VkDescriptorSetLayoutBinding>& bindings)
 	{
-		VkDescriptorSetLayoutBinding uboLayoutBinding{};
-		uboLayoutBinding.binding = 0;
-		uboLayoutBinding.descriptorCount = 1;
-		uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		uboLayoutBinding.pImmutableSamplers = nullptr;
-		uboLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+		if (descriptorSetLayout != VK_NULL_HANDLE)
+		{
+			vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
+		}
 
-		VkDescriptorSetLayoutBinding samplerLayoutBinding{};
-		samplerLayoutBinding.binding = 1;
-		samplerLayoutBinding.descriptorCount = 1;
-		samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-		samplerLayoutBinding.pImmutableSamplers = nullptr;
-		samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-		std::array<VkDescriptorSetLayoutBinding, 2> bindings = { uboLayoutBinding, samplerLayoutBinding };
 		VkDescriptorSetLayoutCreateInfo layoutInfo{};
 		layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
 		layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
@@ -964,6 +956,9 @@ private:
 
 		vertShaderModule = CreateShaderModule(vertShaderCode);
 		fragShaderModule = CreateShaderModule(fragShaderCode);
+
+		auto bindings = ReflectShaderCode(reinterpret_cast<const void*>(fragShaderCode.data()), 4 * fragShaderCode.size(), VK_SHADER_STAGE_FRAGMENT_BIT);
+		CreateDescriptorSetLayout(bindings);
 	}
 
 	void CreateGraphicsPipeline()
@@ -1353,6 +1348,7 @@ private:
 			throw std::runtime_error("failed to allocate descriptor sets!");
 		}
 
+		// TODO: Recreate descriptor sets each time descriptor layout gets recreated.
 		for (size_t i = 0; i < swapChainImages.size(); ++i)
 		{
 			VkDescriptorBufferInfo bufferInfo{};
@@ -1684,6 +1680,7 @@ private:
 		ImGui::SetNextWindowBgAlpha(0.f);
 		ImGui::SetWindowFontScale(codeFontSize);
 		editor.SetShowWhitespaces(false); // TODO: Settings.
+		// TOOD: Use more high resolution font file for code editor.
 		editor.Render("TextEditor");
 		ImGui::End();
 
@@ -1715,15 +1712,12 @@ private:
 
 	void ToggleImGui()
 	{
+		// TODO: Imgui Demo Window -> Style -> Rendering -> Global alpha. You can use this to fade toggle.
 		showImGui = !showImGui;
 	}
 
 	void RecompileFragmentShader()
 	{
-		// TODO: When to delete these?
-		//vkDestroyShaderModule(device, fragShaderModule, nullptr);
-		//vkDestroyPipeline(device, graphicsPipeline, nullptr);
-
 		ClearErrorMarkers();
 
 		auto fragShaderCodeGLSL = editor.GetText();
@@ -1735,10 +1729,20 @@ private:
 			return;
 		}
 
+		{
+			vkQueueWaitIdle(graphicsQueue);
+
+			vkDestroyShaderModule(device, fragShaderModule, nullptr);
+			vkDestroyPipeline(device, graphicsPipeline, nullptr);
+		}
+
 		// TODO: Use file name here instead.
 		logger.AddLog("Compilation of %s finished successfully.\n", currentShaderFilePath);
 
 		fragShaderModule = CreateShaderModule(fragShaderCode);
+
+		auto bindings = ReflectShaderCode(reinterpret_cast<const void*>(fragShaderCode.data()), 4 * fragShaderCode.size(), VK_SHADER_STAGE_FRAGMENT_BIT);
+		CreateDescriptorSetLayout(bindings);
 
 		CreateGraphicsPipeline();
 	}
@@ -1758,6 +1762,9 @@ private:
 		}
 
 		fragShaderModule = CreateShaderModule(fragShaderCode);
+
+		auto bindings = ReflectShaderCode(reinterpret_cast<const void*>(fragShaderCode.data()), 4 * fragShaderCode.size(), VK_SHADER_STAGE_FRAGMENT_BIT);
+		CreateDescriptorSetLayout(bindings);
 	}
 
 	void DrawFrame()
@@ -1850,10 +1857,51 @@ private:
 			throw std::runtime_error("failed to create shader module!");
 		}
 
-		//SpvReflectShaderModule spvModule;
-		//spvReflectCreateShaderModule(4 * code.size(), reinterpret_cast<const void*>(code.data()), &spvModule);
-
 		return shaderModule;
+	}
+
+	VkDescriptorType GetVkDescriptorTypeFrom(const SpvReflectDescriptorType reflectDescriptorType)
+	{
+		switch (reflectDescriptorType)
+		{
+		case SPV_REFLECT_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
+			return VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		case SPV_REFLECT_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
+			return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		default:
+			// TODO: Print in logger that this binding type is not yet supported.
+			// TODO: ASSERT("Unsupported SpvReflectDescriptorBinding.");
+			return VK_DESCRIPTOR_TYPE_MAX_ENUM;
+		}
+	}
+
+	std::vector<VkDescriptorSetLayoutBinding> ReflectShaderCode(const void* code, const size_t codeSize, const VkShaderStageFlagBits shaderStage)
+	{
+		// TODO: Add asserts for spv method return success values.
+
+		SpvReflectShaderModule spvModule;
+		spvReflectCreateShaderModule(codeSize, reinterpret_cast<const void*>(code), &spvModule);
+
+		uint32_t bindingCount = 0;
+		spvReflectEnumerateDescriptorBindings(&spvModule, &bindingCount, nullptr);
+
+		std::vector<SpvReflectDescriptorBinding*> bindings(bindingCount);
+		spvReflectEnumerateDescriptorBindings(&spvModule, &bindingCount, bindings.data());
+
+		std::vector<VkDescriptorSetLayoutBinding> layoutBindings(bindings.size());
+		for (uint32_t i = 0; i < bindingCount; ++i)
+		{
+			VkDescriptorSetLayoutBinding& descriptorSetLayoutBinding = layoutBindings[i];
+			descriptorSetLayoutBinding.binding = bindings[i]->binding;
+			descriptorSetLayoutBinding.descriptorCount = 1;
+			descriptorSetLayoutBinding.descriptorType = GetVkDescriptorTypeFrom(bindings[i]->descriptor_type);
+			descriptorSetLayoutBinding.stageFlags = shaderStage;
+			descriptorSetLayoutBinding.pImmutableSamplers = nullptr;
+		}
+
+		spvReflectDestroyShaderModule(&spvModule);
+
+		return layoutBindings;
 	}
 
 	VkSurfaceFormatKHR ChooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats)
@@ -2169,6 +2217,7 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 {
+	// TODO: Maybe add a condition if the code window is in focus????????
 	if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) || glfwGetKey(window, GLFW_KEY_RIGHT_CONTROL))
 	{
 		renderer.UpdateCodeFontSize(static_cast<float>(yoffset));
