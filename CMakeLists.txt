@@ -23,10 +23,12 @@ endif()
 
 # Project
 file(GLOB_RECURSE SRC_FILES LIST_DIRECTORIES false RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} src/*.c??)
-file(GLOB_RECURSE HEADER_FILES LIST_DIRECTORIES false RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} src/*.h)
+file(GLOB_RECURSE HEADER_FILES LIST_DIRECTORIES false RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} src/*.h src/*.hpp)
 
 include_directories(src)
 add_executable(${PROJECT_NAME} ${SRC_FILES} ${HEADER_FILES})
+
+target_precompile_headers(${PROJECT_NAME} PRIVATE src/pch.h)
 
 macro(SETUP_GROUPS INPUT_FILES)
 	foreach(FILE ${INPUT_FILES})
@@ -143,3 +145,12 @@ add_subdirectory(${NFD_DIR})
 target_include_directories(${PROJECT_NAME} PRIVATE ${NFD_DIR}/src/include)
 target_link_libraries(${PROJECT_NAME} PRIVATE nfd)
 set_property(TARGET nfd PROPERTY FOLDER "3rdParty")
+
+# Optick
+set(OPTICK_DIR 3rdparty/src/optick)
+add_definitions(-DBUILD_WITH_OPTICK=1)
+
+add_subdirectory(${OPTICK_DIR})
+target_include_directories(${PROJECT_NAME} PRIVATE ${OPTICK_DIR}/src/optick/src)
+target_link_libraries(${PROJECT_NAME} PRIVATE OptickCore)
+set_property(TARGET OptickCore PROPERTY FOLDER "3rdParty")

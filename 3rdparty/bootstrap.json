@@ -4,7 +4,7 @@
 		"source": {
 			"type": "git",
 			"url": "https://github.com/glfw/glfw.git",
-			"revision": "3.3.4"
+			"revision": "56a4cb0a3a2c7a44a2fd8ab3335adf915e19d30c"
 		}
 	},
 	{
@@ -12,7 +12,7 @@
 		"source": {
 			"type": "git",
 			"url": "https://github.com/g-truc/glm.git",
-			"revision": "0.9.9.8"
+			"revision": "6ad79aae3eb5bf809c30bf1168171e9e55857e45"
 		}
 	},
 	{
@@ -61,6 +61,14 @@
 			"type": "git",
 			"url": "https://github.com/btzy/nativefiledialog-extended.git",
 			"revision": "800e880d335bc5af1fef757eac835161c7b93102"
+		}
+	},
+	{
+		"name": "optick",
+		"source": {
+			"type": "git",
+			"url": "https://github.com/bombomby/optick.git",
+			"revision": "88f498902e9abbd45369bd824ba63a159272b115"
 		}
 	}
 ]
