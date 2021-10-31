@@ -2,6 +2,8 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
+#include "shader_compiler.h"
+
 // FRAGMENT SHADER PROTOTYPER - If we add custom mesh support?
 
 // TODO: If you want to create a new shader, save it immediatelly with nfd, so we have a name.
@@ -91,7 +93,7 @@ namespace FT
 	public:
 		void Run()
 		{
-			glslang_initialize_process();
+			ShaderCompiler::Initialize();
 			InitializeWindow();
 			InitializeNFD();
 			InitializeVulkan();
@@ -158,7 +160,7 @@ namespace FT
 		float codeFontSize = 1.5f;
 		bool showImGui = true;
 		TextEditor editor;
-		Logger logger;
+		ImGuiLogger logger;
 		std::string currentShaderFilePath = "new"; // TODO: Move to config.
 
 		void InitializeWindow()
@@ -433,7 +435,7 @@ namespace FT
 
 			glfwTerminate();
 
-			glslang_finalize_process();
+			ShaderCompiler::Termiante();
 		}
 
 		void recreateSwapChain()
@@ -703,155 +705,30 @@ namespace FT
 			FT_VK_CALL(vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr, &descriptorSetLayout));
 		}
 
-		size_t CompileShader(glslang_stage_t stage, const char* shaderSource, std::vector<unsigned int>& SPIRV)
-		{
-			glslang_input_t input{};
-			input.language = GLSLANG_SOURCE_GLSL; // TODO: Pass Shader format as arg.
-			input.stage = stage;
-			input.client = GLSLANG_CLIENT_VULKAN;
-			input.client_version = GLSLANG_TARGET_VULKAN_1_0;
-			input.target_language = GLSLANG_TARGET_SPV;
-			input.target_language_version = GLSLANG_TARGET_SPV_1_0; // The SPIRV version should be the same as the Vulkan version, otherwise we will get inconsistent spirV validation error.
-			input.code = shaderSource;
-			input.default_version = 100;
-			input.default_profile = GLSLANG_NO_PROFILE;
-			input.force_default_version_and_profile = false;
-			input.forward_compatible = false;
-			input.messages = GLSLANG_MSG_DEFAULT_BIT;
-			input.resource = (const glslang_resource_t*)&glslang::DefaultTBuiltInResource;
-
-			glslang_shader_t* shader = glslang_shader_create(&input);
-
-			if (!glslang_shader_preprocess(shader, &input))
-			{
-				const char* infoLog = glslang_shader_get_info_log(shader);
-				const char* infoDebugLog = glslang_shader_get_info_debug_log(shader);
-
-				logger.Log("GLSL preprocessing failed\n");
-				logger.Log("%s\n", infoLog);
-				logger.Log("%s\n", infoDebugLog);
-
-				// TODO: Test these types of error if they need error markers.
-
-				return 0;
-			}
-
-			if (!glslang_shader_parse(shader, &input))
-			{
-				const char* infoLog = glslang_shader_get_info_log(shader);
-				const char* infoDebugLog = glslang_shader_get_info_debug_log(shader);
-
-				logger.Log("GLSL parsing failed\n");
-				logger.Log("%s\n", infoLog);
-				logger.Log("%s\n", infoDebugLog);
-
-				DisplayErrorMarkers(infoLog);
-
-				return 0;
-			}
-
-			glslang_program_t* program = glslang_program_create();
-			glslang_program_add_shader(program, shader);
-
-			if (!glslang_program_link(program, GLSLANG_MSG_SPV_RULES_BIT | GLSLANG_MSG_VULKAN_RULES_BIT))
-			{
-				logger.Log("GLSL parsing failed\n");
-				logger.Log("%s\n", glslang_shader_get_info_log(shader));
-				logger.Log("%s\n", glslang_shader_get_info_debug_log(shader));
-
-				return 0;
-			}
-
-			glslang_program_SPIRV_generate(program, stage);
-
-			SPIRV.resize(glslang_program_SPIRV_get_size(program));
-			glslang_program_SPIRV_get(program, SPIRV.data());
-
-			{
-				const char* spirv_messages = glslang_program_SPIRV_get_messages(program);
-
-				if (spirv_messages)
-				{
-					logger.Log("%s", spirv_messages);
-				}
-			}
-
-			glslang_program_delete(program);
-			glslang_shader_delete(shader);
-
-			return SPIRV.size();
-		}
-
-		std::string ReadShaderFile(const char* fileName)
-		{
-			FILE* file;
-			errno_t err = fopen_s(&file, fileName, "r");
-
-			if (err != 0)
-			{
-				// TOOD: To Log.
-				printf("I/O error. Cannot open shader file '%s'\n", fileName);
-				return std::string();
-			}
-
-			fseek(file, 0L, SEEK_END);
-			const auto bytesinfile = ftell(file);
-			fseek(file, 0L, SEEK_SET);
-
-			char* buffer = (char*)alloca(bytesinfile + 1);
-			const size_t bytesread = fread(buffer, 1, bytesinfile, file);
-			fclose(file);
-
-			buffer[bytesread] = 0;
-
-			static constexpr unsigned char BOM[] = { 0xEF, 0xBB, 0xBF };
-
-			if (bytesread > 3)
-			{
-				if (!memcmp(buffer, BOM, 3))
-				{
-					memset(buffer, ' ', 3);
-				}
-			}
-
-			std::string code(buffer);
-
-			while (code.find("#include ") != code.npos)
-			{
-				const auto pos = code.find("#include ");
-				const auto p1 = code.find('<', pos);
-				const auto p2 = code.find('>', pos);
-				if (p1 == code.npos || p2 == code.npos || p2 <= p1)
-				{
-					printf("Error while loading shader program: %s\n", code.c_str());
-					return std::string();
-				}
-				const std::string name = code.substr(p1 + 1, p2 - p1 - 1);
-				const std::string include = ReadShaderFile(name.c_str());
-				code.replace(pos, p2 - pos + 1, include.c_str());
-			}
-
-			return code;
-		}
-
 		void CreateShaders()
 		{
-			// TODO:!!!
-			auto vertShaderCodeGLSL = ReadShaderFile("C:/Dev/foton/src/shaders/fullscreen.vert");
-			auto fragShaderCodeGLSL = ReadShaderFile("C:/Dev/foton/src/shaders/default.frag");
+			CompileShaderResult vertexShaderCompileResult = ShaderCompiler::Compile(ShaderType::Vertex, "C:/Dev/foton/src/shaders/fullscreen.vert.glsl");
+			CompileShaderResult fragmentShaderCompileResult = ShaderCompiler::Compile(ShaderType::Fragment, "C:/Dev/foton/src/shaders/default.frag.glsl");
 
-			editor.SetText(fragShaderCodeGLSL);
+			if (vertexShaderCompileResult.Info)
+				fprintf(stderr, vertexShaderCompileResult.Info);
+			if (vertexShaderCompileResult.DebugInfo)
+				fprintf(stderr, vertexShaderCompileResult.DebugInfo);
 
-			std::vector<unsigned int> vertShaderCode;
-			FT_CHECK_MSG(CompileShader(GLSLANG_STAGE_VERTEX, vertShaderCodeGLSL.c_str(), vertShaderCode) >= 1, "Failed to compile vertex shader.");
+			if (fragmentShaderCompileResult.Info)
+				fprintf(stderr, fragmentShaderCompileResult.Info);
+			if (fragmentShaderCompileResult.DebugInfo)
+				fprintf(stderr, fragmentShaderCompileResult.DebugInfo);
 
-			std::vector<unsigned int> fragShaderCode;
-			FT_CHECK_MSG(CompileShader(GLSLANG_STAGE_FRAGMENT, fragShaderCodeGLSL.c_str(), fragShaderCode) >= 1, "Failed to compile fragment shader.");
+			FT_CHECK(vertexShaderCompileResult.Status == CompileShaderStatus::Success);
+			FT_CHECK(fragmentShaderCompileResult.Status == CompileShaderStatus::Success);
 
-			vertShaderModule = CreateShaderModule(vertShaderCode);
-			fragShaderModule = CreateShaderModule(fragShaderCode);
+			editor.SetText(fragmentShaderCompileResult.Code);
 
-			auto bindings = ReflectShaderCode(reinterpret_cast<const void*>(fragShaderCode.data()), 4 * fragShaderCode.size(), VK_SHADER_STAGE_FRAGMENT_BIT);
+			vertShaderModule = CreateShaderModule(vertexShaderCompileResult.ByteCode);
+			fragShaderModule = CreateShaderModule(fragmentShaderCompileResult.ByteCode);
+
+			auto bindings = ReflectShaderCode(reinterpret_cast<const void*>(fragmentShaderCompileResult.ByteCode.data()), sizeof(uint32_t) * fragmentShaderCompileResult.ByteCode.size(), VK_SHADER_STAGE_FRAGMENT_BIT);
 			CreateDescriptorSetLayout(bindings);
 		}
 
@@ -861,7 +738,7 @@ namespace FT
 			vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 			vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
 			vertShaderStageInfo.module = vertShaderModule;
-			vertShaderStageInfo.pName = "main";
+			vertShaderStageInfo.pName = "main"; // TODO: To define.
 
 			VkPipelineShaderStageCreateInfo fragShaderStageInfo{};
 			fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -1443,27 +1320,47 @@ namespace FT
 			{
 				if (ImGui::BeginMenu("File"))
 				{
-					// TOOD: Make shortcuts for these.
-					if (ImGui::MenuItem("Save"))
+					if (ImGui::MenuItem("New", "Ctrl-N"))
 					{
-						auto textToSave = editor.GetText();
-						// TODO: save text....
+						NFD::UniquePath codeFilePath;
+						SaveFileDialog(codeFilePath);
+						if (codeFilePath)
+						{
+							// TODO: Make new empty/default file and keep it open.
+						}
 					}
 
-					// TODO: Make "New" button.
-
-					if (ImGui::MenuItem("Open"))
+					if (ImGui::MenuItem("Open", "Ctrl-O"))
 					{
 						NFD::UniquePath codeFilePath;
 						OpenFileDialog(codeFilePath);
-						CreateShader_FromNFD(codeFilePath);
-						RecompileFragmentShader();
-						currentShaderFilePath.erase();
-						currentShaderFilePath = codeFilePath.get();
+						if (codeFilePath)
+						{
+							LoadShader(codeFilePath);
+							RecompileFragmentShader();
+							currentShaderFilePath.erase();
+							currentShaderFilePath = codeFilePath.get();
+						}
+					}
+
+					// TOOD: Make shortcuts for these.
+					if (ImGui::MenuItem("Save", "Ctrl-S"))
+					{
+						auto textToSave = editor.GetText();
+						// TODO: Just save contents of the current file.
+					}
+
+					// TOOD: Make shortcuts for these.
+					if (ImGui::MenuItem("Save As", "Ctrl-Shift-S"))
+					{
+						auto textToSave = editor.GetText();
+						// TODO: Make new file with current contents and keep it open.
 					}
 
 					if (ImGui::MenuItem("Quit", "Alt-F4"))
-						FT_FAIL("???"); // TODO: Quit
+					{
+						glfwSetWindowShouldClose(window, GLFW_TRUE);
+					}
 
 					ImGui::EndMenu();
 				}
@@ -1474,7 +1371,7 @@ namespace FT
 						editor.SetReadOnly(readOnly);
 					ImGui::Separator();
 
-					if (ImGui::MenuItem("Undo", "ALT-Backspace", nullptr, !readOnly && editor.CanUndo()))
+					if (ImGui::MenuItem("Undo", "Alt-Backspace", nullptr, !readOnly && editor.CanUndo()))
 						editor.Undo();
 					if (ImGui::MenuItem("Redo", "Ctrl-Y", nullptr, !readOnly && editor.CanRedo()))
 						editor.Redo();
@@ -1578,8 +1475,16 @@ namespace FT
 
 			auto fragShaderCodeGLSL = editor.GetText();
 
-			std::vector<unsigned int> fragShaderCode;
-			if (CompileShader(GLSLANG_STAGE_FRAGMENT, fragShaderCodeGLSL.c_str(), fragShaderCode) < 1)
+			CompileShaderResult fragmentShaderCompileResult = ShaderCompiler::Compile(ShaderLanguage::GLSL, ShaderType::Fragment, fragShaderCodeGLSL.c_str());
+
+			if (fragmentShaderCompileResult.Info)
+				fprintf(stderr, fragmentShaderCompileResult.Info);
+			if (fragmentShaderCompileResult.DebugInfo)
+				fprintf(stderr, fragmentShaderCompileResult.DebugInfo);
+
+			FT_CHECK(fragmentShaderCompileResult.Status == CompileShaderStatus::Success);
+
+			if (fragmentShaderCompileResult.Status != CompileShaderStatus::Success)
 			{
 				// TODO: Warning!
 				return;
@@ -1596,9 +1501,9 @@ namespace FT
 			// TODO: Use file name here instead.
 			logger.Log("Compilation of %s finished successfully.\n", currentShaderFilePath);
 
-			fragShaderModule = CreateShaderModule(fragShaderCode);
+			fragShaderModule = CreateShaderModule(fragmentShaderCompileResult.ByteCode);
 
-			auto bindings = ReflectShaderCode(reinterpret_cast<const void*>(fragShaderCode.data()), 4 * fragShaderCode.size(), VK_SHADER_STAGE_FRAGMENT_BIT);
+			auto bindings = ReflectShaderCode(reinterpret_cast<const void*>(fragmentShaderCompileResult.ByteCode.data()), sizeof(uint32_t) * fragmentShaderCompileResult.ByteCode.size(), VK_SHADER_STAGE_FRAGMENT_BIT);
 			CreateDescriptorSetLayout(bindings);
 
 			CreateGraphicsPipeline();
@@ -1606,18 +1511,22 @@ namespace FT
 		private:
 
 		// TODO: Refactor. No need for multiple methods with double code.
-		void CreateShader_FromNFD(const NFD::UniquePath& filePath)
+		void LoadShader(const NFD::UniquePath& filePath)
 		{
-			auto fragShaderCodeGLSL = ReadShaderFile(filePath.get());
+			CompileShaderResult fragmentShaderCompileResult = ShaderCompiler::Compile(ShaderType::Fragment, filePath.get());
 
-			editor.SetText(fragShaderCodeGLSL);
+			if (fragmentShaderCompileResult.Info)
+				fprintf(stderr, fragmentShaderCompileResult.Info);
+			if (fragmentShaderCompileResult.DebugInfo)
+				fprintf(stderr, fragmentShaderCompileResult.DebugInfo);
 
-			std::vector<unsigned int> fragShaderCode;
-			FT_CHECK_MSG(CompileShader(GLSLANG_STAGE_FRAGMENT, fragShaderCodeGLSL.c_str(), fragShaderCode) >= 1, "Failed to compile fragment shader.")
+			FT_CHECK(fragmentShaderCompileResult.Status == CompileShaderStatus::Success);
 
-			fragShaderModule = CreateShaderModule(fragShaderCode);
+			editor.SetText(fragmentShaderCompileResult.Code);
 
-			auto bindings = ReflectShaderCode(reinterpret_cast<const void*>(fragShaderCode.data()), 4 * fragShaderCode.size(), VK_SHADER_STAGE_FRAGMENT_BIT);
+			fragShaderModule = CreateShaderModule(fragmentShaderCompileResult.ByteCode);
+
+			auto bindings = ReflectShaderCode(reinterpret_cast<const void*>(fragmentShaderCompileResult.ByteCode.data()), sizeof(uint32_t) * fragmentShaderCompileResult.ByteCode.size(), VK_SHADER_STAGE_FRAGMENT_BIT);
 			CreateDescriptorSetLayout(bindings);
 		}
 
@@ -1697,12 +1606,12 @@ namespace FT
 		}
 
 		// TODO: Can we change shader without making new pipeline???
-		VkShaderModule CreateShaderModule(const std::vector<unsigned int>& code)
+		VkShaderModule CreateShaderModule(const std::vector<uint32_t>& code)
 		{
 			VkShaderModuleCreateInfo createInfo{};
 			createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-			createInfo.codeSize = 4 * code.size();
-			createInfo.pCode = reinterpret_cast<const uint32_t*>(code.data());
+			createInfo.codeSize = sizeof(uint32_t) * code.size();
+			createInfo.pCode = code.data();
 
 			VkShaderModule shaderModule;
 			FT_VK_CALL(vkCreateShaderModule(device, &createInfo, nullptr, &shaderModule));
@@ -2016,20 +1925,23 @@ namespace FT
 			editor.SetErrorMarkers(ems);
 		}
 
+		void SaveFileDialog(NFD::UniquePath& outPath)
+		{
+			nfdfilteritem_t filterItem[2] = { {"GLSL", "glsl"}, {"HLSL", "hlsl"} };
+
+			nfdresult_t result = NFD::SaveDialog(outPath, filterItem, 2);
+			if (result != NFD_OKAY && result != NFD_CANCEL)
+			{
+				// TODO: std::cout << "Error: " << NFD::GetError() << std::endl;
+			}
+		}
+
 		void OpenFileDialog(NFD::UniquePath& outPath)
 		{
-			nfdfilteritem_t filterItem[3] = { {"GLSL", "glsl"}, {"HLSL", "hlsl"} };
+			nfdfilteritem_t filterItem[2] = { {"GLSL", "glsl"}, {"HLSL", "hlsl"} };
 
-			nfdresult_t result = NFD::OpenDialog(outPath, filterItem, 3);
-			if (result == NFD_OKAY)
-			{
-				// TODO: std::cout << "Success." << std::endl << outPath.get() << std::endl;
-			}
-			else if (result == NFD_CANCEL)
-			{
-				// TODO: std::cout << "User pressed cancel." << std::endl;
-			}
-			else
+			nfdresult_t result = NFD::OpenDialog(outPath, filterItem, 2);
+			if (result != NFD_OKAY && result != NFD_CANCEL)
 			{
 				// TODO: std::cout << "Error: " << NFD::GetError() << std::endl;
 			}

@@ -2,7 +2,7 @@
 
 namespace FT
 {
-	class Logger
+	class ImGuiLogger
 	{
 	public:
 		void Log(const char* fmt, ...) IM_FMTARGS(2);

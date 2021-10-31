@@ -47,6 +47,13 @@ SETUP_GROUPS("${HEADER_FILES}")
 set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD 11)
 set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD_REQUIRED ON)
 
+# ???
+#if(CMAKE_COMPILER_IS_GNUCXX)
+#    add_definitions(-std=c++11)
+#elseif(${CMAKE_CXX_COMPILER_ID} MATCHES "Clang")
+#    add_definitions(-std=c++11)
+#endif()
+
 if (MSVC)
 	set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ${PROJECT_NAME})
 endif()
@@ -66,7 +73,8 @@ set(GLFW_DIR 3rdparty/src/glfw)
 add_subdirectory(${GLFW_DIR})
 target_include_directories(${PROJECT_NAME} PRIVATE ${GLFW_DIR}/include)
 target_link_libraries(${PROJECT_NAME} PRIVATE glfw)
-set_property(TARGET glfw PROPERTY FOLDER "3rdParty")
+set_property(TARGET glfw PROPERTY FOLDER "3rdParty/glfw")
+set_property(TARGET update_mappings PROPERTY FOLDER "3rdParty/glfw")
 
 # GLM
 set(GLM_DIR 3rdparty/src/glm)
@@ -74,7 +82,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE ${GLM_DIR})
 
 # GLSLANG
 set(ENABLE_GLSLANG_BINARIES OFF CACHE BOOL "")
-set(ENABLE_HLSL OFF CACHE BOOL "")
+set(ENABLE_HLSL ON CACHE BOOL "")
 set(ENABLE_CTEST OFF CACHE BOOL "")
 set(ENABLE_OPT OFF CACHE BOOL "")
 set(SKIP_GLSLANG_INSTALL ON CACHE BOOL "")
@@ -100,6 +108,7 @@ set_property(TARGET glslang-default-resource-limits PROPERTY FOLDER "3rdParty/gl
 set_property(TARGET MachineIndependent PROPERTY FOLDER "3rdParty/glslang")
 set_property(TARGET glslangValidator PROPERTY FOLDER "3rdParty/glslang")
 set_property(TARGET spirv-remap PROPERTY FOLDER "3rdParty/glslang")
+set_property(TARGET HLSL PROPERTY FOLDER "3rdParty/glslang")
 
 # SPIRV-Reflect
 set(SPIRV_REFLECT_DIR 3rdparty/src/SPIRV-Reflect)

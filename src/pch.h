@@ -10,9 +10,6 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
-#include <glslang_c_interface.h>
-#include <StandAlone/ResourceLimits.h>
-
 #include <spirv_reflect.h>
 
 #define GLM_FORCE_RADIANS

@@ -9,11 +9,11 @@
 			__debugbreak(); \
 		}
 
-#define FT_FAIL(message) FT_CHECK_MSG(0, message)
+#define FT_FAIL(fmt, ...) FT_CHECK_MSG(0, fmt, __VA_ARGS__)
 #else
 #	define FT_CHECK(condition)
-#	define FT_CHECK_MSG(condition, message)
-#	define FT_FAIL(message)
+#	define FT_CHECK_MSG(condition, fmt, ...)
+#	define FT_FAIL(fmt, ...)
 #endif
 
 #define FT_VK_CALL(call) \
