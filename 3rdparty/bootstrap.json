@@ -62,13 +62,5 @@
 			"url": "https://github.com/btzy/nativefiledialog-extended.git",
 			"revision": "800e880d335bc5af1fef757eac835161c7b93102"
 		}
-	},
-	{
-		"name": "optick",
-		"source": {
-			"type": "git",
-			"url": "https://github.com/bombomby/optick.git",
-			"revision": "88f498902e9abbd45369bd824ba63a159272b115"
-		}
 	}
 ]

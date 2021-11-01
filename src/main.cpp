@@ -1,3 +1,4 @@
+#include "pch.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
@@ -141,6 +142,7 @@ namespace FT
 
 		VkDescriptorPool descriptorPool;
 		std::vector<VkDescriptorSet> descriptorSets;
+		std::vector<VkDescriptorSetLayoutBinding> descriptorSetLayoutBindings;
 
 		std::vector<VkCommandBuffer> commandBuffers;
 
@@ -161,7 +163,8 @@ namespace FT
 		bool showImGui = true;
 		TextEditor editor;
 		ImGuiLogger logger;
-		std::string currentShaderFilePath = "new"; // TODO: Move to config.
+		std::string currentFragmentShaderFilePath = "new"; // TODO: Move to config.
+		ShaderLanguage currentFragmentShaderLanguage;
 
 		void InitializeWindow()
 		{
@@ -213,7 +216,7 @@ namespace FT
 			CreateTextureSampler();
 			CreateUniformBuffers();
 			CreateDescriptorPool();
-			CreateDescriptorSets();
+			CreateDescriptorSets(descriptorSetLayoutBindings);
 			InitializeCommandBuffers();
 			CreateSyncObjects();
 		}
@@ -459,7 +462,7 @@ namespace FT
 			CreateFramebuffers();
 			CreateUniformBuffers();
 			CreateDescriptorPool();
-			CreateDescriptorSets();
+			CreateDescriptorSets(descriptorSetLayoutBindings);
 			InitializeCommandBuffers();
 
 			imagesInFlight.resize(swapChainImages.size(), VK_NULL_HANDLE);
@@ -707,29 +710,26 @@ namespace FT
 
 		void CreateShaders()
 		{
-			CompileShaderResult vertexShaderCompileResult = ShaderCompiler::Compile(ShaderType::Vertex, "C:/Dev/foton/src/shaders/fullscreen.vert.glsl");
-			CompileShaderResult fragmentShaderCompileResult = ShaderCompiler::Compile(ShaderType::Fragment, "C:/Dev/foton/src/shaders/default.frag.glsl");
+			const char* vertexShaderFileName = "C:/Dev/foton/src/shaders/fullscreen.vert.hlsl";
+			std::string vertexShaderSourceCode = ShaderCompiler::ReadShaderFile(vertexShaderFileName);
+			ShaderLanguage vertexShaderLanguage = ShaderCompiler::GetShaderLanguageFromFileName(vertexShaderFileName);
+			CompileShaderResult vertexShaderCompileResult = ShaderCompiler::Compile(vertexShaderLanguage, ShaderType::Vertex, vertexShaderSourceCode, "main");
 
-			if (vertexShaderCompileResult.Info)
-				fprintf(stderr, vertexShaderCompileResult.Info);
-			if (vertexShaderCompileResult.DebugInfo)
-				fprintf(stderr, vertexShaderCompileResult.DebugInfo);
-
-			if (fragmentShaderCompileResult.Info)
-				fprintf(stderr, fragmentShaderCompileResult.Info);
-			if (fragmentShaderCompileResult.DebugInfo)
-				fprintf(stderr, fragmentShaderCompileResult.DebugInfo);
+			const char* fragmentShaderFileName = "C:/Dev/foton/src/shaders/default.frag.hlsl";
+			std::string fragmentShaderSourceCode = ShaderCompiler::ReadShaderFile(fragmentShaderFileName);
+			currentFragmentShaderLanguage = ShaderCompiler::GetShaderLanguageFromFileName(fragmentShaderFileName);
+			CompileShaderResult fragmentShaderCompileResult = ShaderCompiler::Compile(currentFragmentShaderLanguage, ShaderType::Fragment, fragmentShaderSourceCode, "main");
 
 			FT_CHECK(vertexShaderCompileResult.Status == CompileShaderStatus::Success);
 			FT_CHECK(fragmentShaderCompileResult.Status == CompileShaderStatus::Success);
 
-			editor.SetText(fragmentShaderCompileResult.Code);
+			editor.SetText(fragmentShaderSourceCode);
 
 			vertShaderModule = CreateShaderModule(vertexShaderCompileResult.ByteCode);
 			fragShaderModule = CreateShaderModule(fragmentShaderCompileResult.ByteCode);
 
-			auto bindings = ReflectShaderCode(reinterpret_cast<const void*>(fragmentShaderCompileResult.ByteCode.data()), sizeof(uint32_t) * fragmentShaderCompileResult.ByteCode.size(), VK_SHADER_STAGE_FRAGMENT_BIT);
-			CreateDescriptorSetLayout(bindings);
+			descriptorSetLayoutBindings = ReflectShaderCode(reinterpret_cast<const void*>(fragmentShaderCompileResult.ByteCode.data()), sizeof(uint32_t) * fragmentShaderCompileResult.ByteCode.size(), VK_SHADER_STAGE_FRAGMENT_BIT);
+			CreateDescriptorSetLayout(descriptorSetLayoutBindings);
 		}
 
 		void CreateGraphicsPipeline()
@@ -738,7 +738,7 @@ namespace FT
 			vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 			vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
 			vertShaderStageInfo.module = vertShaderModule;
-			vertShaderStageInfo.pName = "main"; // TODO: To define.
+			vertShaderStageInfo.pName = "main"; // TODO: ShaderCompiler needs this info too, so make sure it's linked properly.
 
 			VkPipelineShaderStageCreateInfo fragShaderStageInfo{};
 			fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -1080,7 +1080,7 @@ namespace FT
 			FT_VK_CALL(vkCreateDescriptorPool(device, &poolInfo, nullptr, &descriptorPool));
 		}
 
-		void CreateDescriptorSets()
+		void CreateDescriptorSets(const std::vector<VkDescriptorSetLayoutBinding>& bindings)
 		{
 			std::vector<VkDescriptorSetLayout> layouts(swapChainImages.size(), descriptorSetLayout);
 			VkDescriptorSetAllocateInfo allocInfo{};
@@ -1095,6 +1095,9 @@ namespace FT
 			// TODO: Recreate descriptor sets each time descriptor layout gets recreated.
 			for (size_t i = 0; i < swapChainImages.size(); ++i)
 			{
+				std::vector<VkWriteDescriptorSet> descriptorWrites(bindings.size());
+
+				// TODO: Temporary, until imgui support for shader properties gets implemented.
 				VkDescriptorBufferInfo bufferInfo{};
 				bufferInfo.buffer = uniformBuffers[i];
 				bufferInfo.offset = 0;
@@ -1105,23 +1108,17 @@ namespace FT
 				imageInfo.imageView = textureImageView;
 				imageInfo.sampler = textureSampler;
 
-				std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
-
-				descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-				descriptorWrites[0].dstSet = descriptorSets[i];
-				descriptorWrites[0].dstBinding = 0;
-				descriptorWrites[0].dstArrayElement = 0;
-				descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-				descriptorWrites[0].descriptorCount = 1;
-				descriptorWrites[0].pBufferInfo = &bufferInfo;
-
-				descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-				descriptorWrites[1].dstSet = descriptorSets[i];
-				descriptorWrites[1].dstBinding = 1;
-				descriptorWrites[1].dstArrayElement = 0;
-				descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-				descriptorWrites[1].descriptorCount = 1;
-				descriptorWrites[1].pImageInfo = &imageInfo;
+				for (uint32_t j = 0; j < bindings.size(); ++j)
+				{
+					descriptorWrites[j].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+					descriptorWrites[j].dstSet = descriptorSets[i];
+					descriptorWrites[j].dstBinding = bindings[j].binding;
+					descriptorWrites[j].dstArrayElement = 0;
+					descriptorWrites[j].descriptorType = bindings[j].descriptorType;
+					descriptorWrites[j].descriptorCount = 1;
+					descriptorWrites[j].pBufferInfo = &bufferInfo;
+					descriptorWrites[j].pImageInfo = &imageInfo;
+				}
 
 				vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
 			}
@@ -1323,7 +1320,7 @@ namespace FT
 					if (ImGui::MenuItem("New", "Ctrl-N"))
 					{
 						NFD::UniquePath codeFilePath;
-						SaveFileDialog(codeFilePath);
+						SaveShaderFileDialog(codeFilePath);
 						if (codeFilePath)
 						{
 							// TODO: Make new empty/default file and keep it open.
@@ -1333,13 +1330,13 @@ namespace FT
 					if (ImGui::MenuItem("Open", "Ctrl-O"))
 					{
 						NFD::UniquePath codeFilePath;
-						OpenFileDialog(codeFilePath);
+						OpenShaderFileDialog(codeFilePath);
 						if (codeFilePath)
 						{
 							LoadShader(codeFilePath);
 							RecompileFragmentShader();
-							currentShaderFilePath.erase();
-							currentShaderFilePath = codeFilePath.get();
+							currentFragmentShaderFilePath.erase();
+							currentFragmentShaderFilePath = codeFilePath.get();
 						}
 					}
 
@@ -1426,7 +1423,7 @@ namespace FT
 
 			// TODO: Refactor a bit.
 			char buf[128];
-			sprintf_s(buf, "%s###ShaderTitle", currentShaderFilePath.c_str());
+			sprintf_s(buf, "%s###ShaderTitle", currentFragmentShaderFilePath.c_str());
 
 			ImGui::Begin(buf, nullptr, ImGuiWindowFlags_HorizontalScrollbar);
 			ImGui::SetWindowSize(ImVec2(WIDTH, HEIGHT), ImGuiCond_FirstUseEver); // TODO: Change this!!!
@@ -1475,14 +1472,9 @@ namespace FT
 
 			auto fragShaderCodeGLSL = editor.GetText();
 
-			CompileShaderResult fragmentShaderCompileResult = ShaderCompiler::Compile(ShaderLanguage::GLSL, ShaderType::Fragment, fragShaderCodeGLSL.c_str());
-
-			if (fragmentShaderCompileResult.Info)
-				fprintf(stderr, fragmentShaderCompileResult.Info);
-			if (fragmentShaderCompileResult.DebugInfo)
-				fprintf(stderr, fragmentShaderCompileResult.DebugInfo);
-
-			FT_CHECK(fragmentShaderCompileResult.Status == CompileShaderStatus::Success);
+			// TODO: Cache shader lang?
+			// TODO: Recompile is using old compiler.
+			CompileShaderResult fragmentShaderCompileResult = ShaderCompiler::Compile(currentFragmentShaderLanguage, ShaderType::Fragment, fragShaderCodeGLSL.c_str(), "main");
 
 			if (fragmentShaderCompileResult.Status != CompileShaderStatus::Success)
 			{
@@ -1499,35 +1491,28 @@ namespace FT
 			}
 
 			// TODO: Use file name here instead.
-			logger.Log("Compilation of %s finished successfully.\n", currentShaderFilePath);
+			logger.Log("Compilation of %s finished successfully.\n", currentFragmentShaderFilePath);
 
 			fragShaderModule = CreateShaderModule(fragmentShaderCompileResult.ByteCode);
 
-			auto bindings = ReflectShaderCode(reinterpret_cast<const void*>(fragmentShaderCompileResult.ByteCode.data()), sizeof(uint32_t) * fragmentShaderCompileResult.ByteCode.size(), VK_SHADER_STAGE_FRAGMENT_BIT);
-			CreateDescriptorSetLayout(bindings);
+			descriptorSetLayoutBindings = ReflectShaderCode(reinterpret_cast<const void*>(fragmentShaderCompileResult.ByteCode.data()), sizeof(uint32_t) * fragmentShaderCompileResult.ByteCode.size(), VK_SHADER_STAGE_FRAGMENT_BIT);
+			CreateDescriptorSetLayout(descriptorSetLayoutBindings);
 
 			CreateGraphicsPipeline();
 		}
-		private:
+		private: // HACK:
 
 		// TODO: Refactor. No need for multiple methods with double code.
 		void LoadShader(const NFD::UniquePath& filePath)
 		{
-			CompileShaderResult fragmentShaderCompileResult = ShaderCompiler::Compile(ShaderType::Fragment, filePath.get());
-
-			if (fragmentShaderCompileResult.Info)
-				fprintf(stderr, fragmentShaderCompileResult.Info);
-			if (fragmentShaderCompileResult.DebugInfo)
-				fprintf(stderr, fragmentShaderCompileResult.DebugInfo);
+			const char* fragmentShaderFileName = filePath.get();
+			std::string fragmentShaderSourceCode = ShaderCompiler::ReadShaderFile(fragmentShaderFileName);
+			currentFragmentShaderLanguage = ShaderCompiler::GetShaderLanguageFromFileName(fragmentShaderFileName);
+			CompileShaderResult fragmentShaderCompileResult = ShaderCompiler::Compile(currentFragmentShaderLanguage, ShaderType::Fragment, fragmentShaderSourceCode, "main");
 
 			FT_CHECK(fragmentShaderCompileResult.Status == CompileShaderStatus::Success);
 
-			editor.SetText(fragmentShaderCompileResult.Code);
-
-			fragShaderModule = CreateShaderModule(fragmentShaderCompileResult.ByteCode);
-
-			auto bindings = ReflectShaderCode(reinterpret_cast<const void*>(fragmentShaderCompileResult.ByteCode.data()), sizeof(uint32_t) * fragmentShaderCompileResult.ByteCode.size(), VK_SHADER_STAGE_FRAGMENT_BIT);
-			CreateDescriptorSetLayout(bindings);
+			editor.SetText(fragmentShaderSourceCode);
 		}
 
 		void DrawFrame()
@@ -1625,11 +1610,19 @@ namespace FT
 			{
 			case SPV_REFLECT_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
 				return VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+
 			case SPV_REFLECT_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
 				return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+
+			case SPV_REFLECT_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
+				return VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+
+			case SPV_REFLECT_DESCRIPTOR_TYPE_SAMPLER:
+				return VK_DESCRIPTOR_TYPE_SAMPLER;
+
 			default:
 				// TODO: Print in logger that this binding type is not yet supported.
-				// TODO: ASSERT("Unsupported SpvReflectDescriptorBinding.");
+				FT_FAIL("Unsupported SpvReflectDescriptorBinding.");
 				return VK_DESCRIPTOR_TYPE_MAX_ENUM;
 			}
 		}
@@ -1907,6 +1900,7 @@ namespace FT
 			editor.SetErrorMarkers(ems);
 		}
 
+		// TOOD: BROKEN.
 		void DisplayErrorMarkers(const char* message)
 		{
 			// TODO: HACK!!!
@@ -1925,25 +1919,45 @@ namespace FT
 			editor.SetErrorMarkers(ems);
 		}
 
-		void SaveFileDialog(NFD::UniquePath& outPath)
+		// TODO: Move these things to separate file, since we will need this for texture files as well.
+		std::vector<nfdfilteritem_t> GetShaderFileExtensionFilter()
 		{
-			nfdfilteritem_t filterItem[2] = { {"GLSL", "glsl"}, {"HLSL", "hlsl"} };
+			static std::vector<nfdfilteritem_t> filterItems;
+			if (filterItems.size() > 0)
+			{
+				return filterItems;
+			}
 
-			nfdresult_t result = NFD::SaveDialog(outPath, filterItem, 2);
+			for (const auto& shaderFileExtension : ShaderFileExtensions)
+			{
+				nfdfilteritem_t filterItem;
+				filterItem.name = shaderFileExtension.Name.c_str();
+				filterItem.spec = shaderFileExtension.Extension.c_str();
+				filterItems.push_back(filterItem);
+			}
+
+			return filterItems;
+		}
+
+		void SaveShaderFileDialog(NFD::UniquePath& outPath)
+		{
+			const std::vector<nfdfilteritem_t> filterItems = GetShaderFileExtensionFilter();
+			const nfdresult_t result = NFD::SaveDialog(outPath, filterItems.data(), filterItems.size());
+
 			if (result != NFD_OKAY && result != NFD_CANCEL)
 			{
-				// TODO: std::cout << "Error: " << NFD::GetError() << std::endl;
+				FT_LOG(NFD::GetError());
 			}
 		}
 
-		void OpenFileDialog(NFD::UniquePath& outPath)
+		void OpenShaderFileDialog(NFD::UniquePath& outPath)
 		{
-			nfdfilteritem_t filterItem[2] = { {"GLSL", "glsl"}, {"HLSL", "hlsl"} };
+			const std::vector<nfdfilteritem_t> filterItems = GetShaderFileExtensionFilter();
+			const nfdresult_t result = NFD::OpenDialog(outPath, filterItems.data(), filterItems.size());
 
-			nfdresult_t result = NFD::OpenDialog(outPath, filterItem, 2);
 			if (result != NFD_OKAY && result != NFD_CANCEL)
 			{
-				// TODO: std::cout << "Error: " << NFD::GetError() << std::endl;
+				FT_LOG(NFD::GetError());
 			}
 		}
 
@@ -1955,7 +1969,7 @@ namespace FT
 			const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
 			void* pUserData)
 		{
-			// TODO: std::cerr << "validation layer: " << pCallbackData->pMessage << std::endl;
+			FT_LOG("validation layer: %s\n", pCallbackData->pMessage);
 			return VK_FALSE;
 		}
 	};

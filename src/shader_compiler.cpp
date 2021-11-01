@@ -1,17 +1,199 @@
 #include "shader_compiler.h"
 
-#include <glslang/Public/ShaderLang.h>
+#include <glslang/SPIRV/GlslangToSpv.h>
 
-#include <glslang_c_interface.h>
-#include <StandAlone/ResourceLimits.h>
+const TBuiltInResource DefaultTBuiltInResource = {
+	/* .MaxLights = */ 32,
+	/* .MaxClipPlanes = */ 6,
+	/* .MaxTextureUnits = */ 32,
+	/* .MaxTextureCoords = */ 32,
+	/* .MaxVertexAttribs = */ 64,
+	/* .MaxVertexUniformComponents = */ 4096,
+	/* .MaxVaryingFloats = */ 64,
+	/* .MaxVertexTextureImageUnits = */ 32,
+	/* .MaxCombinedTextureImageUnits = */ 80,
+	/* .MaxTextureImageUnits = */ 32,
+	/* .MaxFragmentUniformComponents = */ 4096,
+	/* .MaxDrawBuffers = */ 32,
+	/* .MaxVertexUniformVectors = */ 128,
+	/* .MaxVaryingVectors = */ 8,
+	/* .MaxFragmentUniformVectors = */ 16,
+	/* .MaxVertexOutputVectors = */ 16,
+	/* .MaxFragmentInputVectors = */ 15,
+	/* .MinProgramTexelOffset = */ -8,
+	/* .MaxProgramTexelOffset = */ 7,
+	/* .MaxClipDistances = */ 8,
+	/* .MaxComputeWorkGroupCountX = */ 65535,
+	/* .MaxComputeWorkGroupCountY = */ 65535,
+	/* .MaxComputeWorkGroupCountZ = */ 65535,
+	/* .MaxComputeWorkGroupSizeX = */ 1024,
+	/* .MaxComputeWorkGroupSizeY = */ 1024,
+	/* .MaxComputeWorkGroupSizeZ = */ 64,
+	/* .MaxComputeUniformComponents = */ 1024,
+	/* .MaxComputeTextureImageUnits = */ 16,
+	/* .MaxComputeImageUniforms = */ 8,
+	/* .MaxComputeAtomicCounters = */ 8,
+	/* .MaxComputeAtomicCounterBuffers = */ 1,
+	/* .MaxVaryingComponents = */ 60,
+	/* .MaxVertexOutputComponents = */ 64,
+	/* .MaxGeometryInputComponents = */ 64,
+	/* .MaxGeometryOutputComponents = */ 128,
+	/* .MaxFragmentInputComponents = */ 128,
+	/* .MaxImageUnits = */ 8,
+	/* .MaxCombinedImageUnitsAndFragmentOutputs = */ 8,
+	/* .MaxCombinedShaderOutputResources = */ 8,
+	/* .MaxImageSamples = */ 0,
+	/* .MaxVertexImageUniforms = */ 0,
+	/* .MaxTessControlImageUniforms = */ 0,
+	/* .MaxTessEvaluationImageUniforms = */ 0,
+	/* .MaxGeometryImageUniforms = */ 0,
+	/* .MaxFragmentImageUniforms = */ 8,
+	/* .MaxCombinedImageUniforms = */ 8,
+	/* .MaxGeometryTextureImageUnits = */ 16,
+	/* .MaxGeometryOutputVertices = */ 256,
+	/* .MaxGeometryTotalOutputComponents = */ 1024,
+	/* .MaxGeometryUniformComponents = */ 1024,
+	/* .MaxGeometryVaryingComponents = */ 64,
+	/* .MaxTessControlInputComponents = */ 128,
+	/* .MaxTessControlOutputComponents = */ 128,
+	/* .MaxTessControlTextureImageUnits = */ 16,
+	/* .MaxTessControlUniformComponents = */ 1024,
+	/* .MaxTessControlTotalOutputComponents = */ 4096,
+	/* .MaxTessEvaluationInputComponents = */ 128,
+	/* .MaxTessEvaluationOutputComponents = */ 128,
+	/* .MaxTessEvaluationTextureImageUnits = */ 16,
+	/* .MaxTessEvaluationUniformComponents = */ 1024,
+	/* .MaxTessPatchComponents = */ 120,
+	/* .MaxPatchVertices = */ 32,
+	/* .MaxTessGenLevel = */ 64,
+	/* .MaxViewports = */ 16,
+	/* .MaxVertexAtomicCounters = */ 0,
+	/* .MaxTessControlAtomicCounters = */ 0,
+	/* .MaxTessEvaluationAtomicCounters = */ 0,
+	/* .MaxGeometryAtomicCounters = */ 0,
+	/* .MaxFragmentAtomicCounters = */ 8,
+	/* .MaxCombinedAtomicCounters = */ 8,
+	/* .MaxAtomicCounterBindings = */ 1,
+	/* .MaxVertexAtomicCounterBuffers = */ 0,
+	/* .MaxTessControlAtomicCounterBuffers = */ 0,
+	/* .MaxTessEvaluationAtomicCounterBuffers = */ 0,
+	/* .MaxGeometryAtomicCounterBuffers = */ 0,
+	/* .MaxFragmentAtomicCounterBuffers = */ 1,
+	/* .MaxCombinedAtomicCounterBuffers = */ 1,
+	/* .MaxAtomicCounterBufferSize = */ 16384,
+	/* .MaxTransformFeedbackBuffers = */ 4,
+	/* .MaxTransformFeedbackInterleavedComponents = */ 64,
+	/* .MaxCullDistances = */ 8,
+	/* .MaxCombinedClipAndCullDistances = */ 8,
+	/* .MaxSamples = */ 4,
 
-std::string ReadShaderFile(std::string fileName)
+	/* .maxMeshOutputVerticesNV = */ 256,
+	/* .maxMeshOutputPrimitivesNV = */ 512,
+	/* .maxMeshWorkGroupSizeX_NV = */ 32,
+	/* .maxMeshWorkGroupSizeY_NV = */ 1,
+	/* .maxMeshWorkGroupSizeZ_NV = */ 1,
+	/* .maxTaskWorkGroupSizeX_NV = */ 32,
+	/* .maxTaskWorkGroupSizeY_NV = */ 1,
+	/* .maxTaskWorkGroupSizeZ_NV = */ 1,
+	/* .maxMeshViewCountNV = */ 4,
+	/* .maxDualSourceDrawBuffersEXT = */ 1,
+
+	/* .limits = */ {
+		/* .nonInductiveForLoops = */ 1,
+		/* .whileLoops = */ 1,
+		/* .doWhileLoops = */ 1,
+		/* .generalUniformIndexing = */ 1,
+		/* .generalAttributeMatrixVectorIndexing = */ 1,
+		/* .generalVaryingIndexing = */ 1,
+		/* .generalSamplerIndexing = */ 1,
+		/* .generalVariableIndexing = */ 1,
+		/* .generalConstantMatrixVectorIndexing = */ 1,
+	}
+};
+
+void FT::ShaderCompiler::Initialize()
+{
+	glslang::InitializeProcess();
+}
+
+void FT::ShaderCompiler::Termiante()
+{
+	glslang::FinalizeProcess();
+}
+
+// TODO: Implement when file shader file include feature is requested. Move to new file.
+class ShaderFileIncluder : public glslang::TShader::Includer
+{
+public:
+	ShaderFileIncluder()
+	{
+	}
+
+	virtual ~ShaderFileIncluder() override
+	{
+	}
+
+	virtual IncludeResult* includeLocal(const char* headerName, const char* includerName, size_t inclusionDepth) override
+	{
+		return nullptr;
+	}
+
+	virtual IncludeResult* includeSystem(const char* headerName, const char*, size_t) override
+	{
+		return nullptr;
+	}
+
+	virtual void pushExternalLocalDirectory(const std::string& dir)
+	{
+		return;
+	}
+
+	virtual void releaseInclude(IncludeResult* result) override
+	{
+		return;
+	}
+};
+
+glslang::EShSource GetGlslangShaderLanguageFrom(const FT::ShaderLanguage inShaderLanguage)
+{
+	switch (inShaderLanguage)
+	{
+	case FT::ShaderLanguage::GLSL:
+		return glslang::EShSourceGlsl;
+
+	case FT::ShaderLanguage::HLSL:
+		return glslang::EShSourceHlsl;
+
+	default:
+		FT_FAIL("Unsupported ShaderLanguage.");
+		return glslang::EShSourceCount;
+	}
+}
+
+EShLanguage GetGlslangShaderTypeFrom(const FT::ShaderType inShaderType)
+{
+	switch (inShaderType)
+	{
+	case FT::ShaderType::Vertex:
+		return EShLangVertex;
+
+	case FT::ShaderType::Fragment:
+		return EShLangFragment;
+
+	default:
+		FT_FAIL("Unsupported ShaderType.");
+		return EShLangCount;
+	}
+}
+
+std::string FT::ShaderCompiler::ReadShaderFile(std::string inFileName)
 {
 	FILE* file = nullptr;
-	errno_t errorCode = fopen_s(&file, fileName.c_str(), "r");
+	errno_t errorCode = fopen_s(&file, inFileName.c_str(), "r");
 	if (errorCode || file == nullptr)
 	{
-		return "";
+		FT_FAIL("Failed loading shader file %s.", inFileName.c_str());
+		return ""; // TODO: ???
 	}
 
 	fseek(file, 0L, SEEK_END);
@@ -27,153 +209,112 @@ std::string ReadShaderFile(std::string fileName)
 	return buffer;
 }
 
-glslang_source_t GetGlslangSourceFrom(const FT::ShaderLanguage language)
+std::string GetShaderExtensionFrom(const std::string inFileName)
 {
+	static const uint32_t ShaderFileExtensionSize = 4;
+	std::string fileExtension = inFileName.substr(inFileName.size() - ShaderFileExtensionSize);
 
-	switch (language)
-	{
-	case FT::ShaderLanguage::GLSL:
-		return GLSLANG_SOURCE_GLSL;
-
-	case FT::ShaderLanguage::HLSL:
-		return GLSLANG_SOURCE_HLSL;
-
-	default:
-		FT_FAIL("Unsupported ShaderLanguage.");
-		return GLSLANG_SOURCE_COUNT;
-	}
-}
-
-glslang_stage_t GetGlslangStageFrom(const FT::ShaderType type)
-{
-	switch (type)
-	{
-	case FT::ShaderType::Vertex:
-		return GLSLANG_STAGE_VERTEX;
-
-	case FT::ShaderType::Fragment:
-		return GLSLANG_STAGE_FRAGMENT;
-
-	default:
-		FT_FAIL("Unsupported ShaderStage.");
-		return GLSLANG_STAGE_COUNT;
-	}
-}
-
-FT::ShaderLanguage GetShaderLanguageFrom(std::string fileName)
-{
-	static const uint32_t ShaderFileExtensionSize = 5;
-
-	std::string extension = fileName.substr(fileName.size() - ShaderFileExtensionSize);
-	std::for_each(extension.begin(), extension.end(), [](char& c)
+	std::for_each(fileExtension.begin(), fileExtension.end(), [](char& character)
 		{
-			c = ::tolower(c);
+			character = ::tolower(character);
 		});
 
-	if (!extension.compare(".glsl"))
+	return fileExtension;
+}
+
+FT::ShaderLanguage FT::ShaderCompiler::GetShaderLanguageFromFileName(const std::string inFileName)
+{
+	const std::string fileExtension = GetShaderExtensionFrom(inFileName);
+
+	for (const auto& possibleFileExtension : FT::ShaderFileExtensions)
 	{
-		return FT::ShaderLanguage::GLSL;
+		if (!fileExtension.compare(possibleFileExtension.Extension))
+		{
+			return possibleFileExtension.Language;
+		}
 	}
 
-	if (!extension.compare(".hlsl"))
-	{
-		return FT::ShaderLanguage::HLSL;
-	}
-
-	FT_FAIL("Unsupported %s shader file extension.", extension.c_str());
+	FT_FAIL("Unsupported %s shader file extension.", fileExtension.c_str());
 	return FT::ShaderLanguage::Count;
 }
 
-void FT::ShaderCompiler::Initialize()
+FT::CompileShaderResult FT::ShaderCompiler::Compile(const ShaderLanguage inShaderLanguage, const ShaderType inShaderType,
+	const std::string inSourceCode, const std::string& inCodeEntry)
 {
-	glslang_initialize_process();
-}
+	const EShLanguage shaderType = GetGlslangShaderTypeFrom(inShaderType);
+	glslang::TShader shader(shaderType);
+	shader.setEntryPoint(inCodeEntry.c_str());
+	shader.setSourceEntryPoint(inCodeEntry.c_str());
 
-void FT::ShaderCompiler::Termiante()
-{
-	glslang_finalize_process();
-}
+	const char* sourceCode = inSourceCode.c_str();
+	shader.setStrings(&sourceCode, 1);
 
-FT::CompileShaderResult FT::ShaderCompiler::Compile(const ShaderLanguage language, const ShaderType type, const std::string source)
-{
-	glslang_stage_t stage = GetGlslangStageFrom(type);
-	static const int DefaultVersion = 330;
+	const static glslang::EShSource shaderLanguage = GetGlslangShaderLanguageFrom(inShaderLanguage);
+	const static glslang::EShClient client = glslang::EShClientVulkan;
+	const static int version = 330;
+	shader.setEnvInput(shaderLanguage, shaderType, client, version);
 
-	glslang_input_t input{};
-	input.language = GetGlslangSourceFrom(language);
-	input.stage = stage;
-	input.client = GLSLANG_CLIENT_VULKAN;
-	input.client_version = GLSLANG_TARGET_VULKAN_1_0;
-	input.target_language = GLSLANG_TARGET_SPV;
-	input.target_language_version = GLSLANG_TARGET_SPV_1_0;
-	input.code = source.c_str();
-	input.default_version = DefaultVersion;
-	input.default_profile = GLSLANG_NO_PROFILE;
-	input.force_default_version_and_profile = false;
-	input.forward_compatible = false;
-	input.messages = GLSLANG_MSG_DEFAULT_BIT;
-	input.resource = (const glslang_resource_t*)&glslang::DefaultTBuiltInResource;
+	const static glslang::EShTargetClientVersion targetClientVersion = glslang::EShTargetVulkan_1_0;
+	shader.setEnvClient(client, targetClientVersion);
 
-	glslang_shader_t* shader = glslang_shader_create(&input);
+	const static glslang::EShTargetLanguageVersion targetLanguageVersion = glslang::EShTargetSpv_1_0;
+	shader.setEnvTarget(glslang::EShTargetSpv, targetLanguageVersion);
 
-	if (!glslang_shader_preprocess(shader, &input))
+	const static TBuiltInResource buildResource = DefaultTBuiltInResource;
+	const static int defaultVersion = version;
+
+	EShMessages messages = (EShMessages)(EShMsgSpvRules | EShMsgKeepUncalled);
+	std::string preprocessedShader;
+	ShaderFileIncluder fileIncluder;
+
+	if (!shader.preprocess(&buildResource, defaultVersion, ENoProfile, false, false, messages, &preprocessedShader, fileIncluder))
 	{
+		FT_LOG(shader.getInfoLog());
+
 		CompileShaderResult result{};
 		result.Status = CompileShaderStatus::PreprocessingFailed;
-		result.Info = glslang_shader_get_info_log(shader);
-		result.DebugInfo = glslang_shader_get_info_debug_log(shader);
 		return result;
 	}
 
-	if (!glslang_shader_parse(shader, &input))
+	const char* preprocessedShaderCode = preprocessedShader.c_str();
+	shader.setStrings(&preprocessedShaderCode, 1);
+	shader.setAutoMapLocations(true);
+
+	if (!shader.parse(&buildResource, defaultVersion, false, messages))
 	{
+		FT_LOG(shader.getInfoLog());
+
 		CompileShaderResult result{};
 		result.Status = CompileShaderStatus::ParsingFailed;
-		result.Info = glslang_shader_get_info_log(shader);
-		result.DebugInfo = glslang_shader_get_info_debug_log(shader);
 		return result;
 	}
 
-	glslang_program_t* program = glslang_program_create();
-	glslang_program_add_shader(program, shader);
+	glslang::TProgram shaderProgram;
+	shaderProgram.addShader(&shader);
 
-	if (!glslang_program_link(program, GLSLANG_MSG_SPV_RULES_BIT | GLSLANG_MSG_VULKAN_RULES_BIT))
+	if (!shaderProgram.link(messages))
 	{
+		FT_LOG(shader.getInfoLog());
+
 		CompileShaderResult result{};
 		result.Status = CompileShaderStatus::LinkingFailed;
-		result.Info = glslang_shader_get_info_log(shader);
-		result.DebugInfo = glslang_shader_get_info_debug_log(shader);
 		return result;
 	}
 
-	glslang_program_SPIRV_generate(program, stage);
+	spv::SpvBuildLogger spvBuildLogger;
+
+	glslang::SpvOptions spvOptions;
+	spvOptions.optimizeSize = false;
+	spvOptions.disableOptimizer = true;
+	spvOptions.generateDebugInfo = true;
+	spvOptions.validate = true;
 
 	CompileShaderResult result{};
-	result.Code = source;
+	const glslang::TIntermediate* intermediate = shaderProgram.getIntermediate(shaderType);
+	glslang::GlslangToSpv(*intermediate, result.ByteCode, &spvBuildLogger, &spvOptions);
 
-	const size_t programSize = glslang_program_SPIRV_get_size(program);
-	result.ByteCode.resize(programSize);
-	glslang_program_SPIRV_get(program, result.ByteCode.data());
+	FT_LOG(spvBuildLogger.getAllMessages().c_str());
 
-	result.Info = glslang_program_SPIRV_get_messages(program);
-
-	glslang_program_delete(program);
-	glslang_shader_delete(shader);
-
+	result.Status = CompileShaderStatus::Success;
 	return result;
-}
-
-FT::CompileShaderResult FT::ShaderCompiler::Compile(const ShaderType type, const std::string fileName)
-{
-	ShaderLanguage language = GetShaderLanguageFrom(fileName);
-
-	const std::string source = ReadShaderFile(fileName);
-	if (source.empty())
-	{
-		CompileShaderResult result{};
-		result.Status = CompileShaderStatus::FileLoadingFailed;
-		return result;
-	}
-
-	return Compile(language, type, source);
 }

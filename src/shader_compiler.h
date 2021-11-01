@@ -2,12 +2,27 @@
 
 namespace FT
 {
+	// TOOD: Make some order here. Move some general stuff to other files.
+
 	enum class ShaderLanguage : uint8_t
 	{
 		GLSL,
 		HLSL,
 
 		Count
+	};
+
+	struct ShaderFileExtension
+	{
+		ShaderLanguage Language;
+		std::string Extension;
+		std::string Name;
+	};
+
+	const ShaderFileExtension ShaderFileExtensions[] =
+	{
+		{ ShaderLanguage::GLSL, "glsl", "Graphics Library Shading Language"},
+		{ ShaderLanguage::HLSL, "hlsl", "High-Level Shader Language"}
 	};
 
 	enum class ShaderType : uint8_t
@@ -21,11 +36,9 @@ namespace FT
 	enum class CompileShaderStatus : uint8_t
 	{
 		Success,
-		FileLoadingFailed,
 		PreprocessingFailed,
 		ParsingFailed,
 		LinkingFailed,
-		IncorrectByteCode,
 
 		Count
 	};
@@ -33,18 +46,20 @@ namespace FT
 	struct CompileShaderResult
 	{
 		CompileShaderStatus Status;
-		std::string Code;
 		std::vector<uint32_t> ByteCode;
-		const char* Info = nullptr;
-		const char* DebugInfo = nullptr;
 	};
 
-	struct ShaderCompiler
+	namespace ShaderCompiler
 	{
-		static void Initialize();
-		static void Termiante();
+		void Initialize();
+		void Termiante();
 
-		static CompileShaderResult Compile(const ShaderLanguage language, const ShaderType type, const std::string source);
-		static CompileShaderResult Compile(const ShaderType type, const std::string fileName);
-	};
+		// TODO: Is this supposed to be in a ShaderCompiler???
+		std::string ReadShaderFile(std::string inFileName);
+		ShaderLanguage GetShaderLanguageFromFileName(const std::string inFileName);
+		// ------------------------------------------------ //
+
+		CompileShaderResult Compile(const ShaderLanguage inShaderLanguage, const ShaderType inShaderType,
+			const std::string inSourceCode, const std::string& inCodeEntry);
+	}
 }

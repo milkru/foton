@@ -1,5 +1,7 @@
 #pragma once
 
+#define FT_LOG(fmt, ...) do { fprintf(stdout, fmt, __VA_ARGS__); } while(0)
+
 namespace FT
 {
 	class ImGuiLogger

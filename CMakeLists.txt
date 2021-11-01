@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(Foton CXX)
+project(Foton)
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
@@ -47,13 +47,6 @@ SETUP_GROUPS("${HEADER_FILES}")
 set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD 11)
 set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD_REQUIRED ON)
 
-# ???
-#if(CMAKE_COMPILER_IS_GNUCXX)
-#    add_definitions(-std=c++11)
-#elseif(${CMAKE_CXX_COMPILER_ID} MATCHES "Clang")
-#    add_definitions(-std=c++11)
-#endif()
-
 if (MSVC)
 	set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ${PROJECT_NAME})
 endif()
@@ -81,33 +74,25 @@ set(GLM_DIR 3rdparty/src/glm)
 target_include_directories(${PROJECT_NAME} PRIVATE ${GLM_DIR})
 
 # GLSLANG
-set(ENABLE_GLSLANG_BINARIES OFF CACHE BOOL "")
-set(ENABLE_HLSL ON CACHE BOOL "")
-set(ENABLE_CTEST OFF CACHE BOOL "")
-set(ENABLE_OPT OFF CACHE BOOL "")
-set(SKIP_GLSLANG_INSTALL ON CACHE BOOL "")
 set(GLSLANG_DIR 3rdparty/src/glslang)
-
-# !!!!!!!!!!!!!!!! FIX ME !!!!!!!!!!!!!!!!!!
-add_compile_definitions(ENABLE_OPT=0)
+set(ENABLE_SPVREMAPPER OFF CACHE BOOL "")
+set(ENABLE_GLSLANG_BINARIES OFF CACHE BOOL "")
+set(ENABLE_CTEST OFF CACHE BOOL "")
 
 add_subdirectory(${GLSLANG_DIR})
-add_subdirectory(${GLSLANG_DIR}/StandAlone)
+
+target_include_directories(${PROJECT_NAME} PRIVATE ${GLSLANG_DIR})
+target_include_directories(${PROJECT_NAME} PRIVATE ${GLSLANG_DIR}/src)
 target_include_directories(${PROJECT_NAME} PRIVATE ${GLSLANG_DIR}/glslang/Include)
-target_include_directories(glslang PRIVATE ${GLSLANG_DIR})
-target_include_directories(glslang PRIVATE ${GLSLANG_DIR}/src)
-target_link_libraries(${PROJECT_NAME} PRIVATE glslang SPIRV glslang-default-resource-limits)
+target_include_directories(${PROJECT_NAME} PRIVATE ${GLSLANG_DIR}/StandAlone)
+target_link_libraries(${PROJECT_NAME} PRIVATE glslang SPIRV)
 
 set_property(TARGET glslang PROPERTY FOLDER "3rdParty/glslang")
 set_property(TARGET OGLCompiler PROPERTY FOLDER "3rdParty/glslang")
 set_property(TARGET OSDependent PROPERTY FOLDER "3rdParty/glslang")
 set_property(TARGET SPIRV PROPERTY FOLDER "3rdParty/glslang")
 set_property(TARGET GenericCodeGen PROPERTY FOLDER "3rdParty/glslang")
-set_property(TARGET SPVRemapper PROPERTY FOLDER "3rdParty/glslang")
-set_property(TARGET glslang-default-resource-limits PROPERTY FOLDER "3rdParty/glslang")
 set_property(TARGET MachineIndependent PROPERTY FOLDER "3rdParty/glslang")
-set_property(TARGET glslangValidator PROPERTY FOLDER "3rdParty/glslang")
-set_property(TARGET spirv-remap PROPERTY FOLDER "3rdParty/glslang")
 set_property(TARGET HLSL PROPERTY FOLDER "3rdParty/glslang")
 
 # SPIRV-Reflect
@@ -154,12 +139,3 @@ add_subdirectory(${NFD_DIR})
 target_include_directories(${PROJECT_NAME} PRIVATE ${NFD_DIR}/src/include)
 target_link_libraries(${PROJECT_NAME} PRIVATE nfd)
 set_property(TARGET nfd PROPERTY FOLDER "3rdParty")
-
-# Optick
-set(OPTICK_DIR 3rdparty/src/optick)
-add_definitions(-DBUILD_WITH_OPTICK=1)
-
-add_subdirectory(${OPTICK_DIR})
-target_include_directories(${PROJECT_NAME} PRIVATE ${OPTICK_DIR}/src/optick/src)
-target_link_libraries(${PROJECT_NAME} PRIVATE OptickCore)
-set_property(TARGET OptickCore PROPERTY FOLDER "3rdParty")
