@@ -10,8 +10,6 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
-#include <spirv_reflect.h>
-
 #define GLM_FORCE_RADIANS
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -19,12 +17,11 @@
 #define NFD_THROWS_EXCEPTIONS
 #include <nfd.hpp>
 
-// TODO: Strip down some of these includes.
-#include <algorithm>
+#include <algorithm> // TODO: Needed?
 #include <chrono>
 #include <vector>
-#include <array>
-#include <set>
+#include <array> // TOOD: Use it more if the vector size is set.
+#include <set> // TODO: Needed?
 
 #include "utils/assert.hpp"
 #include "utils/log.h"

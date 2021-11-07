@@ -3,20 +3,15 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
-#include "shader_compiler.h"
-
-// FRAGMENT SHADER PROTOTYPER - If we add custom mesh support?
+#include "Shader.h"
+#include "ShaderCompiler.h"
 
 // TODO: If you want to create a new shader, save it immediatelly with nfd, so we have a name.
-
 // TODO: Add all relevant messages to logger, like: "shader loaded successfully" etc.
 
 // TOOD: Since transparent window background blending with the viewport is really bad, make it completely transparent and emulate blending somehow.
 // TODO: There is literally no need for multiple opened shaders in tabs. Scrap that.
 // TODO: Separate Runtime and Editor?
-
-// TODO: Add language definitions to editor: static const LanguageDefinition& HLSL();
-// TODO: Add language definitions to editor: static const LanguageDefinition& GLSL();
 
 namespace FT
 {
@@ -37,35 +32,16 @@ namespace FT
 		VK_KHR_SWAPCHAIN_EXTENSION_NAME
 	};
 
+	const char* ApplicationName = "Foton";
+	const char* VertexShaderCodeEntry = "main";
+	const char* FragmentShaderCodeEntry = "main"; // TOOD: Allow user to change this one.
+
 	// TODO: FT_DEBUG
-	#ifdef NDEBUG
+#ifdef NDEBUG
 	const bool enableValidationLayers = false;
-	#else
+#else
 	const bool enableValidationLayers = true;
-	#endif
-
-	// TODO: Can't we just inplace these two?
-	VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger)
-	{
-		auto func = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
-		if (func != nullptr)
-		{
-			return func(instance, pCreateInfo, pAllocator, pDebugMessenger);
-		}
-		else
-		{
-			return VK_ERROR_EXTENSION_NOT_PRESENT;
-		}
-	}
-
-	void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator)
-	{
-		auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
-		if (func != nullptr)
-		{
-			func(instance, debugMessenger, pAllocator);
-		}
-	}
+#endif
 
 	struct SwapChainSupportDetails
 	{
@@ -85,16 +61,14 @@ namespace FT
 	void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
 	void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 
-	// TODO: using uint32_t uint
 	// TODO: Change the name to vulkancore and move it to another file.
 	// TODO: To Hungarian notation?
 	class Renderer
 	{
-		// TOOD: Move open brackets to new line.
 	public:
 		void Run()
 		{
-			ShaderCompiler::Initialize();
+			FT_CHECK_MSG(InitializeShaderCompiler(), "Glslang not initialized properly.");
 			InitializeWindow();
 			InitializeNFD();
 			InitializeVulkan();
@@ -105,7 +79,7 @@ namespace FT
 
 	private:
 		GLFWwindow* window;
-		NFD::Guard* nfd;
+		NFD::Guard* nfdHandle;
 
 		VkInstance instance;
 		VkDebugUtilsMessengerEXT debugMessenger;
@@ -123,11 +97,12 @@ namespace FT
 		std::vector<VkImageView> swapChainImageViews;
 		std::vector<VkFramebuffer> swapChainFramebuffers;
 
+		Shader* m_VertexShader = nullptr;
+		Shader* m_FragmentShader = nullptr;
+
 		VkRenderPass renderPass;
 		VkDescriptorSetLayout descriptorSetLayout = VK_NULL_HANDLE;
 		VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;
-		VkShaderModule vertShaderModule;
-		VkShaderModule fragShaderModule = VK_NULL_HANDLE;
 		VkPipeline graphicsPipeline = VK_NULL_HANDLE;
 
 		VkCommandPool commandPool;
@@ -163,7 +138,6 @@ namespace FT
 		bool showImGui = true;
 		TextEditor editor;
 		ImGuiLogger logger;
-		std::string currentFragmentShaderFilePath = "new"; // TODO: Move to config.
 		ShaderLanguage currentFragmentShaderLanguage;
 
 		void InitializeWindow()
@@ -174,7 +148,7 @@ namespace FT
 			glfwWindowHint(GLFW_MAXIMIZED, GLFW_TRUE);
 			glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
 
-			window = glfwCreateWindow(WIDTH, HEIGHT, "Foton", nullptr, nullptr);
+			window = glfwCreateWindow(WIDTH, HEIGHT, ApplicationName, nullptr, nullptr);
 			glfwSetWindowUserPointer(window, this);
 			glfwSetFramebufferSizeCallback(window, FramebufferResizeCallback);
 
@@ -186,9 +160,14 @@ namespace FT
 
 		void InitializeNFD()
 		{
-			// TODO: Is this to correct usage?
-			// TODO: After added NFD_THROWS_EXCEPTIONS define, this will throw a runtime exception if it's not initialized correctly. Handle it properly.
-			nfd = new NFD::Guard();
+			try
+			{
+				nfdHandle = new NFD::Guard();
+			}
+			catch (const std::runtime_error& error)
+			{
+				FT_FAIL("Unable to initialize NativeFileDialog.");
+			}
 		}
 
 		static void FramebufferResizeCallback(GLFWwindow* window, int width, int height)
@@ -221,7 +200,7 @@ namespace FT
 			CreateSyncObjects();
 		}
 
-		void ImGuiStyle2()
+		void ApplyImGuiStyle()
 		{
 			ImGuiStyle* style = &ImGui::GetStyle();
 			ImVec4* colors = style->Colors;
@@ -286,62 +265,61 @@ namespace FT
 
 		void InitializeImGui()
 		{
-			VkDescriptorPoolSize pool_sizes[] =
+			const static uint32_t resourceCount = 512;
+			VkDescriptorPoolSize descriptorPoolSIzes[] =
 			{
-				{ VK_DESCRIPTOR_TYPE_SAMPLER, 512 },
-				{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 512 },
-				{ VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 512 },
-				{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 512 },
-				{ VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 512 },
-				{ VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 512 },
-				{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 512 },
-				{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 512 },
-				{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 512 },
-				{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 512 },
-				{ VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 512 }
+				{ VK_DESCRIPTOR_TYPE_SAMPLER, resourceCount },
+				{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, resourceCount },
+				{ VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, resourceCount },
+				{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, resourceCount },
+				{ VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, resourceCount },
+				{ VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, resourceCount },
+				{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, resourceCount },
+				{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, resourceCount },
+				{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, resourceCount },
+				{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, resourceCount },
+				{ VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, resourceCount }
 			};
 
-			VkDescriptorPoolCreateInfo pool_info = {};
-			pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-			pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
-			// TODO: Same here.
-			pool_info.maxSets = 512;
-			pool_info.poolSizeCount = static_cast<uint32_t>(std::size(pool_sizes));
-			pool_info.pPoolSizes = pool_sizes;
+			VkDescriptorPoolCreateInfo descriptorPoolInfo{};
+			descriptorPoolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+			descriptorPoolInfo.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+			descriptorPoolInfo.maxSets = resourceCount;
+			descriptorPoolInfo.poolSizeCount = static_cast<uint32_t>(std::size(descriptorPoolSIzes));
+			descriptorPoolInfo.pPoolSizes = descriptorPoolSIzes;
 
-			FT_VK_CALL(vkCreateDescriptorPool(device, &pool_info, nullptr, &imguiDescPool));
+			FT_VK_CALL(vkCreateDescriptorPool(device, &descriptorPoolInfo, nullptr, &imguiDescPool));
 
 			IMGUI_CHECKVERSION();
 			ImGui::CreateContext();
 
-			ImGuiIO& io = ImGui::GetIO(); (void)io;
+			ImGuiIO& io = ImGui::GetIO();
 			io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
 			ImGui_ImplGlfw_InitForVulkan(window, true);
 
-			ImGui_ImplVulkan_InitInfo init_info = {};
-			init_info.Instance = instance;
-			init_info.PhysicalDevice = physicalDevice;
-			init_info.Device = device;
-			init_info.QueueFamily = graphicsQueueFamilyIndex;
-			init_info.Queue = graphicsQueue;
-			init_info.PipelineCache = VK_NULL_HANDLE;
-			init_info.DescriptorPool = imguiDescPool;
-			init_info.Allocator = nullptr;
-			init_info.MinImageCount = swapchainImageCount;
-			init_info.ImageCount = swapchainImageCount;
-			init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
+			ImGui_ImplVulkan_InitInfo vulkanImplementationInitInfo{};
+			vulkanImplementationInitInfo.Instance = instance;
+			vulkanImplementationInitInfo.PhysicalDevice = physicalDevice;
+			vulkanImplementationInitInfo.Device = device;
+			vulkanImplementationInitInfo.QueueFamily = graphicsQueueFamilyIndex;
+			vulkanImplementationInitInfo.Queue = graphicsQueue;
+			vulkanImplementationInitInfo.PipelineCache = VK_NULL_HANDLE;
+			vulkanImplementationInitInfo.DescriptorPool = imguiDescPool;
+			vulkanImplementationInitInfo.Allocator = nullptr;
+			vulkanImplementationInitInfo.MinImageCount = swapchainImageCount;
+			vulkanImplementationInitInfo.ImageCount = swapchainImageCount;
+			vulkanImplementationInitInfo.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
 
-			ImGui_ImplVulkan_Init(&init_info, renderPass);
+			ImGui_ImplVulkan_Init(&vulkanImplementationInitInfo, renderPass);
 
-			// Font
-			VkCommandBuffer command_buffer = beginSingleTimeCommands();
-			ImGui_ImplVulkan_CreateFontsTexture(command_buffer);
-			endSingleTimeCommands(command_buffer);
+			VkCommandBuffer commandBuffer = beginSingleTimeCommands();
+			ImGui_ImplVulkan_CreateFontsTexture(commandBuffer);
+			EndSingleTimeCommands(commandBuffer);
 
 			ImGui_ImplVulkan_DestroyFontUploadObjects();
 
-			ImGuiStyle2();
+			ApplyImGuiStyle();
 		}
 
 		void MainLoop()
@@ -354,7 +332,7 @@ namespace FT
 			
 				if (showImGui)
 				{
-					imguiNewFrame();
+					ImguiNewFrame();
 				}
 
 				DrawFrame();
@@ -363,9 +341,9 @@ namespace FT
 			vkDeviceWaitIdle(device);
 		}
 
-		void cleanupSwapChain()
+		void CleanupSwapChain()
 		{
-			for (auto framebuffer : swapChainFramebuffers)
+			for (const auto& framebuffer : swapChainFramebuffers)
 			{
 				vkDestroyFramebuffer(device, framebuffer, nullptr);
 			}
@@ -376,7 +354,7 @@ namespace FT
 			vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
 			vkDestroyRenderPass(device, renderPass, nullptr);
 
-			for (auto imageView : swapChainImageViews)
+			for (const auto& imageView : swapChainImageViews)
 			{
 				vkDestroyImageView(device, imageView, nullptr);
 			}
@@ -394,10 +372,10 @@ namespace FT
 
 		void Cleanup()
 		{
-			vkDestroyShaderModule(device, fragShaderModule, nullptr);
-			vkDestroyShaderModule(device, vertShaderModule, nullptr);
+			delete(m_FragmentShader);
+			delete(m_VertexShader);
 
-			cleanupSwapChain();
+			CleanupSwapChain();
 
 			ImGui_ImplVulkan_Shutdown();
 			ImGui_ImplGlfw_Shutdown();
@@ -425,23 +403,24 @@ namespace FT
 
 			if (enableValidationLayers)
 			{
-				DestroyDebugUtilsMessengerEXT(instance, debugMessenger, nullptr);
+				const auto vkDestroyDebugUtilsMessengerEXT = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
+				FT_CHECK_MSG(vkDestroyDebugUtilsMessengerEXT != nullptr, "Unable to get vkDestroyDebugUtilsMessengerEXT extension function.");
+				vkDestroyDebugUtilsMessengerEXT(instance, debugMessenger, nullptr);
 			}
 
 			vkDestroySurfaceKHR(instance, surface, nullptr);
 			vkDestroyInstance(instance, nullptr);
 
-			// TODO: Is this to correct usage?
-			delete(nfd);
+			delete(nfdHandle);
 
 			glfwDestroyWindow(window);
 
 			glfwTerminate();
 
-			ShaderCompiler::Termiante();
+			FinalizeShaderCompiler();
 		}
 
-		void recreateSwapChain()
+		void RecreateSwapChain()
 		{
 			int width = 0, height = 0;
 			glfwGetFramebufferSize(window, &width, &height);
@@ -453,7 +432,7 @@ namespace FT
 
 			vkDeviceWaitIdle(device);
 
-			cleanupSwapChain();
+			CleanupSwapChain();
 
 			CreateSwapChain();
 			CreateImageViews();
@@ -477,30 +456,30 @@ namespace FT
 				FT_CHECK_MSG(CheckValidationLayerSupport(), "Validation layers requested, but not available.");
 			}
 
-			VkApplicationInfo appInfo{};
-			appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-			appInfo.pApplicationName = "Foton";
-			appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
-			appInfo.pEngineName = "Foton";
-			appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-			appInfo.apiVersion = VK_API_VERSION_1_0;
+			VkApplicationInfo applicationInfo{};
+			applicationInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+			applicationInfo.pApplicationName = ApplicationName;
+			applicationInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
+			applicationInfo.pEngineName = ApplicationName;
+			applicationInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
+			applicationInfo.apiVersion = VK_API_VERSION_1_0;
 
 			VkInstanceCreateInfo createInfo{};
 			createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-			createInfo.pApplicationInfo = &appInfo;
+			createInfo.pApplicationInfo = &applicationInfo;
 
-			auto extensions = GetRequiredExtensions();
-			createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
-			createInfo.ppEnabledExtensionNames = extensions.data();
+			const std::vector<const char*> requiredExtensions = GetRequiredExtensions();
+			createInfo.enabledExtensionCount = static_cast<uint32_t>(requiredExtensions.size());
+			createInfo.ppEnabledExtensionNames = requiredExtensions.data();
 
-			VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
 			if (enableValidationLayers)
 			{
 				createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
 				createInfo.ppEnabledLayerNames = validationLayers.data();
 
-				populateDebugMessengerCreateInfo(debugCreateInfo);
-				createInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*)&debugCreateInfo;
+				VkDebugUtilsMessengerCreateInfoEXT debugMessangerCreateInfo{};
+				PopulateDebugMessengerCreateInfo(debugMessangerCreateInfo);
+				createInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*)&debugMessangerCreateInfo;
 			}
 			else
 			{
@@ -511,23 +490,33 @@ namespace FT
 			FT_VK_CALL(vkCreateInstance(&createInfo, nullptr, &instance));
 		}
 
-		void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo)
+		void PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo)
 		{
 			createInfo = {};
 			createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-			createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-			createInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
-			createInfo.pfnUserCallback = DebugCallback;
+			createInfo.messageSeverity =
+				VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
+				VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+			createInfo.messageType =
+				VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
+				VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
+				VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+			createInfo.pfnUserCallback = DebugMessageCallback;
 		}
 
 		void SetupDebugMessenger()
 		{
-			if (!enableValidationLayers) return;
+			if (!enableValidationLayers)
+			{
+				return;
+			}
 
 			VkDebugUtilsMessengerCreateInfoEXT createInfo;
-			populateDebugMessengerCreateInfo(createInfo);
+			PopulateDebugMessengerCreateInfo(createInfo);
 
-			FT_VK_CALL(CreateDebugUtilsMessengerEXT(instance, &createInfo, nullptr, &debugMessenger));
+			const auto vkCreateDebugUtilsMessengerEXT = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
+			FT_CHECK_MSG(vkCreateDebugUtilsMessengerEXT != nullptr, "Unable to get vkCreateDebugUtilsMessengerEXT extension function.");
+			FT_VK_CALL(vkCreateDebugUtilsMessengerEXT(instance, &createInfo, nullptr, &debugMessenger));
 		}
 
 		void CreateSurface()
@@ -578,12 +567,9 @@ namespace FT
 
 			VkDeviceCreateInfo createInfo{};
 			createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-
 			createInfo.queueCreateInfoCount = 1;
 			createInfo.pQueueCreateInfos = &queueCreateInfo;
-
 			createInfo.pEnabledFeatures = &deviceFeatures;
-
 			createInfo.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size());
 			createInfo.ppEnabledExtensionNames = deviceExtensions.data();
 
@@ -605,7 +591,6 @@ namespace FT
 		void CreateSwapChain()
 		{
 			SwapChainSupportDetails swapChainSupport = QuerySwapChainSupport(physicalDevice);
-
 			VkSurfaceFormatKHR surfaceFormat = ChooseSwapSurfaceFormat(swapChainSupport.formats);
 			VkPresentModeKHR presentMode = ChooseSwapPresentMode(swapChainSupport.presentModes);
 			VkExtent2D extent = ChooseSwapExtent(swapChainSupport.capabilities);
@@ -619,7 +604,6 @@ namespace FT
 			VkSwapchainCreateInfoKHR createInfo{};
 			createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
 			createInfo.surface = surface;
-
 			createInfo.minImageCount = swapchainImageCount;
 			createInfo.imageFormat = surfaceFormat.format;
 			createInfo.imageColorSpace = surfaceFormat.colorSpace;
@@ -648,7 +632,7 @@ namespace FT
 
 			for (size_t i = 0; i < swapChainImages.size(); i++)
 			{
-				swapChainImageViews[i] = createImageView(swapChainImages[i], swapChainImageFormat);
+				swapChainImageViews[i] = CreateImageView(swapChainImages[i], swapChainImageFormat);
 			}
 		}
 
@@ -710,43 +694,18 @@ namespace FT
 
 		void CreateShaders()
 		{
-			const char* vertexShaderFileName = "C:/Dev/foton/src/shaders/fullscreen.vert.hlsl";
-			std::string vertexShaderSourceCode = ShaderCompiler::ReadShaderFile(vertexShaderFileName);
-			ShaderLanguage vertexShaderLanguage = ShaderCompiler::GetShaderLanguageFromFileName(vertexShaderFileName);
-			CompileShaderResult vertexShaderCompileResult = ShaderCompiler::Compile(vertexShaderLanguage, ShaderType::Vertex, vertexShaderSourceCode, "main");
+			// TOOD: Use relative paths.
+			m_VertexShader = new Shader(device, "C:/Dev/foton/src/shaders/fullscreen.vert.glsl", ShaderStage::Vertex, VertexShaderCodeEntry);
+			m_FragmentShader = new Shader(device, "C:/Dev/foton/src/shaders/default.frag.glsl", ShaderStage::Fragment, FragmentShaderCodeEntry);
 
-			const char* fragmentShaderFileName = "C:/Dev/foton/src/shaders/default.frag.hlsl";
-			std::string fragmentShaderSourceCode = ShaderCompiler::ReadShaderFile(fragmentShaderFileName);
-			currentFragmentShaderLanguage = ShaderCompiler::GetShaderLanguageFromFileName(fragmentShaderFileName);
-			CompileShaderResult fragmentShaderCompileResult = ShaderCompiler::Compile(currentFragmentShaderLanguage, ShaderType::Fragment, fragmentShaderSourceCode, "main");
+			editor.SetText(m_FragmentShader->GetSourceCode());
 
-			FT_CHECK(vertexShaderCompileResult.Status == CompileShaderStatus::Success);
-			FT_CHECK(fragmentShaderCompileResult.Status == CompileShaderStatus::Success);
-
-			editor.SetText(fragmentShaderSourceCode);
-
-			vertShaderModule = CreateShaderModule(vertexShaderCompileResult.ByteCode);
-			fragShaderModule = CreateShaderModule(fragmentShaderCompileResult.ByteCode);
-
-			descriptorSetLayoutBindings = ReflectShaderCode(reinterpret_cast<const void*>(fragmentShaderCompileResult.ByteCode.data()), sizeof(uint32_t) * fragmentShaderCompileResult.ByteCode.size(), VK_SHADER_STAGE_FRAGMENT_BIT);
-			CreateDescriptorSetLayout(descriptorSetLayoutBindings);
+			CreateDescriptorSetLayout(m_FragmentShader->GetBindings());
 		}
 
 		void CreateGraphicsPipeline()
 		{
-			VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
-			vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-			vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
-			vertShaderStageInfo.module = vertShaderModule;
-			vertShaderStageInfo.pName = "main"; // TODO: ShaderCompiler needs this info too, so make sure it's linked properly.
-
-			VkPipelineShaderStageCreateInfo fragShaderStageInfo{};
-			fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-			fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-			fragShaderStageInfo.module = fragShaderModule;
-			fragShaderStageInfo.pName = "main";
-
-			VkPipelineShaderStageCreateInfo shaderStages[] = { vertShaderStageInfo, fragShaderStageInfo };
+			VkPipelineShaderStageCreateInfo shaderStages[] = { m_VertexShader->GetPipelineStageInfo(), m_FragmentShader->GetPipelineStageInfo()};
 
 			VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
 			vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
@@ -759,9 +718,8 @@ namespace FT
 			VkViewport viewport{};
 			viewport.x = 0.0f;
 			viewport.y = 0.0f;
-			// TODO: Use static_cast instead everywhere.
-			viewport.width = (float)swapChainExtent.width;
-			viewport.height = (float)swapChainExtent.height;
+			viewport.width = static_cast<float>(swapChainExtent.width);
+			viewport.height = static_cast<float>(swapChainExtent.height);
 			viewport.minDepth = 0.0f;
 			viewport.maxDepth = 1.0f;
 
@@ -806,7 +764,6 @@ namespace FT
 			colorBlending.blendConstants[2] = 0.0f;
 			colorBlending.blendConstants[3] = 0.0f;
 
-			// TODO: Move pipeline layout creation outside this method, since it doesn't need to be recreated each time we recompile the shader.
 			VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
 			pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 			pipelineLayoutInfo.setLayoutCount = 1;
@@ -884,11 +841,11 @@ namespace FT
 
 			stbi_image_free(pixels);
 
-			createImage(texWidth, texHeight, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, textureImage, textureImageMemory);
+			CreateImage(texWidth, texHeight, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, textureImage, textureImageMemory);
 
-			transitionImageLayout(textureImage, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-			copyBufferToImage(stagingBuffer, textureImage, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
-			transitionImageLayout(textureImage, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+			TransitionImageLayout(textureImage, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+			CopyBufferToImage(stagingBuffer, textureImage, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
+			TransitionImageLayout(textureImage, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
 			vkDestroyBuffer(device, stagingBuffer, nullptr);
 			vkFreeMemory(device, stagingBufferMemory, nullptr);
@@ -896,7 +853,7 @@ namespace FT
 
 		void CreateTextureImageView()
 		{
-			textureImageView = createImageView(textureImage, VK_FORMAT_R8G8B8A8_UNORM);
+			textureImageView = CreateImageView(textureImage, VK_FORMAT_R8G8B8A8_UNORM);
 		}
 
 		void CreateTextureSampler()
@@ -922,7 +879,7 @@ namespace FT
 			FT_VK_CALL(vkCreateSampler(device, &samplerInfo, nullptr, &textureSampler));
 		}
 
-		VkImageView createImageView(VkImage image, VkFormat format)
+		VkImageView CreateImageView(VkImage image, VkFormat format)
 		{
 			VkImageViewCreateInfo viewInfo{};
 			viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -941,7 +898,7 @@ namespace FT
 			return imageView;
 		}
 
-		void createImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory)
+		void CreateImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory)
 		{
 			VkImageCreateInfo imageInfo{};
 			imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -973,7 +930,7 @@ namespace FT
 			vkBindImageMemory(device, image, imageMemory, 0);
 		}
 
-		void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout)
+		void TransitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout)
 		{
 			VkCommandBuffer commandBuffer = beginSingleTimeCommands();
 
@@ -1023,10 +980,10 @@ namespace FT
 				1, &barrier
 			);
 
-			endSingleTimeCommands(commandBuffer);
+			EndSingleTimeCommands(commandBuffer);
 		}
 
-		void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height)
+		void CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height)
 		{
 			VkCommandBuffer commandBuffer = beginSingleTimeCommands();
 
@@ -1047,7 +1004,7 @@ namespace FT
 
 			vkCmdCopyBufferToImage(commandBuffer, buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 
-			endSingleTimeCommands(commandBuffer);
+			EndSingleTimeCommands(commandBuffer);
 		}
 
 		void CreateUniformBuffers()
@@ -1167,7 +1124,7 @@ namespace FT
 			return commandBuffer;
 		}
 
-		void endSingleTimeCommands(VkCommandBuffer commandBuffer)
+		void EndSingleTimeCommands(VkCommandBuffer commandBuffer)
 		{
 			vkEndCommandBuffer(commandBuffer);
 
@@ -1190,7 +1147,7 @@ namespace FT
 			copyRegion.size = size;
 			vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
 
-			endSingleTimeCommands(commandBuffer);
+			EndSingleTimeCommands(commandBuffer);
 		}
 
 		uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties)
@@ -1255,7 +1212,7 @@ namespace FT
 			UniformBufferObject ubo{};
 			ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 			ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-			ubo.proj = glm::perspective(glm::radians(45.0f), swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 10.0f);
+			ubo.proj = glm::perspective(glm::radians(45.0f), swapChainExtent.width / static_cast<float>(swapChainExtent.height), 0.1f, 10.0f);
 			ubo.proj[1][1] *= -1;
 
 			void* data;
@@ -1335,8 +1292,6 @@ namespace FT
 						{
 							LoadShader(codeFilePath);
 							RecompileFragmentShader();
-							currentFragmentShaderFilePath.erase();
-							currentFragmentShaderFilePath = codeFilePath.get();
 						}
 					}
 
@@ -1410,7 +1365,7 @@ namespace FT
 			ImGui::End();
 		}
 
-		void imguiNewFrame()
+		void ImguiNewFrame()
 		{
 			ImGui_ImplVulkan_NewFrame();
 			ImGui_ImplGlfw_NewFrame();
@@ -1423,7 +1378,7 @@ namespace FT
 
 			// TODO: Refactor a bit.
 			char buf[128];
-			sprintf_s(buf, "%s###ShaderTitle", currentFragmentShaderFilePath.c_str());
+			sprintf_s(buf, "%s###ShaderTitle", m_FragmentShader->GetName().c_str());
 
 			ImGui::Begin(buf, nullptr, ImGuiWindowFlags_HorizontalScrollbar);
 			ImGui::SetWindowSize(ImVec2(WIDTH, HEIGHT), ImGuiCond_FirstUseEver); // TODO: Change this!!!
@@ -1470,49 +1425,33 @@ namespace FT
 		{
 			ClearErrorMarkers();
 
-			auto fragShaderCodeGLSL = editor.GetText();
-
-			// TODO: Cache shader lang?
-			// TODO: Recompile is using old compiler.
-			CompileShaderResult fragmentShaderCompileResult = ShaderCompiler::Compile(currentFragmentShaderLanguage, ShaderType::Fragment, fragShaderCodeGLSL.c_str(), "main");
-
-			if (fragmentShaderCompileResult.Status != CompileShaderStatus::Success)
-			{
-				// TODO: Warning!
-				return;
-			}
+			auto fragmentShaderSourceCode = editor.GetText();
 
 			{
 				vkQueueWaitIdle(graphicsQueue);
 
-				vkDestroyShaderModule(device, fragShaderModule, nullptr);
+				m_FragmentShader->Recompile(fragmentShaderSourceCode);
+
 				vkDestroyPipeline(device, graphicsPipeline, nullptr);
 				vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
 			}
 
-			// TODO: Use file name here instead.
-			logger.Log("Compilation of %s finished successfully.\n", currentFragmentShaderFilePath);
+			logger.Log("Compilation of %s finished successfully.\n", m_FragmentShader->GetName().c_str());
 
-			fragShaderModule = CreateShaderModule(fragmentShaderCompileResult.ByteCode);
-
-			descriptorSetLayoutBindings = ReflectShaderCode(reinterpret_cast<const void*>(fragmentShaderCompileResult.ByteCode.data()), sizeof(uint32_t) * fragmentShaderCompileResult.ByteCode.size(), VK_SHADER_STAGE_FRAGMENT_BIT);
-			CreateDescriptorSetLayout(descriptorSetLayoutBindings);
-
+			CreateDescriptorSetLayout(m_FragmentShader->GetBindings());
 			CreateGraphicsPipeline();
 		}
 		private: // HACK:
 
 		// TODO: Refactor. No need for multiple methods with double code.
-		void LoadShader(const NFD::UniquePath& filePath)
+		void LoadShader(const NFD::UniquePath& inFilePath)
 		{
-			const char* fragmentShaderFileName = filePath.get();
-			std::string fragmentShaderSourceCode = ShaderCompiler::ReadShaderFile(fragmentShaderFileName);
-			currentFragmentShaderLanguage = ShaderCompiler::GetShaderLanguageFromFileName(fragmentShaderFileName);
-			CompileShaderResult fragmentShaderCompileResult = ShaderCompiler::Compile(currentFragmentShaderLanguage, ShaderType::Fragment, fragmentShaderSourceCode, "main");
+			vkQueueWaitIdle(graphicsQueue); // TODO: This wait wait idle will be called twice (second one in RecompileFragmentShader). Make this code path more clearer.
+			
+			delete(m_FragmentShader);
+			m_FragmentShader = new Shader(device, inFilePath.get(), ShaderStage::Fragment, FragmentShaderCodeEntry);
 
-			FT_CHECK(fragmentShaderCompileResult.Status == CompileShaderStatus::Success);
-
-			editor.SetText(fragmentShaderSourceCode);
+			editor.SetText(m_FragmentShader->GetSourceCode());
 		}
 
 		void DrawFrame()
@@ -1524,7 +1463,7 @@ namespace FT
 
 			if (result == VK_ERROR_OUT_OF_DATE_KHR)
 			{
-				recreateSwapChain();
+				RecreateSwapChain();
 				return;
 			}
 			else
@@ -1580,7 +1519,7 @@ namespace FT
 			if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || framebufferResized)
 			{
 				framebufferResized = false;
-				recreateSwapChain();
+				RecreateSwapChain();
 			}
 			else
 			{
@@ -1602,58 +1541,6 @@ namespace FT
 			FT_VK_CALL(vkCreateShaderModule(device, &createInfo, nullptr, &shaderModule));
 
 			return shaderModule;
-		}
-
-		VkDescriptorType GetVkDescriptorTypeFrom(const SpvReflectDescriptorType reflectDescriptorType)
-		{
-			switch (reflectDescriptorType)
-			{
-			case SPV_REFLECT_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
-				return VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-
-			case SPV_REFLECT_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
-				return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-
-			case SPV_REFLECT_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
-				return VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-
-			case SPV_REFLECT_DESCRIPTOR_TYPE_SAMPLER:
-				return VK_DESCRIPTOR_TYPE_SAMPLER;
-
-			default:
-				// TODO: Print in logger that this binding type is not yet supported.
-				FT_FAIL("Unsupported SpvReflectDescriptorBinding.");
-				return VK_DESCRIPTOR_TYPE_MAX_ENUM;
-			}
-		}
-
-		std::vector<VkDescriptorSetLayoutBinding> ReflectShaderCode(const void* code, const size_t codeSize, const VkShaderStageFlagBits shaderStage)
-		{
-			// TODO: Add asserts for spv method return success values.
-
-			SpvReflectShaderModule spvModule;
-			spvReflectCreateShaderModule(codeSize, reinterpret_cast<const void*>(code), &spvModule);
-
-			uint32_t bindingCount = 0;
-			spvReflectEnumerateDescriptorBindings(&spvModule, &bindingCount, nullptr);
-
-			std::vector<SpvReflectDescriptorBinding*> bindings(bindingCount);
-			spvReflectEnumerateDescriptorBindings(&spvModule, &bindingCount, bindings.data());
-
-			std::vector<VkDescriptorSetLayoutBinding> layoutBindings(bindings.size());
-			for (uint32_t i = 0; i < bindingCount; ++i)
-			{
-				VkDescriptorSetLayoutBinding& descriptorSetLayoutBinding = layoutBindings[i];
-				descriptorSetLayoutBinding.binding = bindings[i]->binding;
-				descriptorSetLayoutBinding.descriptorCount = 1;
-				descriptorSetLayoutBinding.descriptorType = GetVkDescriptorTypeFrom(bindings[i]->descriptor_type);
-				descriptorSetLayoutBinding.stageFlags = shaderStage;
-				descriptorSetLayoutBinding.pImmutableSamplers = nullptr;
-			}
-
-			spvReflectDestroyShaderModule(&spvModule);
-
-			return layoutBindings;
 		}
 
 		VkSurfaceFormatKHR ChooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats)
@@ -1928,7 +1815,7 @@ namespace FT
 				return filterItems;
 			}
 
-			for (const auto& shaderFileExtension : ShaderFileExtensions)
+			for (const auto& shaderFileExtension : SupportedShaderFileExtensions)
 			{
 				nfdfilteritem_t filterItem;
 				filterItem.name = shaderFileExtension.Name.c_str();
@@ -1961,9 +1848,7 @@ namespace FT
 			}
 		}
 
-		// TODO: Format this better.
-		// TODO: Use debug names.
-		static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(
+		static VKAPI_ATTR VkBool32 VKAPI_CALL DebugMessageCallback(
 			VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
 			VkDebugUtilsMessageTypeFlagsEXT messageType,
 			const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
@@ -2003,7 +1888,6 @@ namespace FT
 	}
 }
 
-// TODO: Use asserts instead of exceptions.
 int main()
 {
 	renderer.Run();
