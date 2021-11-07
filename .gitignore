@@ -1,7 +1,7 @@
-bin/*
-!bin/imgui.ini
+Build/*
+!Build/imgui.ini
 
-3rdparty/*
-!3rdparty/bootstrap.py
-!3rdparty/bootstrap.json
-!3rdparty/LICENSE
+External/*
+!External/bootstrap.py
+!External/bootstrap.json
+!External/LICENSE

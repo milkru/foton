@@ -17,7 +17,7 @@ namespace FT
 	struct ShaderCompileResult
 	{
 		ShaderCompileStatus Status = ShaderCompileStatus::Count;
-		std::vector<uint32_t> ByteCodeSpv;
+		std::vector<uint32_t> SpvCode;
 	};
 
 	extern bool InitializeShaderCompiler();

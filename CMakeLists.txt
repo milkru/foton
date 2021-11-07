@@ -13,7 +13,7 @@ endif()
 
 execute_process(
 	COMMAND ${PYTHON_EXECUTABLE} "bootstrap.py"
-	WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty
+	WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/External
 	RESULT_VARIABLE BOOTSTRAP_RESULT
 )
 
@@ -22,13 +22,13 @@ if (NOT (${BOOTSTRAP_RESULT} EQUAL 0))
 endif()
 
 # Project
-file(GLOB_RECURSE SRC_FILES LIST_DIRECTORIES false RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} src/*.c??)
-file(GLOB_RECURSE HEADER_FILES LIST_DIRECTORIES false RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} src/*.h src/*.hpp)
+file(GLOB_RECURSE SRC_FILES LIST_DIRECTORIES false RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} Source/*.c??)
+file(GLOB_RECURSE HEADER_FILES LIST_DIRECTORIES false RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} Source/*.h Source/*.hpp)
 
-include_directories(src)
+include_directories(Source)
 add_executable(${PROJECT_NAME} ${SRC_FILES} ${HEADER_FILES})
 
-target_precompile_headers(${PROJECT_NAME} PRIVATE src/pch.h)
+target_precompile_headers(${PROJECT_NAME} PRIVATE Source/Precompiled.h)
 
 macro(SETUP_GROUPS INPUT_FILES)
 	foreach(FILE ${INPUT_FILES})
@@ -51,6 +51,8 @@ if (MSVC)
 	set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ${PROJECT_NAME})
 endif()
 
+add_definitions(-DFT_ROOT_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/\")
+
 # Vulkan
 find_package(Vulkan REQUIRED)
 target_include_directories(${PROJECT_NAME} PRIVATE ${Vulkan_INCLUDE_DIRS})
@@ -61,20 +63,20 @@ set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(GLFW_INSTALL OFF CACHE BOOL "" FORCE)
-set(GLFW_DIR 3rdparty/src/glfw)
+set(GLFW_DIR External/src/glfw)
 
 add_subdirectory(${GLFW_DIR})
 target_include_directories(${PROJECT_NAME} PRIVATE ${GLFW_DIR}/include)
 target_link_libraries(${PROJECT_NAME} PRIVATE glfw)
-set_property(TARGET glfw PROPERTY FOLDER "3rdParty/glfw")
-set_property(TARGET update_mappings PROPERTY FOLDER "3rdParty/glfw")
+set_property(TARGET glfw PROPERTY FOLDER "External/glfw")
+set_property(TARGET update_mappings PROPERTY FOLDER "External/glfw")
 
 # GLM
-set(GLM_DIR 3rdparty/src/glm)
+set(GLM_DIR External/src/glm)
 target_include_directories(${PROJECT_NAME} PRIVATE ${GLM_DIR})
 
 # GLSLANG
-set(GLSLANG_DIR 3rdparty/src/glslang)
+set(GLSLANG_DIR External/src/glslang)
 set(ENABLE_SPVREMAPPER OFF CACHE BOOL "")
 set(ENABLE_GLSLANG_BINARIES OFF CACHE BOOL "")
 set(ENABLE_CTEST OFF CACHE BOOL "")
@@ -87,31 +89,31 @@ target_include_directories(${PROJECT_NAME} PRIVATE ${GLSLANG_DIR}/glslang/Includ
 target_include_directories(${PROJECT_NAME} PRIVATE ${GLSLANG_DIR}/StandAlone)
 target_link_libraries(${PROJECT_NAME} PRIVATE glslang SPIRV)
 
-set_property(TARGET glslang PROPERTY FOLDER "3rdParty/glslang")
-set_property(TARGET OGLCompiler PROPERTY FOLDER "3rdParty/glslang")
-set_property(TARGET OSDependent PROPERTY FOLDER "3rdParty/glslang")
-set_property(TARGET SPIRV PROPERTY FOLDER "3rdParty/glslang")
-set_property(TARGET GenericCodeGen PROPERTY FOLDER "3rdParty/glslang")
-set_property(TARGET MachineIndependent PROPERTY FOLDER "3rdParty/glslang")
-set_property(TARGET HLSL PROPERTY FOLDER "3rdParty/glslang")
+set_property(TARGET glslang PROPERTY FOLDER "External/glslang")
+set_property(TARGET OGLCompiler PROPERTY FOLDER "External/glslang")
+set_property(TARGET OSDependent PROPERTY FOLDER "External/glslang")
+set_property(TARGET SPIRV PROPERTY FOLDER "External/glslang")
+set_property(TARGET GenericCodeGen PROPERTY FOLDER "External/glslang")
+set_property(TARGET MachineIndependent PROPERTY FOLDER "External/glslang")
+set_property(TARGET HLSL PROPERTY FOLDER "External/glslang")
 
 # SPIRV-Reflect
-set(SPIRV_REFLECT_DIR 3rdparty/src/SPIRV-Reflect)
+set(SPIRV_REFLECT_DIR External/src/SPIRV-Reflect)
 set(SPIRV_REFLECT_SOURCES ${SPIRV_REFLECT_DIR}/spirv_reflect.c)
 
 add_library(SPIRV-Reflect STATIC ${SPIRV_REFLECT_SOURCES})
 target_include_directories(${PROJECT_NAME} PRIVATE ${SPIRV_REFLECT_DIR})
 target_link_libraries(${PROJECT_NAME} PRIVATE SPIRV-Reflect)
 
-set_property(TARGET SPIRV-Reflect PROPERTY FOLDER "3rdParty")
+set_property(TARGET SPIRV-Reflect PROPERTY FOLDER "External")
 
 # STB
-set(STB_DIR 3rdparty/src/stb)
+set(STB_DIR External/src/stb)
 target_include_directories(${PROJECT_NAME} PRIVATE ${STB_DIR})
 
 # ImGui
-set(IMGUI_DIR 3rdparty/src/imgui)
-set(IMGUI_TEXTEDIT_DIR 3rdparty/src/ImGuiColorTextEdit)
+set(IMGUI_DIR External/src/imgui)
+set(IMGUI_TEXTEDIT_DIR External/src/ImGuiColorTextEdit)
 set(IMGUI_SOURCES
     ${IMGUI_DIR}/imgui.cpp
     ${IMGUI_DIR}/imgui_draw.cpp
@@ -130,12 +132,12 @@ target_include_directories(imgui PRIVATE ${Vulkan_INCLUDE_DIRS})
 target_include_directories(imgui PRIVATE ${GLFW_DIR}/include)
 target_link_libraries(${PROJECT_NAME} PRIVATE imgui)
 
-set_property(TARGET imgui PROPERTY FOLDER "3rdParty")
+set_property(TARGET imgui PROPERTY FOLDER "External")
 
 # NFD
-set(NFD_DIR 3rdparty/src/nativefiledialog-extended)
+set(NFD_DIR External/src/nativefiledialog-extended)
 
 add_subdirectory(${NFD_DIR})
 target_include_directories(${PROJECT_NAME} PRIVATE ${NFD_DIR}/src/include)
 target_link_libraries(${PROJECT_NAME} PRIVATE nfd)
-set_property(TARGET nfd PROPERTY FOLDER "3rdParty")
+set_property(TARGET nfd PROPERTY FOLDER "External")

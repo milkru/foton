@@ -118,7 +118,7 @@ namespace FT
 
 		ShaderCompileResult result{};
 		const glslang::TIntermediate* intermediate = shaderProgram.getIntermediate(shaderType);
-		glslang::GlslangToSpv(*intermediate, result.ByteCodeSpv, &spvBuildLogger, &spvOptions);
+		glslang::GlslangToSpv(*intermediate, result.SpvCode, &spvBuildLogger, &spvOptions);
 
 		FT_LOG(spvBuildLogger.getAllMessages().c_str());
 

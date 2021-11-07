@@ -6,7 +6,7 @@ namespace FT
 #	define FT_SPV_REFLECT_CALL(call) \
 		do { \
 			SpvReflectResult result = call; \
-			FT_CHECK_MSG(result == SPV_REFLECT_RESULT_SUCCESS, "SpirVReflect API call failed."); \
+			FT_CHECK(result == SPV_REFLECT_RESULT_SUCCESS, "SpirVReflect API call failed."); \
 		} \
 		while (0)
 

@@ -1,27 +1,30 @@
-#include "pch.h"
-
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
-#include "Shader.h"
-#include "ShaderCompiler.h"
+#include <set>
 
-// TODO: If you want to create a new shader, save it immediatelly with nfd, so we have a name.
-// TODO: Add all relevant messages to logger, like: "shader loaded successfully" etc.
+#include "Shader/Shader.h"
+#include "Shader/ShaderCompiler.h"
 
-// TOOD: Since transparent window background blending with the viewport is really bad, make it completely transparent and emulate blending somehow.
-// TODO: There is literally no need for multiple opened shaders in tabs. Scrap that.
+// TODO: If you want to create a new shader, save it immediately with nfd, so we have a name.
+
+// TODO: Find out if we can make background for all text.
 // TODO: Separate Runtime and Editor?
+
+// TODO: When starting application sometimes new row is added at the end on current file.
 
 namespace FT
 {
+	// TODO: This shouldn't be here.
+	std::string GetFullPath(const std::string inRelativePath) { return std::string(FT_ROOT_DIR) + inRelativePath; }
+
 	// TOOD: Move somewhere else.
 	const uint32_t WIDTH = 1280;
 	const uint32_t HEIGHT = 720;
 
 	const int MAX_FRAMES_IN_FLIGHT = 2;
 
-	// TODO: Check layer handling in photon. Inplace this as well.
+	// TODO: Check layer handling in photon. In-place this as well.
 	const std::vector<const char*> validationLayers =
 	{
 		"VK_LAYER_KHRONOS_validation"
@@ -58,17 +61,17 @@ namespace FT
 		alignas(16) glm::mat4 proj;
 	};
 
-	void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
-	void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
+	// TOOD: These callbacks are used for polling actually. Can we make callbacks per action, in order to make cleaner code?
+	void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
+	void ScrollCallback(GLFWwindow* window, double xoffset, double yoffset);
 
 	// TODO: Change the name to vulkancore and move it to another file.
-	// TODO: To Hungarian notation?
 	class Renderer
 	{
 	public:
 		void Run()
 		{
-			FT_CHECK_MSG(InitializeShaderCompiler(), "Glslang not initialized properly.");
+			FT_CHECK(InitializeShaderCompiler(), "Glslang not initialized properly.");
 			InitializeWindow();
 			InitializeNFD();
 			InitializeVulkan();
@@ -152,8 +155,8 @@ namespace FT
 			glfwSetWindowUserPointer(window, this);
 			glfwSetFramebufferSizeCallback(window, FramebufferResizeCallback);
 
-			glfwSetKeyCallback(window, key_callback);
-			glfwSetScrollCallback(window, scroll_callback);
+			glfwSetKeyCallback(window, KeyCallback);
+			glfwSetScrollCallback(window, ScrollCallback);
 
 			//glfwSetWindowIcon(window, 0, nullptr);
 		}
@@ -404,7 +407,7 @@ namespace FT
 			if (enableValidationLayers)
 			{
 				const auto vkDestroyDebugUtilsMessengerEXT = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
-				FT_CHECK_MSG(vkDestroyDebugUtilsMessengerEXT != nullptr, "Unable to get vkDestroyDebugUtilsMessengerEXT extension function.");
+				FT_CHECK(vkDestroyDebugUtilsMessengerEXT != nullptr, "Unable to get vkDestroyDebugUtilsMessengerEXT extension function.");
 				vkDestroyDebugUtilsMessengerEXT(instance, debugMessenger, nullptr);
 			}
 
@@ -453,7 +456,7 @@ namespace FT
 		{
 			if (enableValidationLayers)
 			{
-				FT_CHECK_MSG(CheckValidationLayerSupport(), "Validation layers requested, but not available.");
+				FT_CHECK(CheckValidationLayerSupport(), "Validation layers requested, but not available.");
 			}
 
 			VkApplicationInfo applicationInfo{};
@@ -515,7 +518,7 @@ namespace FT
 			PopulateDebugMessengerCreateInfo(createInfo);
 
 			const auto vkCreateDebugUtilsMessengerEXT = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
-			FT_CHECK_MSG(vkCreateDebugUtilsMessengerEXT != nullptr, "Unable to get vkCreateDebugUtilsMessengerEXT extension function.");
+			FT_CHECK(vkCreateDebugUtilsMessengerEXT != nullptr, "Unable to get vkCreateDebugUtilsMessengerEXT extension function.");
 			FT_VK_CALL(vkCreateDebugUtilsMessengerEXT(instance, &createInfo, nullptr, &debugMessenger));
 		}
 
@@ -529,7 +532,7 @@ namespace FT
 			uint32_t deviceCount = 0;
 			vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
 
-			FT_CHECK_MSG(deviceCount != 0, "Failed to find GPUs with Vulkan support.");
+			FT_CHECK(deviceCount != 0, "Failed to find GPUs with Vulkan support.");
 
 			std::vector<VkPhysicalDevice> devices(deviceCount);
 			vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data());
@@ -543,7 +546,7 @@ namespace FT
 				}
 			}
 
-			FT_CHECK_MSG(physicalDevice != VK_NULL_HANDLE, "Failed to find a suitable GPU.");
+			FT_CHECK(physicalDevice != VK_NULL_HANDLE, "Failed to find a suitable GPU.");
 		}
 
 		void CreateLogicalDevice()
@@ -553,7 +556,7 @@ namespace FT
 			VkBool32 presentSupport = false;
 			vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, graphicsQueueFamilyIndex, surface, &presentSupport);
 
-			FT_CHECK_MSG(presentSupport, "Device doesn't support present.");
+			FT_CHECK(presentSupport, "Device doesn't support present.");
 
 			float queuePriority = 1.0f;
 			VkDeviceQueueCreateInfo queueCreateInfo{};
@@ -694,9 +697,8 @@ namespace FT
 
 		void CreateShaders()
 		{
-			// TOOD: Use relative paths.
-			m_VertexShader = new Shader(device, "C:/Dev/foton/src/shaders/fullscreen.vert.glsl", ShaderStage::Vertex, VertexShaderCodeEntry);
-			m_FragmentShader = new Shader(device, "C:/Dev/foton/src/shaders/default.frag.glsl", ShaderStage::Fragment, FragmentShaderCodeEntry);
+			m_VertexShader = new Shader(device, GetFullPath("Shaders/Internal/FullScreen.vert.glsl"), ShaderStage::Vertex, VertexShaderCodeEntry);
+			m_FragmentShader = new Shader(device, GetFullPath("Shaders/Internal/Default.frag.glsl"), ShaderStage::Fragment, FragmentShaderCodeEntry);
 
 			editor.SetText(m_FragmentShader->GetSourceCode());
 
@@ -828,7 +830,7 @@ namespace FT
 			stbi_uc* pixels = stbi_load("C:/Users/MilosKruskonja/source/repos/VulkanTutorial/textures/texture.jpg", &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
 			VkDeviceSize imageSize = texWidth * texHeight * 4;
 
-			FT_CHECK_MSG(pixels, "Failed to load texture image.");
+			FT_CHECK(pixels, "Failed to load texture image.");
 
 			VkBuffer stagingBuffer;
 			VkDeviceMemory stagingBufferMemory;
@@ -923,7 +925,7 @@ namespace FT
 			VkMemoryAllocateInfo allocInfo{};
 			allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 			allocInfo.allocationSize = memRequirements.size;
-			allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, properties);
+			allocInfo.memoryTypeIndex = FindMemoryType(memRequirements.memoryTypeBits, properties);
 
 			FT_VK_CALL(vkAllocateMemory(device, &allocInfo, nullptr, &imageMemory));
 
@@ -1097,7 +1099,7 @@ namespace FT
 			VkMemoryAllocateInfo allocInfo{};
 			allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 			allocInfo.allocationSize = memRequirements.size;
-			allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, properties);
+			allocInfo.memoryTypeIndex = FindMemoryType(memRequirements.memoryTypeBits, properties);
 
 			FT_VK_CALL(vkAllocateMemory(device, &allocInfo, nullptr, &bufferMemory));
 
@@ -1139,7 +1141,7 @@ namespace FT
 			vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
 		}
 
-		void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size)
+		void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size)
 		{
 			VkCommandBuffer commandBuffer = beginSingleTimeCommands();
 
@@ -1150,7 +1152,7 @@ namespace FT
 			EndSingleTimeCommands(commandBuffer);
 		}
 
-		uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties)
+		uint32_t FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties)
 		{
 			VkPhysicalDeviceMemoryProperties memProperties;
 			vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
@@ -1164,7 +1166,6 @@ namespace FT
 			}
 
 			FT_FAIL("Failed to find suitable memory type.");
-			return -1;
 		}
 
 		void InitializeCommandBuffers()
@@ -1298,15 +1299,19 @@ namespace FT
 					// TOOD: Make shortcuts for these.
 					if (ImGui::MenuItem("Save", "Ctrl-S"))
 					{
-						auto textToSave = editor.GetText();
-						// TODO: Just save contents of the current file.
+						RecompileFragmentShader();
 					}
 
 					// TOOD: Make shortcuts for these.
 					if (ImGui::MenuItem("Save As", "Ctrl-Shift-S"))
 					{
-						auto textToSave = editor.GetText();
-						// TODO: Make new file with current contents and keep it open.
+						NFD::UniquePath codeFilePath;
+						SaveShaderFileDialog(codeFilePath);
+						if (codeFilePath)
+						{
+							auto textToSave = editor.GetText();
+							// TODO: Make new file with current contents and keep it open.
+						}
 					}
 
 					if (ImGui::MenuItem("Quit", "Alt-F4"))
@@ -1316,6 +1321,7 @@ namespace FT
 
 					ImGui::EndMenu();
 				}
+
 				if (ImGui::BeginMenu("Edit"))
 				{
 					bool readOnly = editor.IsReadOnly();
@@ -1341,8 +1347,10 @@ namespace FT
 
 					ImGui::Separator();
 
-					if (ImGui::MenuItem("Compile", "Ctrl-S", nullptr, !readOnly))
+					if (ImGui::MenuItem("Compile", "Ctrl-R", nullptr, !readOnly))
+					{
 						RecompileFragmentShader();
+					}
 
 					ImGui::Separator();
 
@@ -1425,7 +1433,7 @@ namespace FT
 		{
 			ClearErrorMarkers();
 
-			auto fragmentShaderSourceCode = editor.GetText();
+			const std::string fragmentShaderSourceCode = editor.GetText();
 
 			{
 				vkQueueWaitIdle(graphicsQueue);
@@ -1435,8 +1443,6 @@ namespace FT
 				vkDestroyPipeline(device, graphicsPipeline, nullptr);
 				vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
 			}
-
-			logger.Log("Compilation of %s finished successfully.\n", m_FragmentShader->GetName().c_str());
 
 			CreateDescriptorSetLayout(m_FragmentShader->GetBindings());
 			CreateGraphicsPipeline();
@@ -1468,7 +1474,7 @@ namespace FT
 			}
 			else
 			{
-				FT_CHECK_MSG(result == VK_SUCCESS || result == VK_SUBOPTIMAL_KHR, "Failed to acquire swap chain image.");
+				FT_CHECK(result == VK_SUCCESS || result == VK_SUBOPTIMAL_KHR, "Failed to acquire swap chain image.");
 			}
 
 			UpdateUniformBuffer(imageIndex);
@@ -1523,7 +1529,7 @@ namespace FT
 			}
 			else
 			{
-				FT_CHECK_MSG(result == VK_SUCCESS, "Failed to present swap chain image.");
+				FT_CHECK(result == VK_SUCCESS, "Failed to present swap chain image.");
 			}
 
 			currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
@@ -1694,7 +1700,6 @@ namespace FT
 			}
 
 			FT_FAIL("Could not find a graphics queue family index.");
-			return -1;
 		}
 
 		std::vector<const char*> GetRequiredExtensions()
@@ -1865,9 +1870,19 @@ FT::Renderer renderer;
 
 namespace FT
 {
-	void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
+	void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
 	{
 		if (key == GLFW_KEY_S && action == GLFW_PRESS && mods == GLFW_MOD_CONTROL)
+		{
+			renderer.RecompileFragmentShader();
+		}
+
+		if (key == GLFW_KEY_S && action == GLFW_PRESS && mods == GLFW_MOD_CONTROL && mods == GLFW_MOD_SHIFT)
+		{
+			// TODO: Make new file with current editor contents.
+		}
+
+		if (key == GLFW_KEY_R && action == GLFW_PRESS && mods == GLFW_MOD_CONTROL)
 		{
 			renderer.RecompileFragmentShader();
 		}
@@ -1876,9 +1891,19 @@ namespace FT
 		{
 			renderer.ToggleImGui();
 		}
+
+		if (key == GLFW_KEY_N && action == GLFW_PRESS && mods == GLFW_MOD_CONTROL)
+		{
+			// TODO: New file.
+		}
+
+		if (key == GLFW_KEY_O && action == GLFW_PRESS && mods == GLFW_MOD_CONTROL)
+		{
+			// TOOD: Open file.
+		}
 	}
 
-	void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
+	void ScrollCallback(GLFWwindow* window, double xoffset, double yoffset)
 	{
 		// TODO: Maybe add a condition if the code window is in focus????????
 		if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) || glfwGetKey(window, GLFW_KEY_RIGHT_CONTROL))

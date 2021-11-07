@@ -4,6 +4,7 @@
 namespace FT
 {
 	// TOOD: I don't think it's a good idea to do error handling in these helper functions. You should be doing it at the place of function call.
+	// TODO: *_s funtions are MS compiler specific. Fix that.
 
 	struct ReadFileResult
 	{
@@ -15,7 +16,7 @@ namespace FT
 	{
 		FILE* file = nullptr;
 		errno_t errorCode = fopen_s(&file, inFileName.c_str(), "r");
-		FT_CHECK_MSG(errorCode == 0, "Failed opening a file %s.", inFileName.c_str());
+		FT_CHECK(errorCode == 0, "Failed opening a file %s.", inFileName.c_str());
 
 		fseek(file, 0L, SEEK_END);
 		const size_t fileByteCount = static_cast<size_t>(ftell(file));
@@ -78,11 +79,11 @@ namespace FT
 	{
 		FILE* file = nullptr;
 		errno_t errorCode = fopen_s(&file, inFileName.c_str(), "w");
-		FT_CHECK_MSG(errorCode == 0, "Failed opening a file %s.", inFileName.c_str());
+		FT_CHECK(errorCode == 0, "Failed opening a file %s.", inFileName.c_str());
 
 		const size_t fileByteCount = inBuffer.size();
 		const size_t bytesToWrite = fwrite(inBuffer.c_str(), sizeof(char), fileByteCount, file);
-		FT_CHECK_MSG(bytesToWrite == fileByteCount, "Failed writing to a file $s.", inFileName.c_str());
+		FT_CHECK(bytesToWrite == fileByteCount, "Failed writing to a file $s.", inFileName.c_str());
 
 		fclose(file);
 	}

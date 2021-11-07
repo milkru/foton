@@ -2,7 +2,7 @@
 
 // TOOD: Add FT_LOG_ERR instead direct fprintf. And Log FT_FAIL too.
 #if !defined(NDEBUG) // TODO: Change: Everything but Release.
-#	define FT_CHECK_MSG(condition, fmt, ...) \
+#	define FT_CHECK(condition, fmt, ...) \
 		do \
 		{ \
 			if(!(condition)) \
@@ -15,7 +15,7 @@
 
 #define FT_FAIL(msg) do { throw std::runtime_error(msg); } while(0)
 #else
-#	define FT_CHECK_MSG(condition, fmt, ...)
+#	define FT_CHECK(condition, fmt, ...)
 #	define FT_FAIL(fmt, ...)
 #endif
 
@@ -23,6 +23,6 @@
 #define FT_VK_CALL(call) \
 	do { \
 		VkResult result = call; \
-		FT_CHECK_MSG(result == VK_SUCCESS, "Vulkan API call failed."); \
+		FT_CHECK(result == VK_SUCCESS, "Vulkan API call failed."); \
 	} \
 	while (0)

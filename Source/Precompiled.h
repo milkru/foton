@@ -1,7 +1,5 @@
 #pragma once
 
-// TODO: If some of these includes are used in a single .cpp file, move it over there!!!
-
 #include <imgui.h>
 #include <backends/imgui_impl_glfw.h>
 #include <backends/imgui_impl_vulkan.h>
@@ -17,12 +15,9 @@
 #define NFD_THROWS_EXCEPTIONS
 #include <nfd.hpp>
 
-#include <algorithm> // TODO: Needed?
 #include <chrono>
 #include <vector>
 #include <array> // TOOD: Use it more if the vector size is set.
-#include <set> // TODO: Needed?
 
-#include "utils/assert.hpp"
-#include "utils/log.h"
-#include "utils/profile.hpp"
+#include "Utility/Assert.hpp"
+#include "Utility/Log.h"
