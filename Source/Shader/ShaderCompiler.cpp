@@ -1,5 +1,4 @@
 #include "ShaderCompiler.h"
-#include "ShaderCommon.hpp"
 #include "ShaderFileIncluder.h"
 #include "ShaderResourceLimits.hpp"
 

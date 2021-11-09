@@ -17,7 +17,6 @@
 
 #include <chrono>
 #include <vector>
-#include <array> // TOOD: Use it more if the vector size is set.
 
 #include "Utility/Assert.hpp"
 #include "Utility/Log.h"

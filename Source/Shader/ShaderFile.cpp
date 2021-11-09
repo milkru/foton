@@ -1,16 +1,8 @@
 #include "ShaderFile.h"
-#include "ShaderCommon.hpp"
 
 namespace FT
 {
-	// TOOD: I don't think it's a good idea to do error handling in these helper functions. You should be doing it at the place of function call.
 	// TODO: *_s funtions are MS compiler specific. Fix that.
-
-	struct ReadFileResult
-	{
-		std::string Buffer;
-		bool Success = false;
-	};
 
 	std::string ReadFile(const std::string inFileName)
 	{
@@ -81,14 +73,14 @@ namespace FT
 		errno_t errorCode = fopen_s(&file, inFileName.c_str(), "w");
 		FT_CHECK(errorCode == 0, "Failed opening a file %s.", inFileName.c_str());
 
-		const size_t fileByteCount = inBuffer.size();
+		const size_t fileByteCount = inBuffer.size() - 1;
 		const size_t bytesToWrite = fwrite(inBuffer.c_str(), sizeof(char), fileByteCount, file);
 		FT_CHECK(bytesToWrite == fileByteCount, "Failed writing to a file $s.", inFileName.c_str());
 
 		fclose(file);
 	}
 
-	void ShaderFile::UpdateSourceCode(const std::string inSourceCode)
+	void ShaderFile::UpdateSourceCode(const std::string& inSourceCode)
 	{
 		m_SourceCode = inSourceCode;
 		WriteFile(m_Path, m_SourceCode.c_str());

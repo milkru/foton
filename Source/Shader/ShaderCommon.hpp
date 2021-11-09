@@ -1,9 +1,5 @@
 #pragma once
 
-// TODO: ?
-#include <string>
-#include <vector>
-
 namespace FT
 {
 	enum class ShaderLanguage : uint8_t

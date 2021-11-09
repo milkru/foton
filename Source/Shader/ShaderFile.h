@@ -16,7 +16,7 @@ namespace FT
 		ShaderLanguage GetLanguage() const { return m_Language; }
 
 	protected:
-		void UpdateSourceCode(const std::string inSourceCode);
+		void UpdateSourceCode(const std::string& inSourceCode);
 
 	protected:
 		std::string m_Path;

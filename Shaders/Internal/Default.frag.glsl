@@ -24,13 +24,3 @@ void main()
 {
 	outColor = vec4(inUV, 1.0, 1.0);
 }
-
-// what
-
-
-
-
-
-
-
-

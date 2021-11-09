@@ -1,8 +1,6 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
-#include <set>
-
 #include "Shader/Shader.h"
 #include "Shader/ShaderCompiler.h"
 
@@ -12,6 +10,9 @@
 // TODO: Separate Runtime and Editor?
 
 // TODO: When starting application sometimes new row is added at the end on current file.
+// TOOD: Shader printf?
+
+// TOOD: How resource loading with paths is going to work if we only run exe files? It's releative to project root, not the exe.
 
 namespace FT
 {
@@ -143,6 +144,11 @@ namespace FT
 		ImGuiLogger logger;
 		ShaderLanguage currentFragmentShaderLanguage;
 
+		static void function_name(GLFWwindow* window, unsigned int codepoint)
+		{
+
+		}
+
 		void InitializeWindow()
 		{
 			glfwInit();
@@ -158,7 +164,11 @@ namespace FT
 			glfwSetKeyCallback(window, KeyCallback);
 			glfwSetScrollCallback(window, ScrollCallback);
 
-			//glfwSetWindowIcon(window, 0, nullptr);
+			glfwSetCharCallback(window, function_name);
+
+			GLFWimage icon;
+			icon.pixels = stbi_load(GetFullPath("icon.png").c_str(), &icon.width, &icon.height, nullptr, STBI_rgb_alpha);
+			glfwSetWindowIcon(window, 1, &icon);
 		}
 
 		void InitializeNFD()
@@ -827,7 +837,7 @@ namespace FT
 		{
 			int texWidth, texHeight, texChannels;
 			// TODO: Change.
-			stbi_uc* pixels = stbi_load("C:/Users/MilosKruskonja/source/repos/VulkanTutorial/textures/texture.jpg", &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+			stbi_uc* pixels = stbi_load(GetFullPath("icon.png").c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
 			VkDeviceSize imageSize = texWidth * texHeight * 4;
 
 			FT_CHECK(pixels, "Failed to load texture image.");
@@ -1452,7 +1462,7 @@ namespace FT
 		// TODO: Refactor. No need for multiple methods with double code.
 		void LoadShader(const NFD::UniquePath& inFilePath)
 		{
-			vkQueueWaitIdle(graphicsQueue); // TODO: This wait wait idle will be called twice (second one in RecompileFragmentShader). Make this code path more clearer.
+			vkQueueWaitIdle(graphicsQueue); // TODO: This wait wait idle will be called twice (second one in RecompileFragmentShader). Make this code path more clear.
 			
 			delete(m_FragmentShader);
 			m_FragmentShader = new Shader(device, inFilePath.get(), ShaderStage::Fragment, FragmentShaderCodeEntry);
@@ -1533,20 +1543,6 @@ namespace FT
 			}
 
 			currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
-		}
-
-		// TODO: Can we change shader without making new pipeline???
-		VkShaderModule CreateShaderModule(const std::vector<uint32_t>& code)
-		{
-			VkShaderModuleCreateInfo createInfo{};
-			createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-			createInfo.codeSize = sizeof(uint32_t) * code.size();
-			createInfo.pCode = code.data();
-
-			VkShaderModule shaderModule;
-			FT_VK_CALL(vkCreateShaderModule(device, &createInfo, nullptr, &shaderModule));
-
-			return shaderModule;
 		}
 
 		VkSurfaceFormatKHR ChooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats)
@@ -1662,6 +1658,19 @@ namespace FT
 			return index >= 0 && extensionsSupported && swapChainAdequate && supportedFeatures.samplerAnisotropy;
 		}
 
+		bool IsDeviceExtensionAvailable(const std::vector<VkExtensionProperties> availableExtensions, const std::string& extensionName)
+		{
+			for (const VkExtensionProperties& availableExtension : availableExtensions)
+			{
+				if (strcmp(availableExtension.extensionName, extensionName.c_str()) == 0)
+				{
+					return true;
+				}
+			}
+
+			return false;
+		}
+
 		bool CheckDeviceExtensionSupport(VkPhysicalDevice device)
 		{
 			uint32_t extensionCount;
@@ -1670,14 +1679,15 @@ namespace FT
 			std::vector<VkExtensionProperties> availableExtensions(extensionCount);
 			vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, availableExtensions.data());
 
-			std::set<std::string> requiredExtensions(deviceExtensions.begin(), deviceExtensions.end());
-
-			for (const auto& extension : availableExtensions)
+			for (const auto& extensionName : deviceExtensions)
 			{
-				requiredExtensions.erase(extension.extensionName);
+				if (!IsDeviceExtensionAvailable(availableExtensions, extensionName))
+				{
+					return false;
+				}
 			}
 
-			return requiredExtensions.empty();
+			return true;
 		}
 
 		uint32_t FindGraphicsQueueFamily(VkPhysicalDevice device)
@@ -1859,7 +1869,7 @@ namespace FT
 			const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
 			void* pUserData)
 		{
-			FT_LOG("validation layer: %s\n", pCallbackData->pMessage);
+			FT_LOG("Validation layer: %s\n", pCallbackData->pMessage);
 			return VK_FALSE;
 		}
 	};
@@ -1877,7 +1887,7 @@ namespace FT
 			renderer.RecompileFragmentShader();
 		}
 
-		if (key == GLFW_KEY_S && action == GLFW_PRESS && mods == GLFW_MOD_CONTROL && mods == GLFW_MOD_SHIFT)
+		if (key == GLFW_KEY_S && action == GLFW_PRESS && mods & GLFW_MOD_CONTROL && mods & GLFW_MOD_SHIFT)
 		{
 			// TODO: Make new file with current editor contents.
 		}
