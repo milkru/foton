@@ -11,7 +11,7 @@ namespace FT
 		~Shader();
 
 	public:
-		void Recompile(const std::string inSourceCode);
+		void Recompile(const std::string& inSourceCode);
 		VkPipelineShaderStageCreateInfo GetPipelineStageInfo() const;
 
 	public:

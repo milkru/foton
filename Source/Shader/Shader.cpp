@@ -81,7 +81,7 @@ namespace FT
 		DestroyShaderModule(m_Device, m_Module);
 	}
 
-	void Shader::Recompile(const std::string inSourceCode)
+	void Shader::Recompile(const std::string& inSourceCode)
 	{
 		ShaderCompileResult compileResult = CompileShaderToSpv(m_Language, m_Stage, inSourceCode, m_CodeEntry);
 		if (compileResult.Status != ShaderCompileStatus::Success)

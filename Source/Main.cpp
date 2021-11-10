@@ -1,10 +1,7 @@
-#define STB_IMAGE_IMPLEMENTATION
-#include <stb_image.h>
-
 #include "Shader/Shader.h"
 #include "Shader/ShaderCompiler.h"
-
-// TODO: If you want to create a new shader, save it immediately with nfd, so we have a name.
+#include "ImageFile.h"
+#include "FileExplorer.h"
 
 // TODO: Find out if we can make background for all text.
 // TODO: Separate Runtime and Editor?
@@ -13,6 +10,8 @@
 // TOOD: Shader printf?
 
 // TOOD: How resource loading with paths is going to work if we only run exe files? It's releative to project root, not the exe.
+
+// TOOD: Use more high resolution font file for code editor.
 
 namespace FT
 {
@@ -74,7 +73,6 @@ namespace FT
 		{
 			FT_CHECK(InitializeShaderCompiler(), "Glslang not initialized properly.");
 			InitializeWindow();
-			InitializeNFD();
 			InitializeVulkan();
 			InitializeImGui();
 			MainLoop();
@@ -83,7 +81,7 @@ namespace FT
 
 	private:
 		GLFWwindow* window;
-		NFD::Guard* nfdHandle;
+		FileExplorer m_FileExplorer;
 
 		VkInstance instance;
 		VkDebugUtilsMessengerEXT debugMessenger;
@@ -144,11 +142,6 @@ namespace FT
 		ImGuiLogger logger;
 		ShaderLanguage currentFragmentShaderLanguage;
 
-		static void function_name(GLFWwindow* window, unsigned int codepoint)
-		{
-
-		}
-
 		void InitializeWindow()
 		{
 			glfwInit();
@@ -159,27 +152,20 @@ namespace FT
 
 			window = glfwCreateWindow(WIDTH, HEIGHT, ApplicationName, nullptr, nullptr);
 			glfwSetWindowUserPointer(window, this);
-			glfwSetFramebufferSizeCallback(window, FramebufferResizeCallback);
 
+			glfwSetFramebufferSizeCallback(window, FramebufferResizeCallback);
 			glfwSetKeyCallback(window, KeyCallback);
 			glfwSetScrollCallback(window, ScrollCallback);
 
-			glfwSetCharCallback(window, function_name);
-
-			GLFWimage icon;
-			icon.pixels = stbi_load(GetFullPath("icon.png").c_str(), &icon.width, &icon.height, nullptr, STBI_rgb_alpha);
-			glfwSetWindowIcon(window, 1, &icon);
-		}
-
-		void InitializeNFD()
-		{
-			try
 			{
-				nfdHandle = new NFD::Guard();
-			}
-			catch (const std::runtime_error& error)
-			{
-				FT_FAIL("Unable to initialize NativeFileDialog.");
+				const ImageFile iconImage(GetFullPath("icon.png"));
+
+				GLFWimage icon;
+				icon.width = iconImage.GetWidth();
+				icon.height = iconImage.GetHeight();
+				icon.pixels = iconImage.GetPixels();
+
+				glfwSetWindowIcon(window, 1, &icon);
 			}
 		}
 
@@ -423,8 +409,6 @@ namespace FT
 
 			vkDestroySurfaceKHR(instance, surface, nullptr);
 			vkDestroyInstance(instance, nullptr);
-
-			delete(nfdHandle);
 
 			glfwDestroyWindow(window);
 
@@ -835,12 +819,11 @@ namespace FT
 
 		void CreateTextureImage()
 		{
-			int texWidth, texHeight, texChannels;
-			// TODO: Change.
-			stbi_uc* pixels = stbi_load(GetFullPath("icon.png").c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
-			VkDeviceSize imageSize = texWidth * texHeight * 4;
+			const ImageFile textureData(GetFullPath("icon.png"));
+			const int texWidth = textureData.GetWidth();
+			const int texHeight = textureData.GetHeight();
 
-			FT_CHECK(pixels, "Failed to load texture image.");
+			VkDeviceSize imageSize = texWidth * texHeight * 4;
 
 			VkBuffer stagingBuffer;
 			VkDeviceMemory stagingBufferMemory;
@@ -848,10 +831,8 @@ namespace FT
 
 			void* data;
 			vkMapMemory(device, stagingBufferMemory, 0, imageSize, 0, &data);
-			memcpy(data, pixels, static_cast<size_t>(imageSize));
+			memcpy(data, textureData.GetPixels(), static_cast<size_t>(imageSize));
 			vkUnmapMemory(device, stagingBufferMemory);
-
-			stbi_image_free(pixels);
 
 			CreateImage(texWidth, texHeight, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, textureImage, textureImageMemory);
 
@@ -1232,64 +1213,16 @@ namespace FT
 			vkUnmapMemory(device, uniformBuffersMemory[currentImage]);
 		}
 
-		void ShowExampleAppDockSpace2(bool* p_open)
+		void ImguiMenuBar()
 		{
-			static bool opt_fullscreen = true;
-			static bool opt_padding = false;
-			static ImGuiDockNodeFlags dockspace_flags = ImGuiDockNodeFlags_PassthruCentralNode;
-
-			ImGuiWindowFlags window_flags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking;
-			if (opt_fullscreen)
-			{
-				const ImGuiViewport* viewport = ImGui::GetMainViewport();
-				ImGui::SetNextWindowPos(viewport->WorkPos);
-				ImGui::SetNextWindowSize(viewport->WorkSize);
-				ImGui::SetNextWindowViewport(viewport->ID);
-				ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
-				ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
-				window_flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
-				window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
-			}
-			else
-			{
-				dockspace_flags &= ~ImGuiDockNodeFlags_PassthruCentralNode;
-			}
-
-			// When using ImGuiDockNodeFlags_PassthruCentralNode, DockSpace() will render our background
-			// and handle the pass-thru hole, so we ask Begin() to not render a background.
-			if (dockspace_flags & ImGuiDockNodeFlags_PassthruCentralNode)
-				window_flags |= ImGuiWindowFlags_NoBackground;
-
-			// Important: note that we proceed even if Begin() returns false (aka window is collapsed).
-			// This is because we want to keep our DockSpace() active. If a DockSpace() is inactive,
-			// all active windows docked into it will lose their parent and become undocked.
-			// We cannot preserve the docking relationship between an active window and an inactive docking, otherwise
-			// any change of dockspace/settings would lead to windows being stuck in limbo and never being visible.
-			if (!opt_padding)
-				ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-			ImGui::Begin("DockSpace Demo", p_open, window_flags);
-			if (!opt_padding)
-				ImGui::PopStyleVar();
-
-			if (opt_fullscreen)
-				ImGui::PopStyleVar(2);
-
-			// Submit the DockSpace
-			ImGuiIO& io = ImGui::GetIO();
-			{
-				ImGuiID dockspace_id = ImGui::GetID("MyDockSpace");
-				ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), dockspace_flags);
-			}
-
 			if (ImGui::BeginMenuBar())
 			{
 				if (ImGui::BeginMenu("File"))
 				{
 					if (ImGui::MenuItem("New", "Ctrl-N"))
 					{
-						NFD::UniquePath codeFilePath;
-						SaveShaderFileDialog(codeFilePath);
-						if (codeFilePath)
+						std::string shaderFilePath;
+						if (m_FileExplorer.SaveShaderDialog(shaderFilePath))
 						{
 							// TODO: Make new empty/default file and keep it open.
 						}
@@ -1297,29 +1230,25 @@ namespace FT
 
 					if (ImGui::MenuItem("Open", "Ctrl-O"))
 					{
-						NFD::UniquePath codeFilePath;
-						OpenShaderFileDialog(codeFilePath);
-						if (codeFilePath)
+						std::string shaderFilePath;
+						if (m_FileExplorer.OpenShaderDialog(shaderFilePath))
 						{
-							LoadShader(codeFilePath);
+							LoadShader(shaderFilePath);
 							RecompileFragmentShader();
 						}
 					}
 
-					// TOOD: Make shortcuts for these.
 					if (ImGui::MenuItem("Save", "Ctrl-S"))
 					{
 						RecompileFragmentShader();
 					}
 
-					// TOOD: Make shortcuts for these.
 					if (ImGui::MenuItem("Save As", "Ctrl-Shift-S"))
 					{
-						NFD::UniquePath codeFilePath;
-						SaveShaderFileDialog(codeFilePath);
-						if (codeFilePath)
+						std::string shaderFilePath;
+						if (m_FileExplorer.SaveShaderDialog(shaderFilePath))
 						{
-							auto textToSave = editor.GetText();
+							const std::string& textToSave = editor.GetText();
 							// TODO: Make new file with current contents and keep it open.
 						}
 					}
@@ -1336,24 +1265,43 @@ namespace FT
 				{
 					bool readOnly = editor.IsReadOnly();
 					if (ImGui::MenuItem("Read-only mode", nullptr, &readOnly))
+					{
 						editor.SetReadOnly(readOnly);
+					}
+
 					ImGui::Separator();
 
 					if (ImGui::MenuItem("Undo", "Alt-Backspace", nullptr, !readOnly && editor.CanUndo()))
+					{
 						editor.Undo();
+					}
+
 					if (ImGui::MenuItem("Redo", "Ctrl-Y", nullptr, !readOnly && editor.CanRedo()))
+					{
 						editor.Redo();
+					}
 
 					ImGui::Separator();
 
 					if (ImGui::MenuItem("Copy", "Ctrl-C", nullptr, editor.HasSelection()))
+					{
 						editor.Copy();
+					}
+
 					if (ImGui::MenuItem("Cut", "Ctrl-X", nullptr, !readOnly && editor.HasSelection()))
+					{
 						editor.Cut();
+					}
+
 					if (ImGui::MenuItem("Delete", "Del", nullptr, !readOnly && editor.HasSelection()))
+					{
 						editor.Delete();
+					}
+
 					if (ImGui::MenuItem("Paste", "Ctrl-V", nullptr, !readOnly && ImGui::GetClipboardText() != nullptr))
+					{
 						editor.Paste();
+					}
 
 					ImGui::Separator();
 
@@ -1365,7 +1313,9 @@ namespace FT
 					ImGui::Separator();
 
 					if (ImGui::MenuItem("Select all", nullptr, nullptr))
+					{
 						editor.SetSelection(TextEditor::Coordinates(), TextEditor::Coordinates(editor.GetTotalLines(), 0));
+					}
 
 					ImGui::EndMenu();
 				}
@@ -1373,12 +1323,51 @@ namespace FT
 				if (ImGui::BeginMenu("View"))
 				{
 					if (ImGui::MenuItem("Show UI", "Ctrl-F"))
+					{
 						ToggleImGui();
+					}
+
 					ImGui::EndMenu();
 				}
 
 				ImGui::EndMenuBar();
 			}
+		}
+
+		void ImguiDockSpace()
+		{
+			static ImGuiDockNodeFlags dockspaceFlags = ImGuiDockNodeFlags_PassthruCentralNode;
+
+			ImGuiWindowFlags windowFlags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking;
+			const ImGuiViewport* viewport = ImGui::GetMainViewport();
+			ImGui::SetNextWindowPos(viewport->WorkPos);
+			ImGui::SetNextWindowSize(viewport->WorkSize);
+			ImGui::SetNextWindowViewport(viewport->ID);
+			ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+			ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+			windowFlags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
+			windowFlags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
+
+			if (dockspaceFlags & ImGuiDockNodeFlags_PassthruCentralNode)
+			{
+				windowFlags |= ImGuiWindowFlags_NoBackground;
+			}
+
+			ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+
+			static bool open = true;
+			ImGui::Begin("DockSpace", &open, windowFlags);
+			ImGui::PopStyleVar();
+
+			ImGui::PopStyleVar(2);
+
+			ImGuiIO& io = ImGui::GetIO();
+			{
+				ImGuiID dockspaceId = ImGui::GetID("MyDockSpace");
+				ImGui::DockSpace(dockspaceId, ImVec2(0.0f, 0.0f), dockspaceFlags);
+			}
+
+			ImguiMenuBar();
 
 			ImGui::End();
 		}
@@ -1389,8 +1378,7 @@ namespace FT
 			ImGui_ImplGlfw_NewFrame();
 			ImGui::NewFrame();
 
-			static bool openm = true;
-			ShowExampleAppDockSpace2(&openm);
+			ImguiDockSpace();
 
 			ImGui::ShowDemoWindow();
 
@@ -1403,7 +1391,6 @@ namespace FT
 			ImGui::SetNextWindowBgAlpha(0.f);
 			ImGui::SetWindowFontScale(codeFontSize);
 			editor.SetShowWhitespaces(false); // TODO: Settings.
-			// TOOD: Use more high resolution font file for code editor.
 			editor.Render("TextEditor");
 			ImGui::End();
 
@@ -1460,12 +1447,12 @@ namespace FT
 		private: // HACK:
 
 		// TODO: Refactor. No need for multiple methods with double code.
-		void LoadShader(const NFD::UniquePath& inFilePath)
+		void LoadShader(const std::string& inFilePath)
 		{
 			vkQueueWaitIdle(graphicsQueue); // TODO: This wait wait idle will be called twice (second one in RecompileFragmentShader). Make this code path more clear.
 			
 			delete(m_FragmentShader);
-			m_FragmentShader = new Shader(device, inFilePath.get(), ShaderStage::Fragment, FragmentShaderCodeEntry);
+			m_FragmentShader = new Shader(device, inFilePath, ShaderStage::Fragment, FragmentShaderCodeEntry);
 
 			editor.SetText(m_FragmentShader->GetSourceCode());
 		}
@@ -1819,48 +1806,6 @@ namespace FT
 			TextEditor::ErrorMarkers ems;
 			ems[lineInt] = message;
 			editor.SetErrorMarkers(ems);
-		}
-
-		// TODO: Move these things to separate file, since we will need this for texture files as well.
-		std::vector<nfdfilteritem_t> GetShaderFileExtensionFilter()
-		{
-			static std::vector<nfdfilteritem_t> filterItems;
-			if (filterItems.size() > 0)
-			{
-				return filterItems;
-			}
-
-			for (const auto& shaderFileExtension : SupportedShaderFileExtensions)
-			{
-				nfdfilteritem_t filterItem;
-				filterItem.name = shaderFileExtension.Name.c_str();
-				filterItem.spec = shaderFileExtension.Extension.c_str();
-				filterItems.push_back(filterItem);
-			}
-
-			return filterItems;
-		}
-
-		void SaveShaderFileDialog(NFD::UniquePath& outPath)
-		{
-			const std::vector<nfdfilteritem_t> filterItems = GetShaderFileExtensionFilter();
-			const nfdresult_t result = NFD::SaveDialog(outPath, filterItems.data(), filterItems.size());
-
-			if (result != NFD_OKAY && result != NFD_CANCEL)
-			{
-				FT_LOG(NFD::GetError());
-			}
-		}
-
-		void OpenShaderFileDialog(NFD::UniquePath& outPath)
-		{
-			const std::vector<nfdfilteritem_t> filterItems = GetShaderFileExtensionFilter();
-			const nfdresult_t result = NFD::OpenDialog(outPath, filterItems.data(), filterItems.size());
-
-			if (result != NFD_OKAY && result != NFD_CANCEL)
-			{
-				FT_LOG(NFD::GetError());
-			}
 		}
 
 		static VKAPI_ATTR VkBool32 VKAPI_CALL DebugMessageCallback(
