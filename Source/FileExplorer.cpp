@@ -48,13 +48,16 @@ namespace FT
 		const std::vector<nfdfilteritem_t> filterItems = GetShaderFileExtensionFilter();
 
 		const nfdresult_t result = NFD::OpenDialog(filePath, filterItems.data(), filterItems.size());
-		const bool success = filePath && (result == NFD_OKAY || result == NFD_CANCEL);
-		if (success)
+		if (filePath && (result == NFD_OKAY || result == NFD_CANCEL))
 		{
 			outFilePath = filePath.get();
+			return true;
 		}
-
-		return success;
+		else
+		{
+			FT_LOG("Opening shader file failed.");
+			return false;
+		}
 	}
 
 	bool FileExplorer::SaveShaderDialog(std::string& outFilePath) const
@@ -63,12 +66,15 @@ namespace FT
 		const std::vector<nfdfilteritem_t> filterItems = GetShaderFileExtensionFilter();
 
 		const nfdresult_t result = NFD::SaveDialog(filePath, filterItems.data(), filterItems.size());
-		const bool success = filePath && (result == NFD_OKAY || result == NFD_CANCEL);
-		if (success)
+		if (filePath && (result == NFD_OKAY || result == NFD_CANCEL))
 		{
 			outFilePath = filePath.get();
+			return true;
 		}
-
-		return success;
+		else
+		{
+			FT_LOG("Saving shader file failed.");
+			return false;
+		}
 	}
 }

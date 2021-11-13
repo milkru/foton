@@ -13,11 +13,11 @@
 		} \
 		while (0)
 
-#define FT_FAIL(msg) do { throw std::runtime_error(msg); } while(0)
 #else
-#	define FT_CHECK(condition, fmt, ...)
-#	define FT_FAIL(fmt, ...)
+#	define FT_CHECK(condition, fmt, ...) do { if(!(condition)) {} } while (0)
 #endif
+
+#define FT_FAIL(msg) do { throw std::runtime_error(msg); } while(0)
 
 // TODO: This shouldn't be here.
 #define FT_VK_CALL(call) \
