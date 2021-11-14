@@ -22,5 +22,8 @@ layout (location = 0) out vec4 outColor;
 
 void main()
 {
+	// TODO: Maybe default shader should be a logo of FOTON makde from code!
+	vec4 fragPos = texture(inputTexture, inUV);
 	outColor = vec4(inUV, 1.0, 1.0);
+	outColor = fragPos;
 }

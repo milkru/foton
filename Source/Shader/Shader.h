@@ -10,6 +10,10 @@ namespace FT
 		Shader(const VkDevice inDevice, const std::string inPath, const ShaderStage inStage, const std::string& inCodeEntry);
 		~Shader();
 
+	private:
+		Shader(Shader const&) = delete;
+		Shader& operator=(Shader const&) = delete;
+
 	public:
 		void Recompile(const std::string& inSourceCode);
 		VkPipelineShaderStageCreateInfo GetPipelineStageInfo() const;

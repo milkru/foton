@@ -9,6 +9,10 @@ namespace FT
 	public:
 		ShaderFile(const std::string inPath);
 
+	private:
+		ShaderFile(ShaderFile const&) = delete;
+		ShaderFile& operator=(ShaderFile const&) = delete;
+
 	public:
 		std::string GetPath() const { return m_Path; }
 		std::string GetName() const { return m_Name; }

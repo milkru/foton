@@ -8,6 +8,10 @@ namespace FT
 		ImageFile(const std::string inPath);
 		~ImageFile();
 
+	private:
+		ImageFile(ImageFile const&) = delete;
+		ImageFile& operator=(ImageFile const&) = delete;
+
 	public:
 		int GetWidth() const { return m_Width; }
 		int GetHeight() const { return m_Height; }

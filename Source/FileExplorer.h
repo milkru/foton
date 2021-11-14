@@ -13,6 +13,10 @@ namespace FT
 		FileExplorer();
 		~FileExplorer();
 
+	private:
+		FileExplorer(FileExplorer const&) = delete;
+		FileExplorer& operator=(FileExplorer const&) = delete;
+
 	public:
 		bool OpenShaderDialog(std::string& outFilePath) const;
 		bool SaveShaderDialog(std::string& outFilePath) const;

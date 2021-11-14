@@ -3,6 +3,27 @@
 
 namespace FT
 {
+	VkBufferUsageFlags GetVkBufferUsageFlags(const BufferUsageFlags usageFlags)
+	{
+		VkBufferUsageFlags bufferUsageFlags = 0;
+		if (IsFlagSet(usageFlags & BufferUsageFlags::TransferSrc))
+		{
+			bufferUsageFlags |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+		}
+
+		if (IsFlagSet(usageFlags & BufferUsageFlags::TransferDst))
+		{
+			bufferUsageFlags |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+		}
+
+		if (IsFlagSet(usageFlags & BufferUsageFlags::Uniform))
+		{
+			bufferUsageFlags |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+		}
+
+		return bufferUsageFlags;
+	}
+
 	void CreateBuffer(const Device* inDevice, const VkDeviceSize inSize, const VkBufferUsageFlags inUsage,
 		const VkMemoryPropertyFlags inProperties, VkBuffer& outBuffer, VkDeviceMemory& outBufferMemory)
 	{
@@ -27,12 +48,12 @@ namespace FT
 		vkBindBufferMemory(inDevice->GetDevice(), outBuffer, outBufferMemory, 0);
 	}
 
-	Buffer::Buffer(const Device* inDevice, const size_t inSize, const VkBufferUsageFlags inUsage)
+	Buffer::Buffer(const Device* inDevice, const size_t inSize, const BufferUsageFlags inUsage)
 		: m_Device(inDevice)
 		, m_Size(inSize)
 		, m_HostVisibleData(nullptr)
 	{
-		CreateBuffer(inDevice, inSize, inUsage, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, m_Buffer, m_Memory);
+		CreateBuffer(inDevice, inSize, GetVkBufferUsageFlags(inUsage), VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, m_Buffer, m_Memory);
 	}
 
 	Buffer::~Buffer()

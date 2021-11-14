@@ -27,6 +27,10 @@ namespace FT
 		Swapchain(const class Device* inDevice, GLFWwindow* inWindow);
 		~Swapchain();
 
+	private:
+		Swapchain(Swapchain const&) = delete;
+		Swapchain& operator=(Swapchain const&) = delete;
+
 	public:
 		void Recreate();
 		void Cleanup();

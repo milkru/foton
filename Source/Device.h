@@ -8,6 +8,10 @@ namespace FT
 		Device(GLFWwindow* inWindow);
 		~Device();
 
+	private:
+		Device(Device const&) = delete;
+		Device& operator=(Device const&) = delete;
+
 	public:
 		void AllocateCommandBuffers(const uint32_t inSwapchainImageCount);
 		void FreeCommandBuffers();
