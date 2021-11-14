@@ -20,7 +20,7 @@ namespace FT
 		std::vector<uint32_t> SpvCode;
 	};
 
-	extern bool InitializeShaderCompiler();
+	extern void InitializeShaderCompiler();
 	extern void FinalizeShaderCompiler();
 	extern ShaderCompileResult CompileShaderToSpv(const ShaderLanguage inLanguage, const ShaderStage inStage, const std::string inSourceCode, const std::string inCodeEntry);
 }

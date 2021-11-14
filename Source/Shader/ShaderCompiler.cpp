@@ -4,9 +4,9 @@
 
 namespace FT
 {
-	bool InitializeShaderCompiler()
+	void InitializeShaderCompiler()
 	{
-		return glslang::InitializeProcess();
+		FT_CHECK(glslang::InitializeProcess(), "Glslang not initialized properly.");
 	}
 
 	void FinalizeShaderCompiler()

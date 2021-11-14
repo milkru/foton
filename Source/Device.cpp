@@ -2,7 +2,6 @@
 
 namespace FT
 {
-
 #if !defined(NDEBUG) // TODO: FT_DEBUG
 	const static bool enableValidationLayers = true;
 #else
@@ -14,7 +13,6 @@ namespace FT
 		VK_KHR_SWAPCHAIN_EXTENSION_NAME
 	};
 
-	// TODO: Check layer handling in photon. In-place this as well.
 	const static std::vector<const char*> validationLayers =
 	{
 		"VK_LAYER_KHRONOS_validation"
@@ -252,19 +250,19 @@ namespace FT
 		FT_FAIL("Failed to find a suitable GPU.");
 	}
 
-	void CreateLogicalDevice(const VkPhysicalDevice inPhysicalDevice, const VkSurfaceKHR inSurface, VkDevice& outDevice, VkQueue& outGraphicsQueue)
+	void CreateLogicalDevice(const VkPhysicalDevice inPhysicalDevice, const VkSurfaceKHR inSurface, VkDevice& outDevice, VkQueue& outGraphicsQueue, uint32_t& outGraphicsQueueFamilyIndex)
 	{
-		uint32_t graphicsQueueFamilyIndex = FindGraphicsQueueFamily(inPhysicalDevice);
+		outGraphicsQueueFamilyIndex = FindGraphicsQueueFamily(inPhysicalDevice);
 
 		VkBool32 presentSupport = false;
-		vkGetPhysicalDeviceSurfaceSupportKHR(inPhysicalDevice, graphicsQueueFamilyIndex, inSurface, &presentSupport);
+		vkGetPhysicalDeviceSurfaceSupportKHR(inPhysicalDevice, outGraphicsQueueFamilyIndex, inSurface, &presentSupport);
 
 		FT_CHECK(presentSupport, "Device doesn't support present.");
 
 		float queuePriority = 1.0f;
 		VkDeviceQueueCreateInfo queueCreateInfo{};
 		queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-		queueCreateInfo.queueFamilyIndex = graphicsQueueFamilyIndex;
+		queueCreateInfo.queueFamilyIndex = outGraphicsQueueFamilyIndex;
 		queueCreateInfo.queueCount = 1;
 		queueCreateInfo.pQueuePriorities = &queuePriority;
 
@@ -291,7 +289,17 @@ namespace FT
 
 		FT_VK_CALL(vkCreateDevice(inPhysicalDevice, &createInfo, nullptr, &outDevice));
 
-		vkGetDeviceQueue(outDevice, graphicsQueueFamilyIndex, 0, &outGraphicsQueue);
+		vkGetDeviceQueue(outDevice, outGraphicsQueueFamilyIndex, 0, &outGraphicsQueue);
+	}
+
+	void CreateCommandPool(const VkDevice inDevice, const uint32_t inQueueFamilyIndex, VkCommandPool& outCommandPool)
+	{
+		VkCommandPoolCreateInfo createInfo{};
+		createInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+		createInfo.queueFamilyIndex = inQueueFamilyIndex;
+		createInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+
+		FT_VK_CALL(vkCreateCommandPool(inDevice, &createInfo, nullptr, &outCommandPool));
 	}
 
 	Device::Device(GLFWwindow* inWindow)
@@ -300,11 +308,14 @@ namespace FT
 		SetupDebugMessenger(m_Instance, m_DebugMessenger);
 		CreateSurface(m_Instance, inWindow, m_Surface);
 		PickPhysicalDevice(m_Instance, m_Surface, m_PhysicalDevice);
-		CreateLogicalDevice(m_PhysicalDevice, m_Surface, m_Device, m_GraphicsQueue);
+		CreateLogicalDevice(m_PhysicalDevice, m_Surface, m_Device, m_GraphicsQueue, m_GraphicsQueueFamilyIndex);
+		CreateCommandPool(m_Device, m_GraphicsQueueFamilyIndex, m_CommandPool);
 	}
 
 	Device::~Device()
 	{
+		vkDestroyCommandPool(m_Device, m_CommandPool, nullptr);
+
 		vkDestroyDevice(m_Device, nullptr);
 
 		if (enableValidationLayers)
@@ -317,5 +328,74 @@ namespace FT
 
 		vkDestroySurfaceKHR(m_Instance, m_Surface, nullptr);
 		vkDestroyInstance(m_Instance, nullptr);
+	}
+
+	void Device::FreeCommandBuffers()
+	{
+		vkFreeCommandBuffers(m_Device, m_CommandPool, static_cast<uint32_t>(m_CommandBuffers.size()), m_CommandBuffers.data());
+	}
+
+	void Device::AllocateCommandBuffers(const uint32_t inSwapchainImageCount)
+	{
+		m_CommandBuffers.resize(inSwapchainImageCount);
+
+		VkCommandBufferAllocateInfo allocateInfo{};
+		allocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+		allocateInfo.commandPool = m_CommandPool;
+		allocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+		allocateInfo.commandBufferCount = (uint32_t)m_CommandBuffers.size();
+
+		FT_VK_CALL(vkAllocateCommandBuffers(m_Device, &allocateInfo, m_CommandBuffers.data()));
+	}
+
+	uint32_t Device::FindMemoryType(const uint32_t inTypeFilter, const VkMemoryPropertyFlags inProperties) const
+	{
+		VkPhysicalDeviceMemoryProperties memProperties;
+		vkGetPhysicalDeviceMemoryProperties(m_PhysicalDevice, &memProperties);
+
+		for (uint32_t i = 0; i < memProperties.memoryTypeCount; ++i)
+		{
+			if ((inTypeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & inProperties) == inProperties)
+			{
+				return i;
+			}
+		}
+
+		FT_FAIL("Failed to find suitable memory type.");
+	}
+
+	VkCommandBuffer Device::BeginSingleTimeCommands() const
+	{
+		VkCommandBufferAllocateInfo allocateInfo{};
+		allocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+		allocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+		allocateInfo.commandPool = m_CommandPool;
+		allocateInfo.commandBufferCount = 1;
+
+		VkCommandBuffer commandBuffer;
+		vkAllocateCommandBuffers(m_Device, &allocateInfo, &commandBuffer);
+
+		VkCommandBufferBeginInfo beginInfo{};
+		beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+		beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+		vkBeginCommandBuffer(commandBuffer, &beginInfo);
+
+		return commandBuffer;
+	}
+
+	void Device::EndSingleTimeCommands(VkCommandBuffer inCommandBuffer) const
+	{
+		vkEndCommandBuffer(inCommandBuffer);
+
+		VkSubmitInfo submitInfo{};
+		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+		submitInfo.commandBufferCount = 1;
+		submitInfo.pCommandBuffers = &inCommandBuffer;
+
+		vkQueueSubmit(m_GraphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
+		vkQueueWaitIdle(m_GraphicsQueue);
+
+		vkFreeCommandBuffers(m_Device, m_CommandPool, 1, &inCommandBuffer);
 	}
 }

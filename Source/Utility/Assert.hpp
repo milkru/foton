@@ -19,10 +19,10 @@
 
 #define FT_FAIL(msg) do { throw std::runtime_error(msg); } while(0)
 
-// TODO: This shouldn't be here.
+// TODO: This shouldn't be here. This should fail even in Release!
 #define FT_VK_CALL(call) \
 	do { \
 		VkResult result = call; \
-		FT_CHECK(result == VK_SUCCESS, "Vulkan API call failed."); \
+		FT_CHECK(result == VK_SUCCESS, "Vulkan API call %s failed.", #call); \
 	} \
 	while (0)
