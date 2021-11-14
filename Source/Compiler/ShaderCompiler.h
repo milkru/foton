@@ -1,9 +1,10 @@
 #pragma once
 
-#include "ShaderCommon.hpp"
-
 namespace FT
 {
+	enum class ShaderLanguage : uint8_t;
+	enum class ShaderStage : uint8_t;
+
 	enum class ShaderCompileStatus : uint8_t
 	{
 		Success,

@@ -1,9 +1,28 @@
 #pragma once
 
-#include "ShaderCommon.hpp"
-
 namespace FT
 {
+	enum class ShaderLanguage : uint8_t
+	{
+		GLSL,
+		HLSL,
+
+		Count
+	};
+
+	struct ShaderFileExtension
+	{
+		ShaderLanguage Language = ShaderLanguage::Count;
+		std::string Extension;
+		std::string Name;
+	};
+
+	const ShaderFileExtension SupportedShaderFileExtensions[] =
+	{
+		{ ShaderLanguage::GLSL, "glsl", "Graphics Library Shading Language"},
+		{ ShaderLanguage::HLSL, "hlsl", "High-Level Shader Language"}
+	};
+
 	class ShaderFile
 	{
 	public:

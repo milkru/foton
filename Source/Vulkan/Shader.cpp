@@ -1,6 +1,7 @@
 #include "Shader.h"
-#include "ShaderCompiler.h"
-#include "ShaderReflect.h"
+#include "Device.h"
+#include "Compiler/ShaderCompiler.h"
+#include "Compiler/ShaderReflect.h"
 
 namespace FT
 {
@@ -42,18 +43,18 @@ namespace FT
 
 	VkShaderModule CreateShaderModule(const VkDevice inDevice, const std::vector<uint32_t>& inSpvCode)
 	{
-		VkShaderModuleCreateInfo createInfo{};
-		createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-		createInfo.codeSize = sizeof(uint32_t) * inSpvCode.size();
-		createInfo.pCode = inSpvCode.data();
+		VkShaderModuleCreateInfo shaderModuleCreateInfo{};
+		shaderModuleCreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+		shaderModuleCreateInfo.codeSize = sizeof(uint32_t) * inSpvCode.size();
+		shaderModuleCreateInfo.pCode = inSpvCode.data();
 
 		VkShaderModule shaderModule;
-		FT_VK_CALL(vkCreateShaderModule(inDevice, &createInfo, nullptr, &shaderModule));
+		FT_VK_CALL(vkCreateShaderModule(inDevice, &shaderModuleCreateInfo, nullptr, &shaderModule));
 
 		return shaderModule;
 	}
 
-	Shader::Shader(const VkDevice inDevice, const std::string inPath, const ShaderStage inStage, const std::string& inCodeEntry)
+	Shader::Shader(const Device* inDevice, const std::string inPath, const ShaderStage inStage, const std::string& inCodeEntry)
 		: ShaderFile(inPath)
 		, m_Stage(inStage)
 		, m_CodeEntry(inCodeEntry)
@@ -68,7 +69,7 @@ namespace FT
 
 		const std::vector<uint32_t> spvCode = compileResult.SpvCode;
 		m_Bindings = ReflectShader(spvCode, GetVkShaderStageFlagFrom(m_Stage));
-		m_Module = CreateShaderModule(m_Device, spvCode);
+		m_Module = CreateShaderModule(m_Device->GetDevice(), spvCode);
 	}
 
 	void DestroyShaderModule(const VkDevice inDevice, const VkShaderModule inModule)
@@ -78,7 +79,7 @@ namespace FT
 
 	Shader::~Shader()
 	{
-		DestroyShaderModule(m_Device, m_Module);
+		DestroyShaderModule(m_Device->GetDevice(), m_Module);
 	}
 
 	void Shader::Recompile(const std::string& inSourceCode)
@@ -95,19 +96,19 @@ namespace FT
 		const std::vector<uint32_t> spvCode = compileResult.SpvCode;
 		m_Bindings = ReflectShader(spvCode, GetVkShaderStageFlagFrom(m_Stage));
 
-		DestroyShaderModule(m_Device, m_Module);
-		m_Module = CreateShaderModule(m_Device, spvCode);
+		DestroyShaderModule(m_Device->GetDevice(), m_Module);
+		m_Module = CreateShaderModule(m_Device->GetDevice(), spvCode);
 
 		// TODO: Log success!
 	}
 
 	VkPipelineShaderStageCreateInfo Shader::GetPipelineStageInfo() const
 	{
-		VkPipelineShaderStageCreateInfo pipelineStageInfo{};
-		pipelineStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-		pipelineStageInfo.stage = GetVkShaderStageFlagFrom(m_Stage);
-		pipelineStageInfo.module = m_Module;
-		pipelineStageInfo.pName = m_CodeEntry.c_str();
-		return pipelineStageInfo;
+		VkPipelineShaderStageCreateInfo pipelineStageCreateInfo{};
+		pipelineStageCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+		pipelineStageCreateInfo.stage = GetVkShaderStageFlagFrom(m_Stage);
+		pipelineStageCreateInfo.module = m_Module;
+		pipelineStageCreateInfo.pName = m_CodeEntry.c_str();
+		return pipelineStageCreateInfo;
 	}
 }

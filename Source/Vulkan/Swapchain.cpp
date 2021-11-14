@@ -4,6 +4,7 @@
 
 namespace FT
 {
+	// TODO: Uppercase?
 	const int MAX_FRAMES_IN_FLIGHT = 2;
 
 	struct SwapChainSupportDetails
@@ -120,22 +121,22 @@ namespace FT
 			swapchainImageCount = swapChainSupport.capabilities.maxImageCount;
 		}
 
-		VkSwapchainCreateInfoKHR createInfo{};
-		createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-		createInfo.surface = inDevice->GetSurface();
-		createInfo.minImageCount = swapchainImageCount;
-		createInfo.imageFormat = surfaceFormat.format;
-		createInfo.imageColorSpace = surfaceFormat.colorSpace;
-		createInfo.imageExtent = extent;
-		createInfo.imageArrayLayers = 1;
-		createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-		createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-		createInfo.preTransform = swapChainSupport.capabilities.currentTransform;
-		createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-		createInfo.presentMode = presentMode;
-		createInfo.clipped = VK_TRUE;
+		VkSwapchainCreateInfoKHR swapchainCreateInfo{};
+		swapchainCreateInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+		swapchainCreateInfo.surface = inDevice->GetSurface();
+		swapchainCreateInfo.minImageCount = swapchainImageCount;
+		swapchainCreateInfo.imageFormat = surfaceFormat.format;
+		swapchainCreateInfo.imageColorSpace = surfaceFormat.colorSpace;
+		swapchainCreateInfo.imageExtent = extent;
+		swapchainCreateInfo.imageArrayLayers = 1;
+		swapchainCreateInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+		swapchainCreateInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+		swapchainCreateInfo.preTransform = swapChainSupport.capabilities.currentTransform;
+		swapchainCreateInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+		swapchainCreateInfo.presentMode = presentMode;
+		swapchainCreateInfo.clipped = VK_TRUE;
 
-		FT_VK_CALL(vkCreateSwapchainKHR(inDevice->GetDevice(), &createInfo, nullptr, &outSwapchain));
+		FT_VK_CALL(vkCreateSwapchainKHR(inDevice->GetDevice(), &swapchainCreateInfo, nullptr, &outSwapchain));
 
 		vkGetSwapchainImagesKHR(inDevice->GetDevice(), outSwapchain, &swapchainImageCount, nullptr);
 		outSwapchainImages.resize(swapchainImageCount);
@@ -151,18 +152,18 @@ namespace FT
 
 		for (size_t i = 0; i < inSwapchainImages.size(); ++i)
 		{
-			VkImageViewCreateInfo viewInfo{};
-			viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-			viewInfo.image = inSwapchainImages[i];
-			viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-			viewInfo.format = inSwapchainImageFormat;
-			viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-			viewInfo.subresourceRange.baseMipLevel = 0;
-			viewInfo.subresourceRange.levelCount = 1;
-			viewInfo.subresourceRange.baseArrayLayer = 0;
-			viewInfo.subresourceRange.layerCount = 1;
+			VkImageViewCreateInfo imageViewCreateInfo{};
+			imageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+			imageViewCreateInfo.image = inSwapchainImages[i];
+			imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+			imageViewCreateInfo.format = inSwapchainImageFormat;
+			imageViewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+			imageViewCreateInfo.subresourceRange.baseMipLevel = 0;
+			imageViewCreateInfo.subresourceRange.levelCount = 1;
+			imageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
+			imageViewCreateInfo.subresourceRange.layerCount = 1;
 
-			FT_VK_CALL(vkCreateImageView(inDevice, &viewInfo, nullptr, &outSwapchainImageViews[i]));
+			FT_VK_CALL(vkCreateImageView(inDevice, &imageViewCreateInfo, nullptr, &outSwapchainImageViews[i]));
 		}
 	}
 
@@ -195,16 +196,16 @@ namespace FT
 		dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 		dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 
-		VkRenderPassCreateInfo renderPassInfo{};
-		renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-		renderPassInfo.attachmentCount = 1;
-		renderPassInfo.pAttachments = &colorAttachment;
-		renderPassInfo.subpassCount = 1;
-		renderPassInfo.pSubpasses = &subpass;
-		renderPassInfo.dependencyCount = 1;
-		renderPassInfo.pDependencies = &dependency;
+		VkRenderPassCreateInfo renderPassCreateInfo{};
+		renderPassCreateInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+		renderPassCreateInfo.attachmentCount = 1;
+		renderPassCreateInfo.pAttachments = &colorAttachment;
+		renderPassCreateInfo.subpassCount = 1;
+		renderPassCreateInfo.pSubpasses = &subpass;
+		renderPassCreateInfo.dependencyCount = 1;
+		renderPassCreateInfo.pDependencies = &dependency;
 
-		FT_VK_CALL(vkCreateRenderPass(inDevice, &renderPassInfo, nullptr, &outRenderPass));
+		FT_VK_CALL(vkCreateRenderPass(inDevice, &renderPassCreateInfo, nullptr, &outRenderPass));
 	}
 
 	void CreateFramebuffers(const VkDevice inDevice, const VkRenderPass inRenderPass, const std::vector<VkImageView> inSwapchainImageViews, const VkExtent2D inSwapchainExtent, std::vector<VkFramebuffer>& outSwapchainFramebuffers)
@@ -218,16 +219,16 @@ namespace FT
 				inSwapchainImageViews[i]
 			};
 
-			VkFramebufferCreateInfo framebufferInfo{};
-			framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-			framebufferInfo.renderPass = inRenderPass;
-			framebufferInfo.attachmentCount = 1;
-			framebufferInfo.pAttachments = attachments;
-			framebufferInfo.width = inSwapchainExtent.width;
-			framebufferInfo.height = inSwapchainExtent.height;
-			framebufferInfo.layers = 1;
+			VkFramebufferCreateInfo framebufferCreateInfo{};
+			framebufferCreateInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+			framebufferCreateInfo.renderPass = inRenderPass;
+			framebufferCreateInfo.attachmentCount = 1;
+			framebufferCreateInfo.pAttachments = attachments;
+			framebufferCreateInfo.width = inSwapchainExtent.width;
+			framebufferCreateInfo.height = inSwapchainExtent.height;
+			framebufferCreateInfo.layers = 1;
 
-			FT_VK_CALL(vkCreateFramebuffer(inDevice, &framebufferInfo, nullptr, &outSwapchainFramebuffers[i]));
+			FT_VK_CALL(vkCreateFramebuffer(inDevice, &framebufferCreateInfo, nullptr, &outSwapchainFramebuffers[i]));
 		}
 	}
 
@@ -236,13 +237,13 @@ namespace FT
 		outImageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
 		outRenderFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
 
-		VkSemaphoreCreateInfo semaphoreInfo{};
-		semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+		VkSemaphoreCreateInfo semaphoreCreateInfo{};
+		semaphoreCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
 		for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
 		{
-			FT_VK_CALL(vkCreateSemaphore(inDevice, &semaphoreInfo, nullptr, &outImageAvailableSemaphores[i]));
-			FT_VK_CALL(vkCreateSemaphore(inDevice, &semaphoreInfo, nullptr, &outRenderFinishedSemaphores[i]));
+			FT_VK_CALL(vkCreateSemaphore(inDevice, &semaphoreCreateInfo, nullptr, &outImageAvailableSemaphores[i]));
+			FT_VK_CALL(vkCreateSemaphore(inDevice, &semaphoreCreateInfo, nullptr, &outRenderFinishedSemaphores[i]));
 		}
 	}
 
@@ -250,13 +251,13 @@ namespace FT
 	{
 		outInFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
 
-		VkFenceCreateInfo fenceInfo{};
-		fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-		fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+		VkFenceCreateInfo fenceCreateInfo{};
+		fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+		fenceCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
 		for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
 		{
-			FT_VK_CALL(vkCreateFence(inDevice, &fenceInfo, nullptr, &outInFlightFences[i]));
+			FT_VK_CALL(vkCreateFence(inDevice, &fenceCreateInfo, nullptr, &outInFlightFences[i]));
 		}
 	}
 

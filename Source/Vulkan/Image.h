@@ -2,10 +2,12 @@
 
 namespace FT
 {
+	class Device;
+
 	class Image
 	{
 	public:
-		Image(const class Device* inDevice, const std::string inPath);
+		Image(const Device* inDevice, const std::string inPath);
 		~Image();
 
 	private:

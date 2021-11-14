@@ -1,6 +1,8 @@
 #include "ShaderCompiler.h"
 #include "ShaderFileIncluder.h"
 #include "ShaderResourceLimits.hpp"
+#include "Vulkan/Shader.h"
+#include "Utility/ShaderFile.h"
 
 namespace FT
 {

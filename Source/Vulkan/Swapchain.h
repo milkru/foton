@@ -17,6 +17,8 @@ namespace FT
 		uint32_t ImageIndex;
 	};
 
+	class Device;
+
 	class Swapchain
 	{
 	public:
@@ -24,7 +26,7 @@ namespace FT
 		static bool s_FramebufferResized;
 
 	public:
-		Swapchain(const class Device* inDevice, GLFWwindow* inWindow);
+		Swapchain(const Device* inDevice, GLFWwindow* inWindow);
 		~Swapchain();
 
 	private:

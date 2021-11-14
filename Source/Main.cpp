@@ -1,11 +1,12 @@
-#include "Shader/Shader.h"
-#include "Shader/ShaderCompiler.h"
-#include "ImageFile.h"
-#include "FileExplorer.h"
-#include "Device.h"
-#include "Swapchain.h"
-#include "Buffer.h"
-#include "Image.h"
+#include "Vulkan/Device.h"
+#include "Vulkan/Swapchain.h"
+#include "Vulkan/Buffer.h"
+#include "Vulkan/Image.h"
+#include "Vulkan/Shader.h"
+#include "Vulkan/Pipeline.h"
+#include "Compiler/ShaderCompiler.h"
+#include "Utility/ImageFile.h"
+#include "Utility/FileExplorer.h"
 
 // TODO: Next to do ImageResource and BufferResource.
 
@@ -23,21 +24,12 @@
 
 namespace FT
 {
-	struct SwapChainSupportDetails
-	{
-		VkSurfaceCapabilitiesKHR capabilities;
-		std::vector<VkSurfaceFormatKHR> formats;
-		std::vector<VkPresentModeKHR> presentModes;
-	};
-
-	// TODO: This shouldn't be here.
+	// TODO: This shouldn't be here. FT_ROOT_DIR is probably wrong for exe only???
 	std::string GetFullPath(const std::string inRelativePath) { return std::string(FT_ROOT_DIR) + inRelativePath; }
 
 	// TOOD: Move somewhere else.
 	const uint32_t WIDTH = 1280;
 	const uint32_t HEIGHT = 720;
-
-	const int MAX_FRAMES_IN_FLIGHT = 2;
 
 	const char* VertexShaderCodeEntry = "main";
 	const char* FragmentShaderCodeEntry = "main"; // TOOD: Allow user to change this one.
@@ -54,8 +46,8 @@ namespace FT
 	void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
 	void ScrollCallback(GLFWwindow* window, double xoffset, double yoffset);
 
-	// TODO: Change the name to vulkancore and move it to another file.
-	class Renderer
+	// TOOD: Move to separate file.
+	class Application
 	{
 	public:
 		void Run()
@@ -78,14 +70,12 @@ namespace FT
 		Shader* m_VertexShader = nullptr;
 		Shader* m_FragmentShader = nullptr;
 
-		VkDescriptorSetLayout descriptorSetLayout = VK_NULL_HANDLE;
-		VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;
-		VkPipeline graphicsPipeline = VK_NULL_HANDLE;
+		Pipeline* m_Pipeline = nullptr;
 
 		Image* m_Image;
+		std::vector<Buffer*> m_UniformBuffers; // TODO: Move double buffering to Buffer implementation, since it's always host visible.
 
-		std::vector<Buffer*> m_UniformBuffers;
-
+		VkDescriptorSetLayout descriptorSetLayout;
 		VkDescriptorPool descriptorPool;
 		std::vector<VkDescriptorSet> descriptorSets;
 
@@ -113,16 +103,14 @@ namespace FT
 			glfwSetKeyCallback(window, KeyCallback);
 			glfwSetScrollCallback(window, ScrollCallback);
 
-			{
-				const ImageFile iconImage(GetFullPath("icon"));
+			const ImageFile iconImage(GetFullPath("icon"));
 
-				GLFWimage icon;
-				icon.width = iconImage.GetWidth();
-				icon.height = iconImage.GetHeight();
-				icon.pixels = iconImage.GetPixels();
+			GLFWimage icon;
+			icon.width = iconImage.GetWidth();
+			icon.height = iconImage.GetHeight();
+			icon.pixels = iconImage.GetPixels();
 
-				glfwSetWindowIcon(window, 1, &icon);
-			}
+			glfwSetWindowIcon(window, 1, &icon);
 		}
 
 		void InitializeVulkan()
@@ -131,7 +119,8 @@ namespace FT
 			m_Swapchain = new Swapchain(m_Device, window);
 
 			CreateShaders();
-			CreateGraphicsPipeline();
+
+			m_Pipeline = new Pipeline(m_Device, m_Swapchain, descriptorSetLayout, m_VertexShader, m_FragmentShader);
 
 			m_Image = new Image(m_Device, GetFullPath("icon"));
 
@@ -282,7 +271,7 @@ namespace FT
 			vkDeviceWaitIdle(m_Device->GetDevice());
 		}
 
-		void CleanupSwapChain()
+		void CleanupSwapchain()
 		{
 			m_Swapchain->Cleanup();
 
@@ -290,12 +279,12 @@ namespace FT
 			{
 				delete(m_UniformBuffers[i]);
 			}
+
 			m_UniformBuffers.clear();
 
 			m_Device->FreeCommandBuffers();
 
-			vkDestroyPipeline(m_Device->GetDevice(), graphicsPipeline, nullptr);
-			vkDestroyPipelineLayout(m_Device->GetDevice(), pipelineLayout, nullptr);
+			delete(m_Pipeline);
 
 			vkDestroyDescriptorPool(m_Device->GetDevice(), descriptorPool, nullptr);
 		}
@@ -305,12 +294,12 @@ namespace FT
 			delete(m_FragmentShader);
 			delete(m_VertexShader);
 
-			CleanupSwapChain();
+			CleanupSwapchain();
 
 			ImGui_ImplVulkan_Shutdown();
 			ImGui_ImplGlfw_Shutdown();
 			ImGui::DestroyContext();
-			vkDestroyDescriptorPool(m_Device->GetDevice(), imguiDescPool, nullptr);
+			vkDestroyDescriptorPool(m_Device->GetDevice(), imguiDescPool, nullptr); // TODO: Should this be here or in swapchain cleanup?
 
 			delete(m_Image);
 
@@ -326,7 +315,7 @@ namespace FT
 			FinalizeShaderCompiler();
 		}
 
-		void RecreateSwapChain()
+		void RecreateSwapchain()
 		{
 			int width = 0, height = 0;
 			glfwGetFramebufferSize(window, &width, &height);
@@ -338,11 +327,12 @@ namespace FT
 
 			vkDeviceWaitIdle(m_Device->GetDevice());
 
-			CleanupSwapChain();
+			CleanupSwapchain();
 
 			m_Swapchain->Recreate();
 
-			CreateGraphicsPipeline();
+			m_Pipeline = new Pipeline(m_Device, m_Swapchain, descriptorSetLayout, m_VertexShader, m_FragmentShader);
+
 			CreateUniformBuffers();
 			CreateDescriptorPool();
 			CreateDescriptorSets(m_FragmentShader->GetBindings());
@@ -351,115 +341,24 @@ namespace FT
 			ImGui_ImplVulkan_SetMinImageCount(m_Swapchain->GetImageCount());
 		}
 
-		void CreateDescriptorSetLayout(const std::vector<VkDescriptorSetLayoutBinding>& bindings)
+		void CreateDescriptorSetLayout(const std::vector<VkDescriptorSetLayoutBinding>& inBindings)
 		{
-			if (descriptorSetLayout != VK_NULL_HANDLE)
-			{
-				vkDestroyDescriptorSetLayout(m_Device->GetDevice(), descriptorSetLayout, nullptr);
-			}
+			VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo{};
+			descriptorSetLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+			descriptorSetLayoutCreateInfo.bindingCount = static_cast<uint32_t>(inBindings.size());
+			descriptorSetLayoutCreateInfo.pBindings = inBindings.data();
 
-			VkDescriptorSetLayoutCreateInfo layoutInfo{};
-			layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-			layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
-			layoutInfo.pBindings = bindings.data();
-
-			FT_VK_CALL(vkCreateDescriptorSetLayout(m_Device->GetDevice(), &layoutInfo, nullptr, &descriptorSetLayout));
+			FT_VK_CALL(vkCreateDescriptorSetLayout(m_Device->GetDevice(), &descriptorSetLayoutCreateInfo, nullptr, &descriptorSetLayout));
 		}
 
 		void CreateShaders()
 		{
-			m_VertexShader = new Shader(m_Device->GetDevice(), GetFullPath("Shaders/Internal/FullScreen.vert.glsl"), ShaderStage::Vertex, VertexShaderCodeEntry);
-			m_FragmentShader = new Shader(m_Device->GetDevice(), GetFullPath("Shaders/Internal/Default.frag.glsl"), ShaderStage::Fragment, FragmentShaderCodeEntry);
+			m_VertexShader = new Shader(m_Device, GetFullPath("Shaders/Internal/FullScreen.vert.glsl"), ShaderStage::Vertex, VertexShaderCodeEntry);
+			m_FragmentShader = new Shader(m_Device, GetFullPath("Shaders/Internal/Default.frag.glsl"), ShaderStage::Fragment, FragmentShaderCodeEntry);
 
 			editor.SetText(m_FragmentShader->GetSourceCode());
 
 			CreateDescriptorSetLayout(m_FragmentShader->GetBindings());
-		}
-
-		void CreateGraphicsPipeline()
-		{
-			VkPipelineShaderStageCreateInfo shaderStages[] = { m_VertexShader->GetPipelineStageInfo(), m_FragmentShader->GetPipelineStageInfo() };
-
-			VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
-			vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-
-			VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
-			inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-			inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-			inputAssembly.primitiveRestartEnable = VK_FALSE;
-
-			VkViewport viewport{};
-			viewport.x = 0.0f;
-			viewport.y = 0.0f;
-			viewport.width = static_cast<float>(m_Swapchain->GetExtent().width);
-			viewport.height = static_cast<float>(m_Swapchain->GetExtent().height);
-			viewport.minDepth = 0.0f;
-			viewport.maxDepth = 1.0f;
-
-			VkRect2D scissor{};
-			scissor.offset = { 0, 0 };
-			scissor.extent = m_Swapchain->GetExtent();
-
-			VkPipelineViewportStateCreateInfo viewportState{};
-			viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
-			viewportState.viewportCount = 1;
-			viewportState.pViewports = &viewport;
-			viewportState.scissorCount = 1;
-			viewportState.pScissors = &scissor;
-
-			VkPipelineRasterizationStateCreateInfo rasterizer{};
-			rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
-			rasterizer.depthClampEnable = VK_FALSE;
-			rasterizer.rasterizerDiscardEnable = VK_FALSE;
-			rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
-			rasterizer.lineWidth = 1.0f;
-			rasterizer.cullMode = VK_CULL_MODE_FRONT_BIT;
-			rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
-			rasterizer.depthBiasEnable = VK_FALSE;
-
-			VkPipelineMultisampleStateCreateInfo multisampling{};
-			multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-			multisampling.sampleShadingEnable = VK_FALSE;
-			multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
-
-			VkPipelineColorBlendAttachmentState colorBlendAttachment{};
-			colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-			colorBlendAttachment.blendEnable = VK_FALSE;
-
-			VkPipelineColorBlendStateCreateInfo colorBlending{};
-			colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-			colorBlending.logicOpEnable = VK_FALSE;
-			colorBlending.logicOp = VK_LOGIC_OP_COPY;
-			colorBlending.attachmentCount = 1;
-			colorBlending.pAttachments = &colorBlendAttachment;
-			colorBlending.blendConstants[0] = 0.0f;
-			colorBlending.blendConstants[1] = 0.0f;
-			colorBlending.blendConstants[2] = 0.0f;
-			colorBlending.blendConstants[3] = 0.0f;
-
-			VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
-			pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-			pipelineLayoutInfo.setLayoutCount = 1;
-			pipelineLayoutInfo.pSetLayouts = &descriptorSetLayout;
-
-			FT_VK_CALL(vkCreatePipelineLayout(m_Device->GetDevice(), &pipelineLayoutInfo, nullptr, &pipelineLayout));
-
-			VkGraphicsPipelineCreateInfo pipelineInfo{};
-			pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-			pipelineInfo.stageCount = 2;
-			pipelineInfo.pStages = shaderStages;
-			pipelineInfo.pVertexInputState = &vertexInputInfo;
-			pipelineInfo.pInputAssemblyState = &inputAssembly;
-			pipelineInfo.pViewportState = &viewportState;
-			pipelineInfo.pRasterizationState = &rasterizer;
-			pipelineInfo.pMultisampleState = &multisampling;
-			pipelineInfo.pColorBlendState = &colorBlending;
-			pipelineInfo.layout = pipelineLayout;
-			pipelineInfo.renderPass = m_Swapchain->GetRenderPass();
-			pipelineInfo.subpass = 0;
-			pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
-
-			FT_VK_CALL(vkCreateGraphicsPipelines(m_Device->GetDevice(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &graphicsPipeline));
 		}
 
 		void CreateUniformBuffers()
@@ -476,9 +375,9 @@ namespace FT
 		{
 			std::array<VkDescriptorPoolSize, 2> poolSizes{};
 			poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-			poolSizes[0].descriptorCount = m_Swapchain->GetImageCount();
+			poolSizes[0].descriptorCount = 100 * m_Swapchain->GetImageCount();
 			poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-			poolSizes[1].descriptorCount = m_Swapchain->GetImageCount();
+			poolSizes[1].descriptorCount = 100 * m_Swapchain->GetImageCount();
 
 			VkDescriptorPoolCreateInfo poolInfo{};
 			poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -489,24 +388,24 @@ namespace FT
 			FT_VK_CALL(vkCreateDescriptorPool(m_Device->GetDevice(), &poolInfo, nullptr, &descriptorPool));
 		}
 
-		void CreateDescriptorSets(const std::vector<VkDescriptorSetLayoutBinding>& bindings)
+		void CreateDescriptorSets(const std::vector<VkDescriptorSetLayoutBinding>& inBindings)
 		{
-			std::vector<VkDescriptorSetLayout> layouts(m_Swapchain->GetImageCount(), descriptorSetLayout);
-			VkDescriptorSetAllocateInfo allocInfo{};
-			allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-			allocInfo.descriptorPool = descriptorPool;
-			allocInfo.descriptorSetCount = m_Swapchain->GetImageCount();
-			allocInfo.pSetLayouts = layouts.data();
+			std::vector<VkDescriptorSetLayout> descriptorSetLayouts(m_Swapchain->GetImageCount(), descriptorSetLayout);
+
+			VkDescriptorSetAllocateInfo allocateInfo{};
+			allocateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+			allocateInfo.descriptorPool = descriptorPool;
+			allocateInfo.descriptorSetCount = m_Swapchain->GetImageCount();
+			allocateInfo.pSetLayouts = descriptorSetLayouts.data();
 
 			descriptorSets.resize(m_Swapchain->GetImageCount());
-			FT_VK_CALL(vkAllocateDescriptorSets(m_Device->GetDevice(), &allocInfo, descriptorSets.data()));
+			FT_VK_CALL(vkAllocateDescriptorSets(m_Device->GetDevice(), &allocateInfo, descriptorSets.data()));
 
 			// TODO: Recreate descriptor sets each time descriptor layout gets recreated.
 			for (size_t i = 0; i < m_Swapchain->GetImageCount(); ++i)
 			{
-				std::vector<VkWriteDescriptorSet> descriptorWrites(bindings.size());
+				std::vector<VkWriteDescriptorSet> descriptorWrites(inBindings.size());
 
-				// TODO: Temporary, until imgui support for shader properties gets implemented.
 				VkDescriptorBufferInfo bufferInfo{};
 				bufferInfo.buffer = m_UniformBuffers[i]->GetBuffer();
 				bufferInfo.offset = 0;
@@ -517,16 +416,27 @@ namespace FT
 				imageInfo.imageView = m_Image->GetImageView();
 				imageInfo.sampler = m_Image->GetSampler();
 
-				for (uint32_t j = 0; j < bindings.size(); ++j)
+				for (uint32_t j = 0; j < inBindings.size(); ++j)
 				{
 					descriptorWrites[j].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 					descriptorWrites[j].dstSet = descriptorSets[i];
-					descriptorWrites[j].dstBinding = bindings[j].binding;
+					descriptorWrites[j].dstBinding = inBindings[j].binding;
 					descriptorWrites[j].dstArrayElement = 0;
-					descriptorWrites[j].descriptorType = bindings[j].descriptorType;
+					descriptorWrites[j].descriptorType = inBindings[j].descriptorType;
 					descriptorWrites[j].descriptorCount = 1;
-					descriptorWrites[j].pBufferInfo = &bufferInfo;
-					descriptorWrites[j].pImageInfo = &imageInfo;
+					
+					if (inBindings[j].descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
+					{
+						descriptorWrites[j].pBufferInfo = &bufferInfo;
+					}
+					else if (inBindings[j].descriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
+					{
+						descriptorWrites[j].pImageInfo = &imageInfo;
+					}
+					else
+					{
+						// TOOD: FAIL? Recover? Not supported.
+					}
 				}
 
 				vkUpdateDescriptorSets(m_Device->GetDevice(), static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
@@ -781,17 +691,21 @@ namespace FT
 
 			const std::string fragmentShaderSourceCode = editor.GetText();
 
-			{
-				vkQueueWaitIdle(m_Device->GetGraphicsQueue());
+			vkQueueWaitIdle(m_Device->GetGraphicsQueue());
 
-				m_FragmentShader->Recompile(fragmentShaderSourceCode);
+			m_FragmentShader->Recompile(fragmentShaderSourceCode);
 
-				vkDestroyPipeline(m_Device->GetDevice(), graphicsPipeline, nullptr);
-				vkDestroyPipelineLayout(m_Device->GetDevice(), pipelineLayout, nullptr);
-			}
+			delete(m_Pipeline);
 
+			vkDestroyDescriptorPool(m_Device->GetDevice(), descriptorPool, nullptr);
+			CreateDescriptorPool();
+
+			vkDestroyDescriptorSetLayout(m_Device->GetDevice(), descriptorSetLayout, nullptr);
 			CreateDescriptorSetLayout(m_FragmentShader->GetBindings());
-			CreateGraphicsPipeline();
+
+			CreateDescriptorSets(m_FragmentShader->GetBindings());
+			
+			m_Pipeline = new Pipeline(m_Device, m_Swapchain, descriptorSetLayout, m_VertexShader, m_FragmentShader);
 		}
 	private: // HACK:
 
@@ -801,11 +715,12 @@ namespace FT
 			vkQueueWaitIdle(m_Device->GetGraphicsQueue()); // TODO: This wait wait idle will be called twice (second one in RecompileFragmentShader). Make this code path more clear.
 
 			delete(m_FragmentShader);
-			m_FragmentShader = new Shader(m_Device->GetDevice(), inFilePath, ShaderStage::Fragment, FragmentShaderCodeEntry);
+			m_FragmentShader = new Shader(m_Device, inFilePath, ShaderStage::Fragment, FragmentShaderCodeEntry);
 
 			editor.SetText(m_FragmentShader->GetSourceCode());
 		}
 
+		// TODO: Move to device and call it only when shader gets compiled/recompiled.
 		void FillCommandBuffers(uint32_t i)
 		{
 			VkCommandBuffer commandBuffer = m_Device->GetCommandBuffer(i);
@@ -829,9 +744,9 @@ namespace FT
 
 			vkCmdBeginRenderPass(m_Device->GetCommandBuffer(i), &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-			vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+			vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_Pipeline->GetGraphicsPipeline());
 
-			vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[i], 0, nullptr);
+			vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_Pipeline->GetPipelineLayout(), 0, 1, &descriptorSets[i], 0, nullptr);
 
 			vkCmdDraw(commandBuffer, 3, 1, 0, 0);
 
@@ -850,7 +765,7 @@ namespace FT
 			const SwapchainImageAcquireResult imageAcquireResult = m_Swapchain->AcquireNextImage();
 			if (imageAcquireResult.Status == SwapchainStatus::Recreate)
 			{
-				RecreateSwapChain();
+				RecreateSwapchain();
 				return;
 			}
 
@@ -864,7 +779,7 @@ namespace FT
 			const SwapchainStatus presentStatus = m_Swapchain->Present(imageIndex);
 			if (presentStatus == SwapchainStatus::Recreate)
 			{
-				RecreateSwapChain();
+				RecreateSwapchain();
 			}
 			else
 			{
@@ -900,7 +815,7 @@ namespace FT
 }
 
 // TODO: HACK.
-FT::Renderer renderer;
+FT::Application application;
 
 namespace FT
 {
@@ -908,7 +823,7 @@ namespace FT
 	{
 		if (key == GLFW_KEY_S && action == GLFW_PRESS && mods == GLFW_MOD_CONTROL)
 		{
-			renderer.RecompileFragmentShader();
+			application.RecompileFragmentShader();
 		}
 
 		if (key == GLFW_KEY_S && action == GLFW_PRESS && mods & GLFW_MOD_CONTROL && mods & GLFW_MOD_SHIFT)
@@ -918,12 +833,12 @@ namespace FT
 
 		if (key == GLFW_KEY_R && action == GLFW_PRESS && mods == GLFW_MOD_CONTROL)
 		{
-			renderer.RecompileFragmentShader();
+			application.RecompileFragmentShader();
 		}
 
 		if (key == GLFW_KEY_F && action == GLFW_PRESS && mods == GLFW_MOD_CONTROL)
 		{
-			renderer.ToggleImGui();
+			application.ToggleImGui();
 		}
 
 		if (key == GLFW_KEY_N && action == GLFW_PRESS && mods == GLFW_MOD_CONTROL)
@@ -942,13 +857,13 @@ namespace FT
 		// TODO: Maybe add a condition if the code window is in focus????????
 		if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) || glfwGetKey(window, GLFW_KEY_RIGHT_CONTROL))
 		{
-			renderer.UpdateCodeFontSize(static_cast<float>(yoffset));
+			application.UpdateCodeFontSize(static_cast<float>(yoffset));
 		}
 	}
 }
 
 int main()
 {
-	renderer.Run();
+	application.Run();
 	return EXIT_SUCCESS;
 }

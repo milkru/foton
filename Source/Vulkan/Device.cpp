@@ -74,18 +74,18 @@ namespace FT
 		return VK_FALSE;
 	}
 
-	void PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo)
+	void PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& debugMessangerCreateInfo)
 	{
-		createInfo = {};
-		createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-		createInfo.messageSeverity =
+		debugMessangerCreateInfo = {};
+		debugMessangerCreateInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+		debugMessangerCreateInfo.messageSeverity =
 			VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
 			VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-		createInfo.messageType =
+		debugMessangerCreateInfo.messageType =
 			VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
 			VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
 			VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
-		createInfo.pfnUserCallback = DebugMessageCallback;
+		debugMessangerCreateInfo.pfnUserCallback = DebugMessageCallback;
 	}
 
 	void CreateInstance(VkInstance& outInstance)
@@ -103,30 +103,30 @@ namespace FT
 		applicationInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
 		applicationInfo.apiVersion = VK_API_VERSION_1_0;
 
-		VkInstanceCreateInfo createInfo{};
-		createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-		createInfo.pApplicationInfo = &applicationInfo;
+		VkInstanceCreateInfo instanceCreateInfo{};
+		instanceCreateInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+		instanceCreateInfo.pApplicationInfo = &applicationInfo;
 
 		const std::vector<const char*> requiredExtensions = GetRequiredExtensions();
-		createInfo.enabledExtensionCount = static_cast<uint32_t>(requiredExtensions.size());
-		createInfo.ppEnabledExtensionNames = requiredExtensions.data();
+		instanceCreateInfo.enabledExtensionCount = static_cast<uint32_t>(requiredExtensions.size());
+		instanceCreateInfo.ppEnabledExtensionNames = requiredExtensions.data();
 
 		if (enableValidationLayers)
 		{
-			createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
-			createInfo.ppEnabledLayerNames = validationLayers.data();
+			instanceCreateInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
+			instanceCreateInfo.ppEnabledLayerNames = validationLayers.data();
 
 			VkDebugUtilsMessengerCreateInfoEXT debugMessangerCreateInfo{};
 			PopulateDebugMessengerCreateInfo(debugMessangerCreateInfo);
-			createInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*)&debugMessangerCreateInfo;
+			instanceCreateInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*)&debugMessangerCreateInfo;
 		}
 		else
 		{
-			createInfo.enabledLayerCount = 0;
-			createInfo.pNext = nullptr;
+			instanceCreateInfo.enabledLayerCount = 0;
+			instanceCreateInfo.pNext = nullptr;
 		}
 
-		FT_VK_CALL(vkCreateInstance(&createInfo, nullptr, &outInstance));
+		FT_VK_CALL(vkCreateInstance(&instanceCreateInfo, nullptr, &outInstance));
 	}
 
 	void SetupDebugMessenger(const VkInstance inInstance, VkDebugUtilsMessengerEXT& outDebugMessanger)
@@ -136,13 +136,13 @@ namespace FT
 			return;
 		}
 
-		VkDebugUtilsMessengerCreateInfoEXT createInfo;
-		PopulateDebugMessengerCreateInfo(createInfo);
+		VkDebugUtilsMessengerCreateInfoEXT debugMessangerCreateInfo;
+		PopulateDebugMessengerCreateInfo(debugMessangerCreateInfo);
 
 		const auto vkCreateDebugUtilsMessengerEXT = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(inInstance, "vkCreateDebugUtilsMessengerEXT");
 		FT_CHECK(vkCreateDebugUtilsMessengerEXT != nullptr, "Unable to get vkCreateDebugUtilsMessengerEXT extension function.");
 
-		FT_VK_CALL(vkCreateDebugUtilsMessengerEXT(inInstance, &createInfo, nullptr, &outDebugMessanger));
+		FT_VK_CALL(vkCreateDebugUtilsMessengerEXT(inInstance, &debugMessangerCreateInfo, nullptr, &outDebugMessanger));
 	}
 
 	void CreateSurface(const VkInstance inInstance, GLFWwindow* inWindow, VkSurfaceKHR& outSurface)
@@ -269,37 +269,37 @@ namespace FT
 		VkPhysicalDeviceFeatures deviceFeatures{};
 		deviceFeatures.samplerAnisotropy = VK_TRUE;
 
-		VkDeviceCreateInfo createInfo{};
-		createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-		createInfo.queueCreateInfoCount = 1;
-		createInfo.pQueueCreateInfos = &queueCreateInfo;
-		createInfo.pEnabledFeatures = &deviceFeatures;
-		createInfo.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size());
-		createInfo.ppEnabledExtensionNames = deviceExtensions.data();
+		VkDeviceCreateInfo deviceCreateInfo{};
+		deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+		deviceCreateInfo.queueCreateInfoCount = 1;
+		deviceCreateInfo.pQueueCreateInfos = &queueCreateInfo;
+		deviceCreateInfo.pEnabledFeatures = &deviceFeatures;
+		deviceCreateInfo.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size());
+		deviceCreateInfo.ppEnabledExtensionNames = deviceExtensions.data();
 
 		if (enableValidationLayers)
 		{
-			createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
-			createInfo.ppEnabledLayerNames = validationLayers.data();
+			deviceCreateInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
+			deviceCreateInfo.ppEnabledLayerNames = validationLayers.data();
 		}
 		else
 		{
-			createInfo.enabledLayerCount = 0;
+			deviceCreateInfo.enabledLayerCount = 0;
 		}
 
-		FT_VK_CALL(vkCreateDevice(inPhysicalDevice, &createInfo, nullptr, &outDevice));
+		FT_VK_CALL(vkCreateDevice(inPhysicalDevice, &deviceCreateInfo, nullptr, &outDevice));
 
 		vkGetDeviceQueue(outDevice, outGraphicsQueueFamilyIndex, 0, &outGraphicsQueue);
 	}
 
 	void CreateCommandPool(const VkDevice inDevice, const uint32_t inQueueFamilyIndex, VkCommandPool& outCommandPool)
 	{
-		VkCommandPoolCreateInfo createInfo{};
-		createInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-		createInfo.queueFamilyIndex = inQueueFamilyIndex;
-		createInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+		VkCommandPoolCreateInfo commandPoolCreateInfo{};
+		commandPoolCreateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+		commandPoolCreateInfo.queueFamilyIndex = inQueueFamilyIndex;
+		commandPoolCreateInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
 
-		FT_VK_CALL(vkCreateCommandPool(inDevice, &createInfo, nullptr, &outCommandPool));
+		FT_VK_CALL(vkCreateCommandPool(inDevice, &commandPoolCreateInfo, nullptr, &outCommandPool));
 	}
 
 	Device::Device(GLFWwindow* inWindow)

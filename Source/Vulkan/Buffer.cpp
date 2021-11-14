@@ -27,13 +27,13 @@ namespace FT
 	void CreateBuffer(const Device* inDevice, const VkDeviceSize inSize, const VkBufferUsageFlags inUsage,
 		const VkMemoryPropertyFlags inProperties, VkBuffer& outBuffer, VkDeviceMemory& outBufferMemory)
 	{
-		VkBufferCreateInfo createInfo{};
-		createInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-		createInfo.size = inSize;
-		createInfo.usage = inUsage;
-		createInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+		VkBufferCreateInfo bufferCreateInfo{};
+		bufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+		bufferCreateInfo.size = inSize;
+		bufferCreateInfo.usage = inUsage;
+		bufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-		FT_VK_CALL(vkCreateBuffer(inDevice->GetDevice(), &createInfo, nullptr, &outBuffer));
+		FT_VK_CALL(vkCreateBuffer(inDevice->GetDevice(), &bufferCreateInfo, nullptr, &outBuffer));
 
 		VkMemoryRequirements memoryRequirements;
 		vkGetBufferMemoryRequirements(inDevice->GetDevice(), outBuffer, &memoryRequirements);

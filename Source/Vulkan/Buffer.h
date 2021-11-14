@@ -29,10 +29,12 @@ namespace FT
 	};
 	FT_FLAG_TYPE_SETUP(BufferUsageFlags)
 	
+	class Device;
+
 	class Buffer
 	{
 	public:
-		Buffer(const class Device* inDevice, const size_t inSize, const BufferUsageFlags inUsage);
+		Buffer(const Device* inDevice, const size_t inSize, const BufferUsageFlags inUsage);
 		~Buffer();
 
 	private:

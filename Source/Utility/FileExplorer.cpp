@@ -1,5 +1,5 @@
 #include "FileExplorer.h"
-#include "Shader/ShaderCommon.hpp"
+#include "Utility/ShaderFile.h"
 
 #define NFD_THROWS_EXCEPTIONS
 #include <nfd.hpp>
