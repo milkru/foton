@@ -1,5 +1,6 @@
 #include "ShaderReflect.h"
 #include <spirv_reflect.h>
+#include "Core/Shader.h"
 
 namespace FT
 {
@@ -31,7 +32,7 @@ namespace FT
 		}
 	}
 
-	std::vector<VkDescriptorSetLayoutBinding> ReflectShader(const std::vector<uint32_t>& inSpvCode, const VkShaderStageFlags inShaderStage)
+	std::vector<Binding> ReflectShader(const std::vector<uint32_t>& inSpvCode, const VkShaderStageFlags inShaderStage)
 	{
 		SpvReflectShaderModule spvModule;
 
@@ -42,22 +43,23 @@ namespace FT
 		uint32_t bindingCount = 0;
 		FT_SPV_REFLECT_CALL(spvReflectEnumerateDescriptorBindings(&spvModule, &bindingCount, nullptr));
 
-		std::vector<SpvReflectDescriptorBinding*> bindings(bindingCount);
-		FT_SPV_REFLECT_CALL(spvReflectEnumerateDescriptorBindings(&spvModule, &bindingCount, bindings.data()));
+		std::vector<SpvReflectDescriptorBinding*> spvBindings(bindingCount);
+		FT_SPV_REFLECT_CALL(spvReflectEnumerateDescriptorBindings(&spvModule, &bindingCount, spvBindings.data()));
 
-		std::vector<VkDescriptorSetLayoutBinding> descriptorSetLayoutBindings(bindings.size());
+		std::vector<Binding> bindings(spvBindings.size());
 		for (uint32_t i = 0; i < bindingCount; ++i)
 		{
-			VkDescriptorSetLayoutBinding& descriptorSetLayoutBinding = descriptorSetLayoutBindings[i];
-			descriptorSetLayoutBinding.binding = bindings[i]->binding;
+			Binding& binding = bindings[i];
+			VkDescriptorSetLayoutBinding& descriptorSetLayoutBinding = binding.DescriptorSetBinding;
+			descriptorSetLayoutBinding.binding = spvBindings[i]->binding;
 			descriptorSetLayoutBinding.descriptorCount = 1;
-			descriptorSetLayoutBinding.descriptorType = GetVkDescriptorType(bindings[i]->descriptor_type);
+			descriptorSetLayoutBinding.descriptorType = GetVkDescriptorType(spvBindings[i]->descriptor_type);
 			descriptorSetLayoutBinding.stageFlags = inShaderStage;
 			descriptorSetLayoutBinding.pImmutableSamplers = nullptr;
 		}
 
 		spvReflectDestroyShaderModule(&spvModule);
 
-		return descriptorSetLayoutBindings;
+		return bindings;
 	}
 }

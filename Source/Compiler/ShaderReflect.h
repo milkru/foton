@@ -2,5 +2,5 @@
 
 namespace FT
 {
-	extern std::vector<VkDescriptorSetLayoutBinding> ReflectShader(const std::vector<uint32_t>& inSpvCode, const VkShaderStageFlags inShaderStage);
+	extern std::vector<struct Binding> ReflectShader(const std::vector<uint32_t>& inSpvCode, const VkShaderStageFlags inShaderStage);
 }

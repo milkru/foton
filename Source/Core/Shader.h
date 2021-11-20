@@ -2,6 +2,11 @@
 
 namespace FT
 {
+	struct Binding
+	{
+		VkDescriptorSetLayoutBinding DescriptorSetBinding;
+	};
+
 	enum class ShaderStage : uint8_t
 	{
 		Vertex,
@@ -30,13 +35,13 @@ namespace FT
 		ShaderStage GetStage() const { return m_Stage; }
 		std::string GetCodeEntry() const { return m_CodeEntry; }
 		VkShaderModule GetModule() const { return m_Module; }
-		const std::vector<VkDescriptorSetLayoutBinding>& GetBindings() const { return m_Bindings; }
+		const std::vector<Binding>& GetBindings() const { return m_Bindings; }
 
 	private:
 		const Device* m_Device;
 		ShaderStage m_Stage;
 		std::string m_CodeEntry;
 		VkShaderModule m_Module;
-		std::vector<VkDescriptorSetLayoutBinding> m_Bindings;
+		std::vector<Binding> m_Bindings;
 	};
 }

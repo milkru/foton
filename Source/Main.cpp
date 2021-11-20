@@ -347,12 +347,19 @@ namespace FT
 			ImGui_ImplVulkan_SetMinImageCount(m_Swapchain->GetImageCount());
 		}
 
-		void CreateDescriptorSetLayout(const std::vector<VkDescriptorSetLayoutBinding>& inBindings)
+		void CreateDescriptorSetLayout(const std::vector<Binding>& inBindings)
 		{
+			std::vector<VkDescriptorSetLayoutBinding> descriptorSetBindings;
+			descriptorSetBindings.resize(inBindings.size());
+			for (uint32_t i = 0; i < inBindings.size(); ++i)
+			{
+				descriptorSetBindings[i] = inBindings[i].DescriptorSetBinding;
+			}
+
 			VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo{};
 			descriptorSetLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-			descriptorSetLayoutCreateInfo.bindingCount = static_cast<uint32_t>(inBindings.size());
-			descriptorSetLayoutCreateInfo.pBindings = inBindings.data();
+			descriptorSetLayoutCreateInfo.bindingCount = static_cast<uint32_t>(descriptorSetBindings.size());
+			descriptorSetLayoutCreateInfo.pBindings = descriptorSetBindings.data();
 
 			FT_VK_CALL(vkCreateDescriptorSetLayout(m_Device->GetDevice(), &descriptorSetLayoutCreateInfo, nullptr, &descriptorSetLayout));
 		}
@@ -410,7 +417,7 @@ namespace FT
 			FT_VK_CALL(vkCreateDescriptorPool(m_Device->GetDevice(), &poolInfo, nullptr, &descriptorPool));
 		}
 
-		void CreateDescriptorSets(const std::vector<VkDescriptorSetLayoutBinding>& inBindings)
+		void CreateDescriptorSets(const std::vector<Binding>& inBindings)
 		{
 			std::vector<VkDescriptorSetLayout> descriptorSetLayouts(m_Swapchain->GetImageCount(), descriptorSetLayout);
 
@@ -442,16 +449,16 @@ namespace FT
 				{
 					descriptorWrites[j].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 					descriptorWrites[j].dstSet = descriptorSets[i];
-					descriptorWrites[j].dstBinding = inBindings[j].binding;
+					descriptorWrites[j].dstBinding = inBindings[j].DescriptorSetBinding.binding;
 					descriptorWrites[j].dstArrayElement = 0;
-					descriptorWrites[j].descriptorType = inBindings[j].descriptorType;
+					descriptorWrites[j].descriptorType = inBindings[j].DescriptorSetBinding.descriptorType;
 					descriptorWrites[j].descriptorCount = 1;
 					
-					if (inBindings[j].descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
+					if (inBindings[j].DescriptorSetBinding.descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
 					{
 						descriptorWrites[j].pBufferInfo = &bufferInfo;
 					}
-					else if (inBindings[j].descriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
+					else if (inBindings[j].DescriptorSetBinding.descriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
 					{
 						descriptorWrites[j].pImageInfo = &imageInfo;
 					}
