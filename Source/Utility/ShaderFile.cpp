@@ -4,11 +4,11 @@ namespace FT
 {
 	// TODO: *_s funtions are MS compiler specific. Fix that.
 
-	std::string ReadFile(const std::string inFileName)
+	std::string ReadFile(const std::string& inPath)
 	{
 		FILE* file = nullptr;
-		errno_t errorCode = fopen_s(&file, inFileName.c_str(), "r");
-		FT_CHECK(errorCode == 0, "Failed opening a file %s.", inFileName.c_str());
+		errno_t errorCode = fopen_s(&file, inPath.c_str(), "r");
+		FT_CHECK(errorCode == 0, "Failed opening a file %s.", inPath.c_str());
 
 		fseek(file, 0L, SEEK_END);
 		const size_t fileByteCount = static_cast<size_t>(ftell(file));
@@ -20,7 +20,7 @@ namespace FT
 
 		buffer[bytesToRead] = '\0';
 
-		return buffer;
+		return std::string(buffer);
 	}
 
 	std::string ExtractLastWord(const std::string inString, const char inDelimiter)
@@ -61,21 +61,21 @@ namespace FT
 		FT_FAIL("Unsupported shader file extension.");
 	}
 
-	ShaderFile::ShaderFile(const std::string inPath)
+	ShaderFile::ShaderFile(const std::string& inPath)
 		: m_Path(inPath)
 		, m_SourceCode(ReadFile(inPath))
 		, m_Name(ExtractFileName(inPath))
 		, m_Language(ExtractShaderLanguage(inPath)) {}
 
-	void WriteFile(const std::string inFileName, const std::string inBuffer)
+	void WriteFile(const std::string& inPath, const std::string& inBuffer)
 	{
 		FILE* file = nullptr;
-		errno_t errorCode = fopen_s(&file, inFileName.c_str(), "w");
-		FT_CHECK(errorCode == 0, "Failed opening a file %s.", inFileName.c_str());
+		errno_t errorCode = fopen_s(&file, inPath.c_str(), "w");
+		FT_CHECK(errorCode == 0, "Failed opening a file %s.", inPath.c_str());
 
 		const size_t fileByteCount = inBuffer.size() - 1;
 		const size_t bytesToWrite = fwrite(inBuffer.c_str(), sizeof(char), fileByteCount, file);
-		FT_CHECK(bytesToWrite == fileByteCount, "Failed writing to a file $s.", inFileName.c_str());
+		FT_CHECK(bytesToWrite == fileByteCount, "Failed writing to a file $s.", inPath.c_str());
 
 		fclose(file);
 	}
@@ -83,6 +83,6 @@ namespace FT
 	void ShaderFile::UpdateSourceCode(const std::string& inSourceCode)
 	{
 		m_SourceCode = inSourceCode;
-		WriteFile(m_Path, m_SourceCode.c_str());
+		WriteFile(m_Path, m_SourceCode);
 	}
 }

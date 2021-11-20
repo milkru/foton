@@ -26,20 +26,20 @@ namespace FT
 	class ShaderFile
 	{
 	public:
-		ShaderFile(const std::string inPath);
+		explicit ShaderFile(const std::string& inPath);
 
 	private:
 		ShaderFile(ShaderFile const&) = delete;
 		ShaderFile& operator=(ShaderFile const&) = delete;
 
 	public:
+		void UpdateSourceCode(const std::string& inSourceCode);
+
+	public:
 		std::string GetPath() const { return m_Path; }
 		std::string GetName() const { return m_Name; }
 		const std::string& GetSourceCode() const { return m_SourceCode; }
 		ShaderLanguage GetLanguage() const { return m_Language; }
-
-	protected:
-		void UpdateSourceCode(const std::string& inSourceCode);
 
 	protected:
 		std::string m_Path;

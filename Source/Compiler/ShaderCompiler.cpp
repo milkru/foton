@@ -16,7 +16,7 @@ namespace FT
 		glslang::FinalizeProcess();
 	}
 
-	glslang::EShSource GetGlslangShaderLanguageFrom(const ShaderLanguage inShaderLanguage)
+	glslang::EShSource GetGlslangShaderLanguage(const ShaderLanguage inShaderLanguage)
 	{
 		switch (inShaderLanguage)
 		{
@@ -31,7 +31,7 @@ namespace FT
 		}
 	}
 
-	EShLanguage GetGlslangShaderStageFrom(const ShaderStage inShaderStage)
+	EShLanguage GetGlslangShaderStage(const ShaderStage inShaderStage)
 	{
 		switch (inShaderStage)
 		{
@@ -46,9 +46,9 @@ namespace FT
 		}
 	}
 
-	ShaderCompileResult CompileShaderToSpv(const ShaderLanguage inLanguage, const ShaderStage inStage, const std::string inSourceCode, const std::string inCodeEntry)
+	ShaderCompileResult CompileShader(const ShaderLanguage inLanguage, const ShaderStage inStage, const std::string& inSourceCode, const std::string inCodeEntry)
 	{
-		const EShLanguage shaderType = GetGlslangShaderStageFrom(inStage);
+		const EShLanguage shaderType = GetGlslangShaderStage(inStage);
 		glslang::TShader compiledShader(shaderType);
 		const char* codeEntry = inCodeEntry.c_str();
 		compiledShader.setEntryPoint(codeEntry);
@@ -57,7 +57,7 @@ namespace FT
 		const char* sourceCode = inSourceCode.c_str();
 		compiledShader.setStrings(&sourceCode, 1);
 
-		const static glslang::EShSource shaderLanguage = GetGlslangShaderLanguageFrom(inLanguage);
+		const static glslang::EShSource shaderLanguage = GetGlslangShaderLanguage(inLanguage);
 		const static glslang::EShClient client = glslang::EShClientVulkan;
 		const static int version = 330;
 		compiledShader.setEnvInput(shaderLanguage, shaderType, client, version);
@@ -125,5 +125,26 @@ namespace FT
 
 		result.Status = ShaderCompileStatus::Success;
 		return result;
+	}
+
+	const char* ConvertCompilationStatusToText(const ShaderCompileStatus inStatus)
+	{
+		switch (inStatus)
+		{
+		case ShaderCompileStatus::Success:
+			return "Success";
+
+		case ShaderCompileStatus::PreprocessingFailed:
+			return "Preprocessing";
+
+		case ShaderCompileStatus::ParsingFailed:
+			return "Parsing";
+
+		case ShaderCompileStatus::LinkingFailed:
+			return "Linking";
+
+		default:
+			FT_FAIL("Unsupported ShaderCompileStatus.");
+		}
 	}
 }

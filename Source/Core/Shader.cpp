@@ -1,32 +1,11 @@
 #include "Shader.h"
 #include "Device.h"
-#include "Compiler/ShaderCompiler.h"
+#include "Utility/ShaderFile.h"
 #include "Compiler/ShaderReflect.h"
 
 namespace FT
 {
-	const char* ConvertCompilationStatusToText(const ShaderCompileStatus inStatus)
-	{
-		switch (inStatus)
-		{
-		case ShaderCompileStatus::Success:
-			return "Success";
-
-		case ShaderCompileStatus::PreprocessingFailed:
-			return "Preprocessing";
-
-		case ShaderCompileStatus::ParsingFailed:
-			return "Parsing";
-
-		case ShaderCompileStatus::LinkingFailed:
-			return "Linking";
-
-		default:
-			FT_FAIL("Unsupported ShaderCompileStatus.");
-		}
-	}
-
-	VkShaderStageFlagBits GetVkShaderStageFlagFrom(const ShaderStage inStage)
+	VkShaderStageFlagBits GetShaderStageFlag(const ShaderStage inStage)
 	{
 		switch (inStage)
 		{
@@ -54,23 +33,12 @@ namespace FT
 		return shaderModule;
 	}
 
-	Shader::Shader(const Device* inDevice, const std::string inPath, const ShaderStage inStage, const std::string& inCodeEntry)
-		: ShaderFile(inPath)
-		, m_Stage(inStage)
+	Shader::Shader(const Device* inDevice, const ShaderStage inStage, const std::string& inCodeEntry, const std::vector<uint32_t>& inSpvCode)
+		: m_Stage(inStage)
 		, m_CodeEntry(inCodeEntry)
 		, m_Device(inDevice)
-	{
-		ShaderCompileResult compileResult = CompileShaderToSpv(m_Language, m_Stage, m_SourceCode, m_CodeEntry);
-		if (compileResult.Status != ShaderCompileStatus::Success)
-		{
-			// TODO: LOG!
-			return;
-		}
-
-		const std::vector<uint32_t> spvCode = compileResult.SpvCode;
-		m_Bindings = ReflectShader(spvCode, GetVkShaderStageFlagFrom(m_Stage));
-		m_Module = CreateShaderModule(m_Device->GetDevice(), spvCode);
-	}
+		, m_Bindings(ReflectShader(inSpvCode, GetShaderStageFlag(m_Stage)))
+		, m_Module(CreateShaderModule(m_Device->GetDevice(), inSpvCode)) {}
 
 	void DestroyShaderModule(const VkDevice inDevice, const VkShaderModule inModule)
 	{
@@ -82,31 +50,11 @@ namespace FT
 		DestroyShaderModule(m_Device->GetDevice(), m_Module);
 	}
 
-	void Shader::Recompile(const std::string& inSourceCode)
-	{
-		ShaderCompileResult compileResult = CompileShaderToSpv(m_Language, m_Stage, inSourceCode, m_CodeEntry);
-		if (compileResult.Status != ShaderCompileStatus::Success)
-		{
-			// TOOD: LOG fail!
-			return;
-		}
-
-		UpdateSourceCode(inSourceCode);
-
-		const std::vector<uint32_t> spvCode = compileResult.SpvCode;
-		m_Bindings = ReflectShader(spvCode, GetVkShaderStageFlagFrom(m_Stage));
-
-		DestroyShaderModule(m_Device->GetDevice(), m_Module);
-		m_Module = CreateShaderModule(m_Device->GetDevice(), spvCode);
-
-		// TODO: Log success!
-	}
-
-	VkPipelineShaderStageCreateInfo Shader::GetPipelineStageInfo() const
+	VkPipelineShaderStageCreateInfo Shader::GetVkPipelineStageInfo() const
 	{
 		VkPipelineShaderStageCreateInfo pipelineStageCreateInfo{};
 		pipelineStageCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-		pipelineStageCreateInfo.stage = GetVkShaderStageFlagFrom(m_Stage);
+		pipelineStageCreateInfo.stage = GetShaderStageFlag(m_Stage);
 		pipelineStageCreateInfo.module = m_Module;
 		pipelineStageCreateInfo.pName = m_CodeEntry.c_str();
 		return pipelineStageCreateInfo;

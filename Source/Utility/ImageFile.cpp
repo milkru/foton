@@ -5,7 +5,7 @@
 
 namespace FT
 {
-	ImageFile::ImageFile(const std::string inPath)
+	ImageFile::ImageFile(const std::string& inPath)
 	{
 		m_Pixels = stbi_load(inPath.c_str(), &m_Width, &m_Height, nullptr, STBI_rgb_alpha);
 		FT_CHECK(m_Pixels, "Failed to load %s image.", inPath.c_str());

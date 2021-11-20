@@ -157,11 +157,10 @@ namespace FT
 		FT_VK_CALL(vkCreateSampler(inDevice, &samplerCreateInfo, nullptr, &outSampler));
 	}
 
-	Image::Image(const Device* inDevice, const std::string inPath)
+	Image::Image(const Device* inDevice, const ImageFile& inFile)
 		: m_Device(inDevice)
 	{
-		ImageFile imageFile(inPath);
-		CreateImage(m_Device, imageFile, m_Image, m_Memory);
+		CreateImage(m_Device, inFile, m_Image, m_Memory);
 		CreateImageView(inDevice->GetDevice(), m_Image, VK_FORMAT_R8G8B8A8_UNORM, m_ImageView);
 		CreateSampler(inDevice->GetPhysicalDevice(), inDevice->GetDevice(), m_Sampler);
 	}

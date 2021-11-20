@@ -5,7 +5,7 @@ namespace FT
 	class ImageFile
 	{
 	public:
-		ImageFile(const std::string inPath);
+		explicit ImageFile(const std::string& inPath);
 		~ImageFile();
 
 	private:

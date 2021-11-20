@@ -17,7 +17,7 @@ namespace FT
 
 	void CreateGraphicsPipeline(const VkDevice inDevice, const Swapchain* inSwapchain, const Shader* inVertexShader, const Shader* inFragmentShader, const VkPipelineLayout inPipelineLayout, VkPipeline& outPraphicsPipeline)
 	{
-		VkPipelineShaderStageCreateInfo shaderStageCreateInfos[] = { inVertexShader->GetPipelineStageInfo(), inFragmentShader->GetPipelineStageInfo() };
+		VkPipelineShaderStageCreateInfo shaderStageCreateInfos[] = { inVertexShader->GetVkPipelineStageInfo(), inFragmentShader->GetVkPipelineStageInfo() };
 
 		VkPipelineVertexInputStateCreateInfo vertexInputStateCreateInfo{};
 		vertexInputStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;

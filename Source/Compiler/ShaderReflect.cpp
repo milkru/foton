@@ -10,7 +10,7 @@ namespace FT
 		} \
 		while (0)
 
-	VkDescriptorType GetVkDescriptorTypeFrom(const SpvReflectDescriptorType inDescriptorType)
+	VkDescriptorType GetVkDescriptorType(const SpvReflectDescriptorType inDescriptorType)
 	{
 		switch (inDescriptorType)
 		{
@@ -51,7 +51,7 @@ namespace FT
 			VkDescriptorSetLayoutBinding& descriptorSetLayoutBinding = descriptorSetLayoutBindings[i];
 			descriptorSetLayoutBinding.binding = bindings[i]->binding;
 			descriptorSetLayoutBinding.descriptorCount = 1;
-			descriptorSetLayoutBinding.descriptorType = GetVkDescriptorTypeFrom(bindings[i]->descriptor_type);
+			descriptorSetLayoutBinding.descriptorType = GetVkDescriptorType(bindings[i]->descriptor_type);
 			descriptorSetLayoutBinding.stageFlags = inShaderStage;
 			descriptorSetLayoutBinding.pImmutableSamplers = nullptr;
 		}

@@ -1,7 +1,5 @@
 #pragma once
 
-#include "Utility/ShaderFile.h"
-
 namespace FT
 {
 	enum class ShaderStage : uint8_t
@@ -13,11 +11,12 @@ namespace FT
 	};
 
 	class Device;
+	class ShaderFile;
 
-	class Shader : public ShaderFile
+	class Shader
 	{
 	public:
-		Shader(const Device* inDevice, const std::string inPath, const ShaderStage inStage, const std::string& inCodeEntry);
+		Shader(const Device* inDevice, const ShaderStage inStage, const std::string& inCodeEntry, const std::vector<uint32_t>& inSpvCode);
 		~Shader();
 
 	private:
@@ -25,8 +24,7 @@ namespace FT
 		Shader& operator=(Shader const&) = delete;
 
 	public:
-		void Recompile(const std::string& inSourceCode);
-		VkPipelineShaderStageCreateInfo GetPipelineStageInfo() const;
+		VkPipelineShaderStageCreateInfo GetVkPipelineStageInfo() const;
 
 	public:
 		ShaderStage GetStage() const { return m_Stage; }

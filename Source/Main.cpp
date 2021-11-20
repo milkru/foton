@@ -5,6 +5,7 @@
 #include "Core/Shader.h"
 #include "Core/Pipeline.h"
 #include "Compiler/ShaderCompiler.h"
+#include "Utility/ShaderFile.h"
 #include "Utility/ImageFile.h"
 #include "Utility/FileExplorer.h"
 
@@ -21,6 +22,8 @@
 // TOOD: How resource loading with paths is going to work if we only run exe files? It's relative to project root, not the exe.
 
 // TOOD: Use more high resolution font file for code editor.
+
+// TOOD: Smart pointers for transient objects (pipeline, shader, shader file...)
 
 namespace FT
 {
@@ -69,6 +72,7 @@ namespace FT
 
 		Shader* m_VertexShader = nullptr;
 		Shader* m_FragmentShader = nullptr;
+		ShaderFile* m_FragmentShaderFile = nullptr;
 
 		Pipeline* m_Pipeline = nullptr;
 
@@ -122,7 +126,8 @@ namespace FT
 
 			m_Pipeline = new Pipeline(m_Device, m_Swapchain, descriptorSetLayout, m_VertexShader, m_FragmentShader);
 
-			m_Image = new Image(m_Device, GetFullPath("icon"));
+			const ImageFile imageFile(GetFullPath("icon"));
+			m_Image = new Image(m_Device, imageFile);
 
 			CreateUniformBuffers();
 			CreateDescriptorPool();
@@ -291,6 +296,7 @@ namespace FT
 
 		void Cleanup()
 		{
+			delete(m_FragmentShaderFile);
 			delete(m_FragmentShader);
 			delete(m_VertexShader);
 
@@ -353,10 +359,26 @@ namespace FT
 
 		void CreateShaders()
 		{
-			m_VertexShader = new Shader(m_Device, GetFullPath("Shaders/Internal/FullScreen.vert.glsl"), ShaderStage::Vertex, VertexShaderCodeEntry);
-			m_FragmentShader = new Shader(m_Device, GetFullPath("Shaders/Internal/Default.frag.glsl"), ShaderStage::Fragment, FragmentShaderCodeEntry);
+			// TODO: How to prevent loading uncompilable file??? Maybe make internal shader somehow uneditable or serialized and fallback to them if previous shader cannot be compiled.
+			{
+				const ShaderFile shaderFile(GetFullPath("Shaders/Internal/FullScreen.vert.glsl"));
 
-			editor.SetText(m_FragmentShader->GetSourceCode());
+				const ShaderCompileResult compileResult = CompileShader(shaderFile.GetLanguage(), ShaderStage::Vertex, shaderFile.GetSourceCode(), VertexShaderCodeEntry);
+				FT_CHECK(compileResult.Status == ShaderCompileStatus::Success, "Failed %s vertex shader %s.", ConvertCompilationStatusToText(compileResult.Status), shaderFile.GetName().c_str());
+
+				m_VertexShader = new Shader(m_Device, ShaderStage::Vertex, VertexShaderCodeEntry, compileResult.SpvCode);
+			}
+
+			{
+				m_FragmentShaderFile = new ShaderFile(GetFullPath("Shaders/Internal/Default.frag.glsl"));
+
+				const ShaderCompileResult compileResult = CompileShader(m_FragmentShaderFile->GetLanguage(), ShaderStage::Fragment, m_FragmentShaderFile->GetSourceCode(), FragmentShaderCodeEntry);
+				FT_CHECK(compileResult.Status == ShaderCompileStatus::Success, "Failed %s fragment shader %s.", ConvertCompilationStatusToText(compileResult.Status), m_FragmentShaderFile->GetName().c_str());
+
+				m_FragmentShader = new Shader(m_Device, ShaderStage::Fragment, FragmentShaderCodeEntry, compileResult.SpvCode);
+			}
+
+			editor.SetText(m_FragmentShaderFile->GetSourceCode());
 
 			CreateDescriptorSetLayout(m_FragmentShader->GetBindings());
 		}
@@ -499,7 +521,10 @@ namespace FT
 
 					if (ImGui::MenuItem("Save", "Ctrl-S"))
 					{
-						RecompileFragmentShader();
+						if (RecompileFragmentShader())
+						{
+							SaveFragmentShader();
+						}
 					}
 
 					if (ImGui::MenuItem("Save As", "Ctrl-Shift-S"))
@@ -643,7 +668,7 @@ namespace FT
 
 			// TODO: Refactor a bit.
 			char buf[128];
-			sprintf_s(buf, "%s###ShaderTitle", m_FragmentShader->GetName().c_str());
+			sprintf_s(buf, "%s###ShaderTitle", m_FragmentShaderFile->GetName().c_str());
 
 			ImGui::Begin(buf, nullptr, ImGuiWindowFlags_HorizontalScrollbar);
 			ImGui::SetWindowSize(ImVec2(WIDTH, HEIGHT), ImGuiCond_FirstUseEver); // TODO: Change this!!!
@@ -685,15 +710,34 @@ namespace FT
 			showImGui = !showImGui;
 		}
 
-		void RecompileFragmentShader()
+		void SaveFragmentShader()
 		{
-			ClearErrorMarkers();
+			m_FragmentShaderFile->UpdateSourceCode(editor.GetText());
+		}
 
-			const std::string fragmentShaderSourceCode = editor.GetText();
+		bool RecompileFragmentShader()
+		{
+			// TODO: editor.IsTextChanged() is not working. Investigate.
+			if (editor.GetText().compare(m_FragmentShaderFile->GetSourceCode()) == 0)
+			{
+				return false;
+			}
+
+			const std::string& fragmentShaderSourceCode = editor.GetText();
+			const ShaderCompileResult compileResult = CompileShader(m_FragmentShaderFile->GetLanguage(), ShaderStage::Fragment, fragmentShaderSourceCode, FragmentShaderCodeEntry);
+
+			if (compileResult.Status != ShaderCompileStatus::Success)
+			{
+				FT_LOG("Failed %s shader %s.", ConvertCompilationStatusToText(compileResult.Status), m_FragmentShaderFile->GetName().c_str());
+				return false;
+			}
+
+			ClearErrorMarkers();
 
 			vkQueueWaitIdle(m_Device->GetGraphicsQueue());
 
-			m_FragmentShader->Recompile(fragmentShaderSourceCode);
+			delete(m_FragmentShader);
+			m_FragmentShader = new Shader(m_Device, ShaderStage::Fragment, FragmentShaderCodeEntry, compileResult.SpvCode);
 
 			delete(m_Pipeline);
 
@@ -706,18 +750,26 @@ namespace FT
 			CreateDescriptorSets(m_FragmentShader->GetBindings());
 			
 			m_Pipeline = new Pipeline(m_Device, m_Swapchain, descriptorSetLayout, m_VertexShader, m_FragmentShader);
+
+			return true;
 		}
 	private: // HACK:
 
-	// TODO: Refactor. No need for multiple methods with double code.
-		void LoadShader(const std::string& inFilePath)
+		void LoadShader(const std::string& inPath)
 		{
-			vkQueueWaitIdle(m_Device->GetGraphicsQueue()); // TODO: This wait wait idle will be called twice (second one in RecompileFragmentShader). Make this code path more clear.
+			ShaderFile* loadedShaderFile = new ShaderFile(inPath);
+			const ShaderCompileResult compileResult = CompileShader(loadedShaderFile->GetLanguage(), ShaderStage::Fragment, loadedShaderFile->GetSourceCode(), FragmentShaderCodeEntry);
 
-			delete(m_FragmentShader);
-			m_FragmentShader = new Shader(m_Device, inFilePath, ShaderStage::Fragment, FragmentShaderCodeEntry);
+			if (compileResult.Status != ShaderCompileStatus::Success)
+			{
+				FT_LOG("Failed %s for loaded shader %s.", ConvertCompilationStatusToText(compileResult.Status), loadedShaderFile->GetName().c_str());
+				return;
+			}
 
-			editor.SetText(m_FragmentShader->GetSourceCode());
+			delete(m_FragmentShaderFile);
+			m_FragmentShaderFile = loadedShaderFile;
+
+			editor.SetText(m_FragmentShaderFile->GetSourceCode());
 		}
 
 		// TODO: Move to device and call it only when shader gets compiled/recompiled.
@@ -823,7 +875,10 @@ namespace FT
 	{
 		if (key == GLFW_KEY_S && action == GLFW_PRESS && mods == GLFW_MOD_CONTROL)
 		{
-			application.RecompileFragmentShader();
+			if (application.RecompileFragmentShader())
+			{
+				application.SaveFragmentShader();
+			}
 		}
 
 		if (key == GLFW_KEY_S && action == GLFW_PRESS && mods & GLFW_MOD_CONTROL && mods & GLFW_MOD_SHIFT)

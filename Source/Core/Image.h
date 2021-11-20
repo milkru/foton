@@ -3,11 +3,12 @@
 namespace FT
 {
 	class Device;
+	class ImageFile;
 
 	class Image
 	{
 	public:
-		Image(const Device* inDevice, const std::string inPath);
+		Image(const Device* inDevice, const ImageFile& inFile);
 		~Image();
 
 	private:
