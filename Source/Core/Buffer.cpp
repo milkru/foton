@@ -24,8 +24,7 @@ namespace FT
 		return bufferUsageFlags;
 	}
 
-	void CreateBuffer(const Device* inDevice, const VkDeviceSize inSize, const VkBufferUsageFlags inUsage,
-		const VkMemoryPropertyFlags inProperties, VkBuffer& outBuffer, VkDeviceMemory& outBufferMemory)
+	void CreateBuffer(const Device* inDevice, const VkDeviceSize inSize, const VkBufferUsageFlags inUsage, const VkMemoryPropertyFlags inProperties, VkBuffer& outBuffer, VkDeviceMemory& outBufferMemory)
 	{
 		VkBufferCreateInfo bufferCreateInfo{};
 		bufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -48,12 +47,12 @@ namespace FT
 		vkBindBufferMemory(inDevice->GetDevice(), outBuffer, outBufferMemory, 0);
 	}
 
-	Buffer::Buffer(const Device* inDevice, const size_t inSize, const BufferUsageFlags inUsage)
+	Buffer::Buffer(const Device* inDevice, const size_t inSize, const BufferUsageFlags inUsageFlags)
 		: m_Device(inDevice)
 		, m_Size(inSize)
 		, m_HostVisibleData(nullptr)
 	{
-		CreateBuffer(inDevice, inSize, GetVkBufferUsageFlags(inUsage), VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, m_Buffer, m_Memory);
+		CreateBuffer(inDevice, inSize, GetVkBufferUsageFlags(inUsageFlags), VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, m_Buffer, m_Memory);
 	}
 
 	Buffer::~Buffer()

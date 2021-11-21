@@ -4,8 +4,7 @@
 
 namespace FT
 {
-	// TODO: Uppercase?
-	const int MAX_FRAMES_IN_FLIGHT = 2;
+	const int MaxFramesInFlight = 2;
 
 	struct SwapChainSupportDetails
 	{
@@ -234,13 +233,13 @@ namespace FT
 
 	void CreateSemaphores(const VkDevice inDevice, std::vector<VkSemaphore>& outImageAvailableSemaphores, std::vector<VkSemaphore>& outRenderFinishedSemaphores)
 	{
-		outImageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
-		outRenderFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
+		outImageAvailableSemaphores.resize(MaxFramesInFlight);
+		outRenderFinishedSemaphores.resize(MaxFramesInFlight);
 
 		VkSemaphoreCreateInfo semaphoreCreateInfo{};
 		semaphoreCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
-		for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
+		for (size_t i = 0; i < MaxFramesInFlight; ++i)
 		{
 			FT_VK_CALL(vkCreateSemaphore(inDevice, &semaphoreCreateInfo, nullptr, &outImageAvailableSemaphores[i]));
 			FT_VK_CALL(vkCreateSemaphore(inDevice, &semaphoreCreateInfo, nullptr, &outRenderFinishedSemaphores[i]));
@@ -249,13 +248,13 @@ namespace FT
 
 	void CreateFences(const VkDevice inDevice, std::vector<VkFence>& outInFlightFences, std::vector<VkFence>& outImagesInFlight)
 	{
-		outInFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
+		outInFlightFences.resize(MaxFramesInFlight);
 
 		VkFenceCreateInfo fenceCreateInfo{};
 		fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
 		fenceCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
-		for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
+		for (size_t i = 0; i < MaxFramesInFlight; ++i)
 		{
 			FT_VK_CALL(vkCreateFence(inDevice, &fenceCreateInfo, nullptr, &outInFlightFences[i]));
 		}
@@ -279,7 +278,7 @@ namespace FT
 
 	Swapchain::~Swapchain()
 	{
-		for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
+		for (size_t i = 0; i < MaxFramesInFlight; ++i)
 		{
 			vkDestroySemaphore(m_Device->GetDevice(), m_RenderFinishedSemaphores[i], nullptr);
 			vkDestroySemaphore(m_Device->GetDevice(), m_ImageAvailableSemaphores[i], nullptr);
@@ -384,7 +383,7 @@ namespace FT
 
 		VkResult result = vkQueuePresentKHR(m_Device->GetGraphicsQueue(), &presentInfo);
 
-		m_CurrentFrame = (m_CurrentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+		m_CurrentFrame = (m_CurrentFrame + 1) % MaxFramesInFlight;
 
 		if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || s_FramebufferResized)
 		{

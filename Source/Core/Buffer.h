@@ -2,6 +2,7 @@
 
 namespace FT
 {
+	// TODO: Move?
 #	define FT_FLAG_TYPE_SETUP(flagType) \
 		inline flagType operator&(flagType a, flagType b) \
 		{ \
@@ -34,7 +35,7 @@ namespace FT
 	class Buffer
 	{
 	public:
-		Buffer(const Device* inDevice, const size_t inSize, const BufferUsageFlags inUsage);
+		Buffer(const Device* inDevice, const size_t inSize, const BufferUsageFlags inUsageFlags);
 		~Buffer();
 
 	private:

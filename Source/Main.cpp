@@ -2,8 +2,11 @@
 #include "Core/Swapchain.h"
 #include "Core/Buffer.h"
 #include "Core/Image.h"
+#include "Core/UniformBuffer.h"
+#include "Core/Resource.hpp"
 #include "Core/Shader.h"
 #include "Core/Pipeline.h"
+#include "Core/DescriptorSet.h"
 #include "Compiler/ShaderCompiler.h"
 #include "Utility/ShaderFile.h"
 #include "Utility/ImageFile.h"
@@ -77,7 +80,7 @@ namespace FT
 		Pipeline* m_Pipeline = nullptr;
 
 		Image* m_Image;
-		std::vector<Buffer*> m_UniformBuffers; // TODO: Move double buffering to Buffer implementation, since it's always host visible.
+		UniformBuffer* m_UniformBuffer;
 
 		VkDescriptorSetLayout descriptorSetLayout;
 		VkDescriptorPool descriptorPool;
@@ -280,12 +283,7 @@ namespace FT
 		{
 			m_Swapchain->Cleanup();
 
-			for (uint32_t i = 0; i < m_UniformBuffers.size(); ++i)
-			{
-				delete(m_UniformBuffers[i]);
-			}
-
-			m_UniformBuffers.clear();
+			delete(m_UniformBuffer);
 
 			m_Device->FreeCommandBuffers();
 
@@ -393,11 +391,7 @@ namespace FT
 		void CreateUniformBuffers()
 		{
 			VkDeviceSize bufferSize = sizeof(UniformBufferObject);
-			m_UniformBuffers.resize(m_Swapchain->GetImageCount());
-			for (size_t i = 0; i < m_Swapchain->GetImageCount(); ++i)
-			{
-				m_UniformBuffers[i] = new Buffer(m_Device, bufferSize, BufferUsageFlags::Uniform);
-			}
+			m_UniformBuffer = new UniformBuffer(m_Device, m_Swapchain, bufferSize);
 		}
 
 		void CreateDescriptorPool()
@@ -436,7 +430,7 @@ namespace FT
 				std::vector<VkWriteDescriptorSet> descriptorWrites(inBindings.size());
 
 				VkDescriptorBufferInfo bufferInfo{};
-				bufferInfo.buffer = m_UniformBuffers[i]->GetBuffer();
+				bufferInfo.buffer = m_UniformBuffer->GetBuffer(i)->GetBuffer();
 				bufferInfo.offset = 0;
 				bufferInfo.range = sizeof(UniformBufferObject);
 
@@ -496,9 +490,9 @@ namespace FT
 			ubo.proj = glm::perspective(glm::radians(45.0f), m_Swapchain->GetExtent().width / static_cast<float>(m_Swapchain->GetExtent().height), 0.1f, 10.0f);
 			ubo.proj[1][1] *= -1;
 
-			void* data = m_UniformBuffers[currentImage]->Map();
+			void* data = m_UniformBuffer->Map(currentImage);
 			memcpy(data, &ubo, sizeof(ubo));
-			m_UniformBuffers[currentImage]->Unmap();
+			m_UniformBuffer->Unmap(currentImage);
 		}
 
 		void ImguiMenuBar()
@@ -735,7 +729,7 @@ namespace FT
 
 			if (compileResult.Status != ShaderCompileStatus::Success)
 			{
-				FT_LOG("Failed %s shader %s.", ConvertCompilationStatusToText(compileResult.Status), m_FragmentShaderFile->GetName().c_str());
+				FT_LOG("Failed %s shader %s.\n", ConvertCompilationStatusToText(compileResult.Status), m_FragmentShaderFile->GetName().c_str());
 				return false;
 			}
 
@@ -769,7 +763,7 @@ namespace FT
 
 			if (compileResult.Status != ShaderCompileStatus::Success)
 			{
-				FT_LOG("Failed %s for loaded shader %s.", ConvertCompilationStatusToText(compileResult.Status), loadedShaderFile->GetName().c_str());
+				FT_LOG("Failed %s for loaded shader %s.\n", ConvertCompilationStatusToText(compileResult.Status), loadedShaderFile->GetName().c_str());
 				return;
 			}
 

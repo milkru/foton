@@ -55,7 +55,7 @@ namespace FT
 		}
 		else
 		{
-			FT_LOG("Opening shader file failed.");
+			FT_LOG("Opening shader file failed.\n");
 			return false;
 		}
 	}
@@ -73,7 +73,7 @@ namespace FT
 		}
 		else
 		{
-			FT_LOG("Saving shader file failed.");
+			FT_LOG("Saving shader file failed.\n");
 			return false;
 		}
 	}
