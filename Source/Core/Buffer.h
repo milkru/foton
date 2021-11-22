@@ -48,6 +48,7 @@ namespace FT
 
 	public:
 		VkBuffer GetBuffer() const { return m_Buffer; }
+		size_t GetSize() const { return m_Size; }
 
 	private:
 		const Device* m_Device;

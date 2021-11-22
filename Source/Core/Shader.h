@@ -1,12 +1,9 @@
 #pragma once
 
+#include "Binding.hpp"
+
 namespace FT
 {
-	struct Binding
-	{
-		VkDescriptorSetLayoutBinding DescriptorSetBinding;
-	};
-
 	enum class ShaderStage : uint8_t
 	{
 		Vertex,

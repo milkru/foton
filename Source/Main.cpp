@@ -3,6 +3,7 @@
 #include "Core/Buffer.h"
 #include "Core/Image.h"
 #include "Core/UniformBuffer.h"
+#include "Core/Binding.hpp"
 #include "Core/Resource.hpp"
 #include "Core/Shader.h"
 #include "Core/Pipeline.h"
@@ -82,9 +83,9 @@ namespace FT
 		Image* m_Image;
 		UniformBuffer* m_UniformBuffer;
 
-		VkDescriptorSetLayout descriptorSetLayout;
-		VkDescriptorPool descriptorPool;
-		std::vector<VkDescriptorSet> descriptorSets;
+		std::vector<Descriptor> m_Descriptors;
+
+		DescriptorSet* m_DescriptorSet;
 
 		VkDescriptorPool imguiDescPool;
 
@@ -127,14 +128,18 @@ namespace FT
 
 			CreateShaders();
 
-			m_Pipeline = new Pipeline(m_Device, m_Swapchain, descriptorSetLayout, m_VertexShader, m_FragmentShader);
-
 			const ImageFile imageFile(GetFullPath("icon"));
 			m_Image = new Image(m_Device, imageFile);
 
-			CreateUniformBuffers();
-			CreateDescriptorPool();
-			CreateDescriptorSets(m_FragmentShader->GetBindings());
+			VkDeviceSize bufferSize = sizeof(UniformBufferObject);
+			m_UniformBuffer = new UniformBuffer(m_Device, m_Swapchain, bufferSize);
+
+			CreateDescriptors();
+
+			m_DescriptorSet = new DescriptorSet(m_Device, m_Swapchain, m_Descriptors);
+
+			m_Pipeline = new Pipeline(m_Device, m_Swapchain, m_DescriptorSet, m_VertexShader, m_FragmentShader);
+
 			m_Device->AllocateCommandBuffers(m_Swapchain->GetImageCount());
 		}
 
@@ -289,7 +294,7 @@ namespace FT
 
 			delete(m_Pipeline);
 
-			vkDestroyDescriptorPool(m_Device->GetDevice(), descriptorPool, nullptr);
+			delete(m_DescriptorSet);
 		}
 
 		void Cleanup()
@@ -307,13 +312,10 @@ namespace FT
 
 			delete(m_Image);
 
-			vkDestroyDescriptorSetLayout(m_Device->GetDevice(), descriptorSetLayout, nullptr);
-
 			delete(m_Swapchain);
 			delete(m_Device);
 
 			glfwDestroyWindow(window);
-
 			glfwTerminate();
 
 			FinalizeShaderCompiler();
@@ -335,31 +337,18 @@ namespace FT
 
 			m_Swapchain->Recreate();
 
-			m_Pipeline = new Pipeline(m_Device, m_Swapchain, descriptorSetLayout, m_VertexShader, m_FragmentShader);
+			VkDeviceSize bufferSize = sizeof(UniformBufferObject);
+			m_UniformBuffer = new UniformBuffer(m_Device, m_Swapchain, bufferSize);
 
-			CreateUniformBuffers();
-			CreateDescriptorPool();
-			CreateDescriptorSets(m_FragmentShader->GetBindings());
+			CreateDescriptors();
+
+			m_DescriptorSet = new DescriptorSet(m_Device, m_Swapchain, m_Descriptors);
+
+			m_Pipeline = new Pipeline(m_Device, m_Swapchain, m_DescriptorSet, m_VertexShader, m_FragmentShader);
+
 			m_Device->AllocateCommandBuffers(m_Swapchain->GetImageCount());
 
 			ImGui_ImplVulkan_SetMinImageCount(m_Swapchain->GetImageCount());
-		}
-
-		void CreateDescriptorSetLayout(const std::vector<Binding>& inBindings)
-		{
-			std::vector<VkDescriptorSetLayoutBinding> descriptorSetBindings;
-			descriptorSetBindings.resize(inBindings.size());
-			for (uint32_t i = 0; i < inBindings.size(); ++i)
-			{
-				descriptorSetBindings[i] = inBindings[i].DescriptorSetBinding;
-			}
-
-			VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo{};
-			descriptorSetLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-			descriptorSetLayoutCreateInfo.bindingCount = static_cast<uint32_t>(descriptorSetBindings.size());
-			descriptorSetLayoutCreateInfo.pBindings = descriptorSetBindings.data();
-
-			FT_VK_CALL(vkCreateDescriptorSetLayout(m_Device->GetDevice(), &descriptorSetLayoutCreateInfo, nullptr, &descriptorSetLayout));
 		}
 
 		void CreateShaders()
@@ -384,86 +373,6 @@ namespace FT
 			}
 
 			editor.SetText(m_FragmentShaderFile->GetSourceCode());
-
-			CreateDescriptorSetLayout(m_FragmentShader->GetBindings());
-		}
-
-		void CreateUniformBuffers()
-		{
-			VkDeviceSize bufferSize = sizeof(UniformBufferObject);
-			m_UniformBuffer = new UniformBuffer(m_Device, m_Swapchain, bufferSize);
-		}
-
-		void CreateDescriptorPool()
-		{
-			std::array<VkDescriptorPoolSize, 2> poolSizes{};
-			poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-			poolSizes[0].descriptorCount = 100 * m_Swapchain->GetImageCount();
-			poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-			poolSizes[1].descriptorCount = 100 * m_Swapchain->GetImageCount();
-
-			VkDescriptorPoolCreateInfo poolInfo{};
-			poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-			poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
-			poolInfo.pPoolSizes = poolSizes.data();
-			poolInfo.maxSets = m_Swapchain->GetImageCount();
-
-			FT_VK_CALL(vkCreateDescriptorPool(m_Device->GetDevice(), &poolInfo, nullptr, &descriptorPool));
-		}
-
-		void CreateDescriptorSets(const std::vector<Binding>& inBindings)
-		{
-			std::vector<VkDescriptorSetLayout> descriptorSetLayouts(m_Swapchain->GetImageCount(), descriptorSetLayout);
-
-			VkDescriptorSetAllocateInfo allocateInfo{};
-			allocateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-			allocateInfo.descriptorPool = descriptorPool;
-			allocateInfo.descriptorSetCount = m_Swapchain->GetImageCount();
-			allocateInfo.pSetLayouts = descriptorSetLayouts.data();
-
-			descriptorSets.resize(m_Swapchain->GetImageCount());
-			FT_VK_CALL(vkAllocateDescriptorSets(m_Device->GetDevice(), &allocateInfo, descriptorSets.data()));
-
-			// TODO: Recreate descriptor sets each time descriptor layout gets recreated.
-			for (size_t i = 0; i < m_Swapchain->GetImageCount(); ++i)
-			{
-				std::vector<VkWriteDescriptorSet> descriptorWrites(inBindings.size());
-
-				VkDescriptorBufferInfo bufferInfo{};
-				bufferInfo.buffer = m_UniformBuffer->GetBuffer(i)->GetBuffer();
-				bufferInfo.offset = 0;
-				bufferInfo.range = sizeof(UniformBufferObject);
-
-				VkDescriptorImageInfo imageInfo{};
-				imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-				imageInfo.imageView = m_Image->GetImageView();
-				imageInfo.sampler = m_Image->GetSampler();
-
-				for (uint32_t j = 0; j < inBindings.size(); ++j)
-				{
-					descriptorWrites[j].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-					descriptorWrites[j].dstSet = descriptorSets[i];
-					descriptorWrites[j].dstBinding = inBindings[j].DescriptorSetBinding.binding;
-					descriptorWrites[j].dstArrayElement = 0;
-					descriptorWrites[j].descriptorType = inBindings[j].DescriptorSetBinding.descriptorType;
-					descriptorWrites[j].descriptorCount = 1;
-					
-					if (inBindings[j].DescriptorSetBinding.descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
-					{
-						descriptorWrites[j].pBufferInfo = &bufferInfo;
-					}
-					else if (inBindings[j].DescriptorSetBinding.descriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
-					{
-						descriptorWrites[j].pImageInfo = &imageInfo;
-					}
-					else
-					{
-						// TOOD: FAIL? Recover? Not supported.
-					}
-				}
-
-				vkUpdateDescriptorSets(m_Device->GetDevice(), static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
-			}
 		}
 
 		void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size)
@@ -493,6 +402,17 @@ namespace FT
 			void* data = m_UniformBuffer->Map(currentImage);
 			memcpy(data, &ubo, sizeof(ubo));
 			m_UniformBuffer->Unmap(currentImage);
+		}
+
+		void CreateDescriptors()
+		{
+			m_Descriptors.resize(2);
+			m_Descriptors[0].Binding = m_FragmentShader->GetBindings()[0];
+			m_Descriptors[0].Resource.Type = ResourceType::UniformBuffer;
+			m_Descriptors[0].Resource.Handle.UniformBuffer = m_UniformBuffer;
+			m_Descriptors[1].Binding = m_FragmentShader->GetBindings()[1];
+			m_Descriptors[1].Resource.Type = ResourceType::Image;
+			m_Descriptors[1].Resource.Handle.Image = m_Image;
 		}
 
 		void ImguiMenuBar()
@@ -740,17 +660,11 @@ namespace FT
 			delete(m_FragmentShader);
 			m_FragmentShader = new Shader(m_Device, ShaderStage::Fragment, FragmentShaderCodeEntry, compileResult.SpvCode);
 
-			delete(m_Pipeline);
-
-			vkDestroyDescriptorPool(m_Device->GetDevice(), descriptorPool, nullptr);
-			CreateDescriptorPool();
-
-			vkDestroyDescriptorSetLayout(m_Device->GetDevice(), descriptorSetLayout, nullptr);
-			CreateDescriptorSetLayout(m_FragmentShader->GetBindings());
-
-			CreateDescriptorSets(m_FragmentShader->GetBindings());
+			delete(m_DescriptorSet);
+			m_DescriptorSet = new DescriptorSet(m_Device, m_Swapchain, m_Descriptors);
 			
-			m_Pipeline = new Pipeline(m_Device, m_Swapchain, descriptorSetLayout, m_VertexShader, m_FragmentShader);
+			delete(m_Pipeline);
+			m_Pipeline = new Pipeline(m_Device, m_Swapchain, m_DescriptorSet, m_VertexShader, m_FragmentShader);
 
 			return true;
 		}
@@ -799,7 +713,8 @@ namespace FT
 
 			vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_Pipeline->GetGraphicsPipeline());
 
-			vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_Pipeline->GetPipelineLayout(), 0, 1, &descriptorSets[i], 0, nullptr);
+			const VkDescriptorSet& descriptorSet = m_DescriptorSet->GetDescriptorSet(i);
+			vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_Pipeline->GetPipelineLayout(), 0, 1, &descriptorSet, 0, nullptr);
 
 			vkCmdDraw(commandBuffer, 3, 1, 0, 0);
 

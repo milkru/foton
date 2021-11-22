@@ -1,6 +1,6 @@
 #include "ShaderReflect.h"
 #include <spirv_reflect.h>
-#include "Core/Shader.h"
+#include "Core/Binding.hpp"
 
 namespace FT
 {

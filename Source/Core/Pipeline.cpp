@@ -1,6 +1,7 @@
 #include "Pipeline.h"
 #include "Device.h"
 #include "Swapchain.h"
+#include "DescriptorSet.h"
 #include "Shader.h"
 
 namespace FT
@@ -94,10 +95,10 @@ namespace FT
 		FT_VK_CALL(vkCreateGraphicsPipelines(inDevice, VK_NULL_HANDLE, 1, &pipelineCreateInfo, nullptr, &outPraphicsPipeline));
 	}
 
-	Pipeline::Pipeline(const Device* inDevice, const Swapchain* inSwapchain, const VkDescriptorSetLayout inDescriptorSetLayout, const Shader* inVertexShader, const Shader* inFragmentShader)
+	Pipeline::Pipeline(const Device* inDevice, const Swapchain* inSwapchain, const DescriptorSet* inDescriptorSet, const Shader* inVertexShader, const Shader* inFragmentShader)
 		: m_Device(inDevice)
 	{
-		CreatePipelineLayout(m_Device->GetDevice(), inDescriptorSetLayout, m_PipelineLayout);
+		CreatePipelineLayout(m_Device->GetDevice(), inDescriptorSet->GetDescriptorSetLayout(), m_PipelineLayout);
 		CreateGraphicsPipeline(m_Device->GetDevice(), inSwapchain, inVertexShader, inFragmentShader, m_PipelineLayout, m_GraphicsPipeline);
 	}
 

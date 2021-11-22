@@ -21,7 +21,7 @@ namespace FT
 		void Unmap(const uint32_t inCurrentSwapchainImageIndex);
 
 	public:
-		Buffer* GetBuffer(const uint32_t inBUfferIndex) const { return m_Buffers[inBUfferIndex]; }
+		Buffer* GetBuffer(const uint32_t inBufferIndex) const { return m_Buffers[inBufferIndex]; }
 
 	private:
 		std::vector<Buffer*> m_Buffers;

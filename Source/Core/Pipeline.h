@@ -4,13 +4,13 @@ namespace FT
 {
 	class Device;
 	class Swapchain;
+	class DescriptorSet;
 	class Shader;
 
 	class Pipeline
 	{
 	public:
-		// TODO: Change inDescriptorSetLayout input after it gets wrapped.
-		Pipeline(const Device* inDevice, const Swapchain* inSwapchain, const VkDescriptorSetLayout inDescriptorSetLayout, const Shader* inVertexShader, const Shader* inFragmentShader);
+		Pipeline(const Device* inDevice, const Swapchain* inSwapchain, const DescriptorSet* inDescriptorSet, const Shader* inVertexShader, const Shader* inFragmentShader);
 		~Pipeline();
 
 	private:
