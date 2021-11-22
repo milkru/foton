@@ -8,6 +8,7 @@
 #include "Core/Shader.h"
 #include "Core/Pipeline.h"
 #include "Core/DescriptorSet.h"
+#include "Core/CommandBuffer.h"
 #include "Compiler/ShaderCompiler.h"
 #include "Utility/ShaderFile.h"
 #include "Utility/ImageFile.h"
@@ -87,6 +88,8 @@ namespace FT
 
 		DescriptorSet* m_DescriptorSet;
 
+		CommandBuffer* m_CommandBuffer;
+
 		VkDescriptorPool imguiDescPool;
 
 		// TODO: Move this to config. Make foton.ini
@@ -140,7 +143,7 @@ namespace FT
 
 			m_Pipeline = new Pipeline(m_Device, m_Swapchain, m_DescriptorSet, m_VertexShader, m_FragmentShader);
 
-			m_Device->AllocateCommandBuffers(m_Swapchain->GetImageCount());
+			m_CommandBuffer = new CommandBuffer(m_Device, m_Swapchain);
 		}
 
 		void ApplyImGuiStyle()
@@ -290,7 +293,7 @@ namespace FT
 
 			delete(m_UniformBuffer);
 
-			m_Device->FreeCommandBuffers();
+			delete(m_CommandBuffer);
 
 			delete(m_Pipeline);
 
@@ -346,7 +349,7 @@ namespace FT
 
 			m_Pipeline = new Pipeline(m_Device, m_Swapchain, m_DescriptorSet, m_VertexShader, m_FragmentShader);
 
-			m_Device->AllocateCommandBuffers(m_Swapchain->GetImageCount());
+			m_CommandBuffer = new CommandBuffer(m_Device, m_Swapchain);
 
 			ImGui_ImplVulkan_SetMinImageCount(m_Swapchain->GetImageCount());
 		}
@@ -688,44 +691,20 @@ namespace FT
 		}
 
 		// TODO: Move to device and call it only when shader gets compiled/recompiled.
-		void FillCommandBuffers(uint32_t i)
+		void FillCommandBuffers(uint32_t inSwapchainImageIndex)
 		{
-			VkCommandBuffer commandBuffer = m_Device->GetCommandBuffer(i);
-
-			VkCommandBufferBeginInfo beginInfo{};
-			beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-			beginInfo.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
-
-			FT_VK_CALL(vkBeginCommandBuffer(commandBuffer, &beginInfo));
-
-			VkRenderPassBeginInfo renderPassInfo{};
-			renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-			renderPassInfo.renderPass = m_Swapchain->GetRenderPass();
-			renderPassInfo.framebuffer = m_Swapchain->GetFramebuffer(i);
-			renderPassInfo.renderArea.offset = { 0, 0 };
-			renderPassInfo.renderArea.extent = m_Swapchain->GetExtent();
-
-			VkClearValue clearColor = { {{0.0f, 0.0f, 0.0f, 1.0f}} };
-			renderPassInfo.clearValueCount = 1;
-			renderPassInfo.pClearValues = &clearColor;
-
-			vkCmdBeginRenderPass(m_Device->GetCommandBuffer(i), &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-
-			vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_Pipeline->GetGraphicsPipeline());
-
-			const VkDescriptorSet& descriptorSet = m_DescriptorSet->GetDescriptorSet(i);
-			vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_Pipeline->GetPipelineLayout(), 0, 1, &descriptorSet, 0, nullptr);
-
-			vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+			m_CommandBuffer->Begin(inSwapchainImageIndex, m_Swapchain);
+			m_CommandBuffer->BindPipeline(m_Pipeline);
+			m_CommandBuffer->BindDescriptorSet(m_DescriptorSet);
+			m_CommandBuffer->Draw();
 
 			if (showImGui)
 			{
-				ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffer);
+				// TODO: Wrap.
+				ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), m_CommandBuffer->GetCommandBuffer(inSwapchainImageIndex));
 			}
 
-			vkCmdEndRenderPass(commandBuffer);
-
-			FT_VK_CALL(vkEndCommandBuffer(commandBuffer));
+			m_CommandBuffer->End();
 		}
 
 		void DrawFrame()
@@ -744,7 +723,7 @@ namespace FT
 			UpdateUniformBuffer(imageIndex);
 			FillCommandBuffers(imageIndex);
 
-			const SwapchainStatus presentStatus = m_Swapchain->Present(imageIndex);
+			const SwapchainStatus presentStatus = m_Swapchain->Present(imageIndex, m_CommandBuffer);
 			if (presentStatus == SwapchainStatus::Recreate)
 			{
 				RecreateSwapchain();

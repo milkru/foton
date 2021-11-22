@@ -330,24 +330,6 @@ namespace FT
 		vkDestroyInstance(m_Instance, nullptr);
 	}
 
-	void Device::FreeCommandBuffers()
-	{
-		vkFreeCommandBuffers(m_Device, m_CommandPool, static_cast<uint32_t>(m_CommandBuffers.size()), m_CommandBuffers.data());
-	}
-
-	void Device::AllocateCommandBuffers(const uint32_t inSwapchainImageCount)
-	{
-		m_CommandBuffers.resize(inSwapchainImageCount);
-
-		VkCommandBufferAllocateInfo allocateInfo{};
-		allocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-		allocateInfo.commandPool = m_CommandPool;
-		allocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-		allocateInfo.commandBufferCount = (uint32_t)m_CommandBuffers.size();
-
-		FT_VK_CALL(vkAllocateCommandBuffers(m_Device, &allocateInfo, m_CommandBuffers.data()));
-	}
-
 	uint32_t Device::FindMemoryType(const uint32_t inTypeFilter, const VkMemoryPropertyFlags inProperties) const
 	{
 		VkPhysicalDeviceMemoryProperties memProperties;

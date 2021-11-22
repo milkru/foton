@@ -18,6 +18,7 @@ namespace FT
 	};
 
 	class Device;
+	class CommandBuffer;
 
 	class Swapchain
 	{
@@ -37,7 +38,7 @@ namespace FT
 		void Recreate();
 		void Cleanup();
 		SwapchainImageAcquireResult AcquireNextImage();
-		SwapchainStatus Present(const uint32_t inImageIndex);
+		SwapchainStatus Present(const uint32_t inImageIndex, const CommandBuffer* inCommandBuffer);
 
 	public:
 		uint32_t GetImageCount() const { return static_cast<uint32_t>(m_Images.size()); }

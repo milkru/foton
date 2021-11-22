@@ -1,6 +1,7 @@
 #include "Swapchain.h"
 #include "Device.h"
 #include "Buffer.h"
+#include "CommandBuffer.h"
 
 namespace FT
 {
@@ -339,7 +340,7 @@ namespace FT
 		return imageAcquireResult;
 	}
 
-	SwapchainStatus Swapchain::Present(const uint32_t inImageIndex)
+	SwapchainStatus Swapchain::Present(const uint32_t inImageIndex, const CommandBuffer* inCommandBuffer)
 	{
 		if (m_ImagesInFlight[inImageIndex] != VK_NULL_HANDLE)
 		{
@@ -357,7 +358,7 @@ namespace FT
 		submitInfo.pWaitSemaphores = waitSemaphores;
 		submitInfo.pWaitDstStageMask = waitStages;
 
-		VkCommandBuffer commandBuffer = m_Device->GetCommandBuffer(inImageIndex);
+		VkCommandBuffer commandBuffer = inCommandBuffer->GetCommandBuffer(inImageIndex);
 		submitInfo.commandBufferCount = 1;
 		submitInfo.pCommandBuffers = &commandBuffer;
 

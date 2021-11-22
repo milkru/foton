@@ -13,8 +13,6 @@ namespace FT
 		Device& operator=(Device const&) = delete;
 
 	public:
-		void AllocateCommandBuffers(const uint32_t inSwapchainImageCount);
-		void FreeCommandBuffers();
 		uint32_t FindMemoryType(const uint32_t inTypeFilter, const VkMemoryPropertyFlags inProperties) const;
 		VkCommandBuffer BeginSingleTimeCommands() const;
 		void EndSingleTimeCommands(VkCommandBuffer commandBuffer) const;
@@ -27,7 +25,6 @@ namespace FT
 		VkQueue GetGraphicsQueue() const { return m_GraphicsQueue; }
 		uint32_t GetGraphicsQueueFamilyIndex() const { return m_GraphicsQueueFamilyIndex; }
 		VkCommandPool GetCommandPool() const { return m_CommandPool; }
-		VkCommandBuffer GetCommandBuffer(const uint32_t inIndex) const { return m_CommandBuffers[inIndex]; }
 
 	private:
 		VkInstance m_Instance;
@@ -38,6 +35,5 @@ namespace FT
 		VkQueue m_GraphicsQueue;
 		uint32_t m_GraphicsQueueFamilyIndex;
 		VkCommandPool m_CommandPool;
-		std::vector<VkCommandBuffer> m_CommandBuffers;
 	};
 }
