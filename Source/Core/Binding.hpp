@@ -5,5 +5,6 @@ namespace FT
 	struct Binding
 	{
 		VkDescriptorSetLayoutBinding DescriptorSetBinding;
+		SpvReflectDescriptorBinding ReflectDescriptorBinding;
 	};
 }

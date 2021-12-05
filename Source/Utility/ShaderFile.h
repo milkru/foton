@@ -41,7 +41,7 @@ namespace FT
 		const std::string& GetSourceCode() const { return m_SourceCode; }
 		ShaderLanguage GetLanguage() const { return m_Language; }
 
-	protected:
+	private:
 		std::string m_Path;
 		std::string m_SourceCode;
 		std::string m_Name;

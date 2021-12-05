@@ -22,8 +22,11 @@ namespace FT
 
 	public:
 		Buffer* GetBuffer(const uint32_t inBufferIndex) const { return m_Buffers[inBufferIndex]; }
+		size_t GetBufferCount() const { return m_Buffers.size(); }
+		size_t GetSize() const { return m_Size; }
 
 	private:
 		std::vector<Buffer*> m_Buffers;
+		size_t m_Size;
 	};
 }

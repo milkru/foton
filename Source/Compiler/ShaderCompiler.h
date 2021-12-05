@@ -23,6 +23,6 @@ namespace FT
 
 	extern void InitializeShaderCompiler();
 	extern void FinalizeShaderCompiler();
-	extern ShaderCompileResult CompileShader(const ShaderLanguage inLanguage, const ShaderStage inStage, const std::string& inSourceCode, const std::string inCodeEntry);
+	extern ShaderCompileResult CompileShader(const ShaderLanguage inLanguage, const ShaderStage inStage, const std::string& inSourceCode, const std::string inCodeEntry = "main");
 	extern const char* ConvertCompilationStatusToText(const ShaderCompileStatus inStatus);
 }

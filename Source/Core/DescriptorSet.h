@@ -1,16 +1,10 @@
 #pragma once
 
-#include "Binding.hpp"
-#include "Resource.hpp"
+// TODO: How?
+#include "Descriptor.hpp"
 
 namespace FT
 {
-	struct Descriptor
-	{
-		Binding Binding;
-		Resource Resource;
-	};
-
 	class Device;
 	class Swapchain;
 

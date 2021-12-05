@@ -1,5 +1,4 @@
 #include "ShaderReflect.h"
-#include <spirv_reflect.h>
 #include "Core/Binding.hpp"
 
 namespace FT
@@ -50,12 +49,15 @@ namespace FT
 		for (uint32_t i = 0; i < bindingCount; ++i)
 		{
 			Binding& binding = bindings[i];
+
 			VkDescriptorSetLayoutBinding& descriptorSetLayoutBinding = binding.DescriptorSetBinding;
 			descriptorSetLayoutBinding.binding = spvBindings[i]->binding;
 			descriptorSetLayoutBinding.descriptorCount = 1;
 			descriptorSetLayoutBinding.descriptorType = GetVkDescriptorType(spvBindings[i]->descriptor_type);
 			descriptorSetLayoutBinding.stageFlags = inShaderStage;
 			descriptorSetLayoutBinding.pImmutableSamplers = nullptr;
+
+			binding.ReflectDescriptorBinding = *spvBindings[i];
 		}
 
 		spvReflectDestroyShaderModule(&spvModule);

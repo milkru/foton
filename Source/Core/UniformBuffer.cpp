@@ -6,11 +6,12 @@
 namespace FT
 {
 	UniformBuffer::UniformBuffer(const Device* inDevice, const Swapchain* inSwapchain, const size_t inSize)
+		: m_Size(inSize)
 	{
 		m_Buffers.resize(inSwapchain->GetImageCount());
 		for (uint32_t i = 0; i < inSwapchain->GetImageCount(); ++i)
 		{
-			m_Buffers[i] = new Buffer(inDevice, inSize, BufferUsageFlags::Uniform);
+			m_Buffers[i] = new Buffer(inDevice, m_Size, BufferUsageFlags::Uniform);
 		}
 	}
 

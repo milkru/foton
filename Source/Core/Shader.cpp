@@ -33,7 +33,7 @@ namespace FT
 		return shaderModule;
 	}
 
-	Shader::Shader(const Device* inDevice, const ShaderStage inStage, const std::string& inCodeEntry, const std::vector<uint32_t>& inSpvCode)
+	Shader::Shader(const Device* inDevice, const ShaderStage inStage, const std::vector<uint32_t>& inSpvCode, const std::string& inCodeEntry)
 		: m_Stage(inStage)
 		, m_CodeEntry(inCodeEntry)
 		, m_Device(inDevice)

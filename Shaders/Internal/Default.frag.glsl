@@ -13,7 +13,6 @@ layout (binding = 0) uniform UBO
 	mat4 model;
 	mat4 view;
 	mat4 projection;
-	whaaa whaa2;
 } ubo;
 
 layout (binding = 1) uniform sampler2D inputTexture;
