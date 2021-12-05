@@ -1,35 +1,38 @@
-#include "log.h"
+#include "Log.h"
 
-void FT::ImGuiLogger::Log(const char* fmt, ...) IM_FMTARGS(2)
+namespace FT
 {
-	va_list args;
-	va_start(args, fmt);
-	m_TextBuffer.appendfv(fmt, args);
-	va_end(args);
-
-	m_ScrollToBottom = true;
-}
-
-void FT::ImGuiLogger::Draw(const char* title)
-{
-	static const ImVec2 DefaultWindowSize = ImVec2(200, 200);
-
-	ImGui::Begin(title);
-
-	ImGui::SetWindowSize(DefaultWindowSize, ImGuiCond_FirstUseEver);
-	ImGui::TextUnformatted(m_TextBuffer.begin());
-
-	if (m_ScrollToBottom)
+	void ImGuiLogger::Log(const char* fmt, ...) IM_FMTARGS(2)
 	{
-		ImGui::SetScrollHereY(1.0f);
+		va_list args;
+		va_start(args, fmt);
+		m_TextBuffer.appendfv(fmt, args);
+		va_end(args);
+
+		m_ScrollToBottom = true;
 	}
 
-	ImGui::End();
+	void ImGuiLogger::Draw(const char* title)
+	{
+		static const ImVec2 DefaultWindowSize = ImVec2(200, 200);
 
-	m_ScrollToBottom = false;
-}
+		ImGui::Begin(title);
 
-void FT::ImGuiLogger::Clear()
-{
-	m_TextBuffer.clear();
+		ImGui::SetWindowSize(DefaultWindowSize, ImGuiCond_FirstUseEver);
+		ImGui::TextUnformatted(m_TextBuffer.begin());
+
+		if (m_ScrollToBottom)
+		{
+			ImGui::SetScrollHereY(1.0f);
+		}
+
+		ImGui::End();
+
+		m_ScrollToBottom = false;
+	}
+
+	void ImGuiLogger::Clear()
+	{
+		m_TextBuffer.clear();
+	}
 }

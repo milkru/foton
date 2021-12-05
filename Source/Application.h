@@ -1,17 +1,6 @@
-#include "Core/Device.h"
-#include "Core/Swapchain.h"
-#include "Core/Buffer.h"
-#include "Core/Image.h"
-#include "Core/UniformBuffer.h"
-#include "Core/Binding.hpp"
-#include "Core/Resource.hpp"
-#include "Core/Shader.h"
-#include "Core/Pipeline.h"
-#include "Core/DescriptorSet.h"
-#include "Core/CommandBuffer.h"
-#include "Core/ResourceContainer.h"
-#include "Compiler/ShaderCompiler.h"
-#include "Utility/ShaderFile.h"
+#pragma once
+
+#include "Core/Renderer.h"
 #include "Utility/ImageFile.h"
 #include "Utility/FileExplorer.h"
 
@@ -37,9 +26,6 @@
 
 namespace FT
 {
-	// TODO: This shouldn't be here. FT_ROOT_DIR is probably wrong for exe only???
-	std::string GetFullPath(const std::string inRelativePath);
-
 	// TOOD: Move somewhere else.
 	const uint32_t WIDTH = 1280;
 	const uint32_t HEIGHT = 720;
@@ -52,7 +38,9 @@ namespace FT
 		{
 			InitializeShaderCompiler();
 			InitializeWindow();
-			InitializeVulkan();
+
+			m_Renderer = new Renderer(window);
+
 			InitializeImGui();
 			MainLoop();
 			Cleanup();
@@ -62,23 +50,12 @@ namespace FT
 		GLFWwindow* window;
 		FileExplorer m_FileExplorer;
 
-		Device* m_Device;
-		Swapchain* m_Swapchain;
-
-		Shader* m_VertexShader;
-		Shader* m_FragmentShader;
-		ShaderFile* m_FragmentShaderFile;
-
-		Pipeline* m_Pipeline;
-		DescriptorSet* m_DescriptorSet;
-		CommandBuffer* m_CommandBuffer;
-		ResourceContainer* m_ResourceContainer;
+		Renderer* m_Renderer;
 
 		VkDescriptorPool imguiDescPool;
 
 		// TODO: Move this to config. Make foton.ini
 		float codeFontSize = 1.5f;
-		bool showImGui = true;
 		TextEditor editor;
 		ImGuiLogger logger;
 		ShaderLanguage currentFragmentShaderLanguage;
@@ -106,21 +83,6 @@ namespace FT
 			icon.pixels = iconImage.GetPixels();
 
 			glfwSetWindowIcon(window, 1, &icon);
-		}
-
-		void InitializeVulkan()
-		{
-			m_Device = new Device(window);
-			m_Swapchain = new Swapchain(m_Device, window);
-
-			CreateShaders();
-
-			m_ResourceContainer = new ResourceContainer(m_Device, m_Swapchain);
-			m_ResourceContainer->UpdateBindings(m_FragmentShader->GetBindings());
-
-			m_DescriptorSet = new DescriptorSet(m_Device, m_Swapchain, m_ResourceContainer->GetDescriptors());
-			m_Pipeline = new Pipeline(m_Device, m_Swapchain, m_DescriptorSet, m_VertexShader, m_FragmentShader);
-			m_CommandBuffer = new CommandBuffer(m_Device, m_Swapchain);
 		}
 
 		void ApplyImGuiStyle()
@@ -211,7 +173,10 @@ namespace FT
 			descriptorPoolInfo.poolSizeCount = static_cast<uint32_t>(std::size(descriptorPoolSIzes));
 			descriptorPoolInfo.pPoolSizes = descriptorPoolSIzes;
 
-			FT_VK_CALL(vkCreateDescriptorPool(m_Device->GetDevice(), &descriptorPoolInfo, nullptr, &imguiDescPool));
+			Device* device = m_Renderer->GetDevice();
+			Swapchain* swapchain = m_Renderer->GetSwapchain();
+
+			FT_VK_CALL(vkCreateDescriptorPool(device->GetDevice(), &descriptorPoolInfo, nullptr, &imguiDescPool));
 
 			IMGUI_CHECKVERSION();
 			ImGui::CreateContext();
@@ -222,27 +187,30 @@ namespace FT
 			ImGui_ImplGlfw_InitForVulkan(window, true);
 
 			ImGui_ImplVulkan_InitInfo vulkanImplementationInitInfo{};
-			vulkanImplementationInitInfo.Instance = m_Device->GetInstance();
-			vulkanImplementationInitInfo.PhysicalDevice = m_Device->GetPhysicalDevice();
-			vulkanImplementationInitInfo.Device = m_Device->GetDevice();
-			vulkanImplementationInitInfo.QueueFamily = m_Device->GetGraphicsQueueFamilyIndex();
-			vulkanImplementationInitInfo.Queue = m_Device->GetGraphicsQueue();
+			vulkanImplementationInitInfo.Instance = device->GetInstance();
+			vulkanImplementationInitInfo.PhysicalDevice = device->GetPhysicalDevice();
+			vulkanImplementationInitInfo.Device = device->GetDevice();
+			vulkanImplementationInitInfo.QueueFamily = device->GetGraphicsQueueFamilyIndex();
+			vulkanImplementationInitInfo.Queue = device->GetGraphicsQueue();
 			vulkanImplementationInitInfo.PipelineCache = VK_NULL_HANDLE;
 			vulkanImplementationInitInfo.DescriptorPool = imguiDescPool;
 			vulkanImplementationInitInfo.Allocator = nullptr;
-			vulkanImplementationInitInfo.MinImageCount = m_Swapchain->GetImageCount();
-			vulkanImplementationInitInfo.ImageCount = m_Swapchain->GetImageCount();
+			vulkanImplementationInitInfo.MinImageCount = swapchain->GetImageCount();
+			vulkanImplementationInitInfo.ImageCount = swapchain->GetImageCount();
 			vulkanImplementationInitInfo.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
 
-			ImGui_ImplVulkan_Init(&vulkanImplementationInitInfo, m_Swapchain->GetRenderPass());
+			ImGui_ImplVulkan_Init(&vulkanImplementationInitInfo, swapchain->GetRenderPass());
 
-			VkCommandBuffer commandBuffer = m_Device->BeginSingleTimeCommands();
+			VkCommandBuffer commandBuffer = device->BeginSingleTimeCommands();
 			ImGui_ImplVulkan_CreateFontsTexture(commandBuffer);
-			m_Device->EndSingleTimeCommands(commandBuffer);
+			device->EndSingleTimeCommands(commandBuffer);
 
 			ImGui_ImplVulkan_DestroyFontUploadObjects();
 
 			ApplyImGuiStyle();
+
+			ShaderFile* fragmentShaderFile = m_Renderer->GetFragmentShaderFile();
+			editor.SetText(fragmentShaderFile->GetSourceCode());
 		}
 
 		void MainLoop()
@@ -253,126 +221,30 @@ namespace FT
 			{
 				glfwPollEvents();
 
-				if (showImGui)
+				if (m_Renderer->IsUserInterfaceEnabled())
 				{
 					ImguiNewFrame();
 				}
 
-				DrawFrame();
+				m_Renderer->DrawFramePUBLIC();
 			}
 
-			vkDeviceWaitIdle(m_Device->GetDevice());
-		}
-
-		void CleanupSwapchain()
-		{
-			m_Swapchain->Cleanup();
-
-			delete(m_CommandBuffer);
-			delete(m_Pipeline);
-			delete(m_DescriptorSet);
+			m_Renderer->WaitDevice();
 		}
 
 		void Cleanup()
 		{
-			delete(m_FragmentShaderFile);
-			delete(m_FragmentShader);
-			delete(m_VertexShader);
-
-			CleanupSwapchain();
-
 			ImGui_ImplVulkan_Shutdown();
 			ImGui_ImplGlfw_Shutdown();
 			ImGui::DestroyContext();
-			vkDestroyDescriptorPool(m_Device->GetDevice(), imguiDescPool, nullptr);
 
-			delete(m_ResourceContainer);
+			Device* device = m_Renderer->GetDevice();
+			vkDestroyDescriptorPool(device->GetDevice(), imguiDescPool, nullptr);
 
-			delete(m_Swapchain);
-			delete(m_Device);
+			delete(m_Renderer);
 
 			glfwDestroyWindow(window);
 			glfwTerminate();
-
-			FinalizeShaderCompiler();
-		}
-
-		void RecreateSwapchain()
-		{
-			int width = 0, height = 0;
-			glfwGetFramebufferSize(window, &width, &height);
-			while (width == 0 || height == 0)
-			{
-				glfwGetFramebufferSize(window, &width, &height);
-				glfwWaitEvents();
-			}
-
-			vkDeviceWaitIdle(m_Device->GetDevice());
-
-			CleanupSwapchain();
-
-			m_Swapchain->Recreate();
-
-			m_ResourceContainer->RecreateUniformBuffers();
-
-			m_DescriptorSet = new DescriptorSet(m_Device, m_Swapchain, m_ResourceContainer->GetDescriptors());
-			m_Pipeline = new Pipeline(m_Device, m_Swapchain, m_DescriptorSet, m_VertexShader, m_FragmentShader);
-			m_CommandBuffer = new CommandBuffer(m_Device, m_Swapchain);
-
-			ImGui_ImplVulkan_SetMinImageCount(m_Swapchain->GetImageCount());
-		}
-
-		void CreateShaders()
-		{
-			// TODO: How to prevent loading uncompilable file??? Maybe make internal shader somehow uneditable or serialized and fallback to them if previous shader cannot be compiled.
-			{
-				const ShaderFile shaderFile(GetFullPath("Shaders/Internal/FullScreen.vert.glsl"));
-
-				const ShaderCompileResult compileResult = CompileShader(shaderFile.GetLanguage(), ShaderStage::Vertex, shaderFile.GetSourceCode());
-				FT_CHECK(compileResult.Status == ShaderCompileStatus::Success, "Failed %s vertex shader %s.", ConvertCompilationStatusToText(compileResult.Status), shaderFile.GetName().c_str());
-
-				m_VertexShader = new Shader(m_Device, ShaderStage::Vertex, compileResult.SpvCode);
-			}
-
-			{
-				m_FragmentShaderFile = new ShaderFile(GetFullPath("Shaders/Internal/Default.frag.glsl"));
-
-				const ShaderCompileResult compileResult = CompileShader(m_FragmentShaderFile->GetLanguage(), ShaderStage::Fragment, m_FragmentShaderFile->GetSourceCode());
-				FT_CHECK(compileResult.Status == ShaderCompileStatus::Success, "Failed %s fragment shader %s.", ConvertCompilationStatusToText(compileResult.Status), m_FragmentShaderFile->GetName().c_str());
-
-				m_FragmentShader = new Shader(m_Device, ShaderStage::Fragment, compileResult.SpvCode);
-			}
-
-			editor.SetText(m_FragmentShaderFile->GetSourceCode());
-		}
-
-		void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size)
-		{
-			VkCommandBuffer commandBuffer = m_Device->BeginSingleTimeCommands();
-
-			VkBufferCopy copyRegion{};
-			copyRegion.size = size;
-			vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
-
-			m_Device->EndSingleTimeCommands(commandBuffer);
-		}
-
-		void UpdateUniformBuffer(uint32_t currentImage)
-		{
-			//static auto startTime = std::chrono::high_resolution_clock::now();
-			//
-			//auto currentTime = std::chrono::high_resolution_clock::now();
-			//float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
-			//
-			//UniformBufferObject ubo{};
-			//ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-			//ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-			//ubo.proj = glm::perspective(glm::radians(45.0f), m_Swapchain->GetExtent().width / static_cast<float>(m_Swapchain->GetExtent().height), 0.1f, 10.0f);
-			//ubo.proj[1][1] *= -1;
-			//
-			//void* data = m_UniformBuffer->Map(currentImage);
-			//memcpy(data, &ubo, sizeof(ubo));
-			//m_UniformBuffer->Unmap(currentImage);
 		}
 
 		void ImguiMenuBar()
@@ -489,7 +361,7 @@ namespace FT
 				{
 					if (ImGui::MenuItem("Show UI", "Ctrl-F"))
 					{
-						ToggleImGui();
+						m_Renderer->ToggleUserInterface();
 					}
 
 					ImGui::EndMenu();
@@ -549,7 +421,8 @@ namespace FT
 
 			// TODO: Refactor a bit.
 			char buf[128];
-			sprintf_s(buf, "%s###ShaderTitle", m_FragmentShaderFile->GetName().c_str());
+			ShaderFile* fragmentShaderFile = m_Renderer->GetFragmentShaderFile();
+			sprintf_s(buf, "%s###ShaderTitle", fragmentShaderFile->GetName().c_str());
 
 			ImGui::Begin(buf, nullptr, ImGuiWindowFlags_HorizontalScrollbar);
 			ImGui::SetWindowSize(ImVec2(WIDTH, HEIGHT), ImGuiCond_FirstUseEver); // TODO: Change this!!!
@@ -584,48 +457,32 @@ namespace FT
 			}
 		}
 
-		void ToggleImGui()
-		{
-			// TODO: Imgui Demo Window -> Style -> Rendering -> Global alpha. You can use this to fade toggle.
-			showImGui = !showImGui;
-		}
-
 		void SaveFragmentShader()
 		{
-			m_FragmentShaderFile->UpdateSourceCode(editor.GetText());
+			ShaderFile* fragmentShaderFile = m_Renderer->GetFragmentShaderFile();
+			fragmentShaderFile->UpdateSourceCode(editor.GetText());
 		}
 
 		bool RecompileFragmentShader()
 		{
-			// TODO: editor.IsTextChanged() is not working. Investigate.
-			if (editor.GetText().compare(m_FragmentShaderFile->GetSourceCode()) == 0)
+			ShaderFile* fragmentShaderFile = m_Renderer->GetFragmentShaderFile();
+			if (editor.GetText().compare(fragmentShaderFile->GetSourceCode()) == 0)
 			{
 				return false;
 			}
 
 			const std::string& fragmentShaderSourceCode = editor.GetText();
-			const ShaderCompileResult compileResult = CompileShader(m_FragmentShaderFile->GetLanguage(), ShaderStage::Fragment, fragmentShaderSourceCode);
+			const ShaderCompileResult compileResult = CompileShader(fragmentShaderFile->GetLanguage(), ShaderStage::Fragment, fragmentShaderSourceCode);
 
 			if (compileResult.Status != ShaderCompileStatus::Success)
 			{
-				FT_LOG("Failed %s shader %s.\n", ConvertCompilationStatusToText(compileResult.Status), m_FragmentShaderFile->GetName().c_str());
+				FT_LOG("Failed %s shader %s.\n", ConvertCompilationStatusToText(compileResult.Status), fragmentShaderFile->GetName().c_str());
 				return false;
 			}
 
 			ClearErrorMarkers();
 
-			vkQueueWaitIdle(m_Device->GetGraphicsQueue());
-
-			delete(m_FragmentShader);
-			m_FragmentShader = new Shader(m_Device, ShaderStage::Fragment, compileResult.SpvCode);
-
-			m_ResourceContainer->UpdateBindings(m_FragmentShader->GetBindings());
-
-			delete(m_DescriptorSet);
-			m_DescriptorSet = new DescriptorSet(m_Device, m_Swapchain, m_ResourceContainer->GetDescriptors());
-
-			delete(m_Pipeline);
-			m_Pipeline = new Pipeline(m_Device, m_Swapchain, m_DescriptorSet, m_VertexShader, m_FragmentShader);
+			m_Renderer->OnFragmentShaderRecompiled(compileResult.SpvCode);
 
 			return true;
 		}
@@ -641,53 +498,8 @@ namespace FT
 				return;
 			}
 
-			delete(m_FragmentShaderFile);
-			m_FragmentShaderFile = loadedShaderFile;
-
-			editor.SetText(m_FragmentShaderFile->GetSourceCode());
-		}
-
-		// TODO: Move to device and call it only when shader gets compiled/recompiled.
-		void FillCommandBuffers(uint32_t inSwapchainImageIndex)
-		{
-			m_CommandBuffer->Begin(inSwapchainImageIndex, m_Swapchain);
-			m_CommandBuffer->BindPipeline(m_Pipeline);
-			m_CommandBuffer->BindDescriptorSet(m_DescriptorSet);
-			m_CommandBuffer->Draw();
-
-			if (showImGui)
-			{
-				ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), m_CommandBuffer->GetCommandBuffer(inSwapchainImageIndex));
-			}
-
-			m_CommandBuffer->End();
-		}
-
-		void DrawFrame()
-		{
-			const SwapchainImageAcquireResult imageAcquireResult = m_Swapchain->AcquireNextImage();
-			if (imageAcquireResult.Status == SwapchainStatus::Recreate)
-			{
-				RecreateSwapchain();
-				return;
-			}
-
-			FT_CHECK(imageAcquireResult.Status == SwapchainStatus::Success, "Failed acquiring swapchain image.");
-
-			const uint32_t imageIndex = imageAcquireResult.ImageIndex;
-
-			UpdateUniformBuffer(imageIndex);
-			FillCommandBuffers(imageIndex);
-
-			const SwapchainStatus presentStatus = m_Swapchain->Present(imageIndex, m_CommandBuffer);
-			if (presentStatus == SwapchainStatus::Recreate)
-			{
-				RecreateSwapchain();
-			}
-			else
-			{
-				FT_CHECK(presentStatus == SwapchainStatus::Success, "Swapchain present failed.");
-			}
+			m_Renderer->UpdateFragmentShaderFile(loadedShaderFile);
+			editor.SetText(loadedShaderFile->GetSourceCode());
 		}
 
 		void ClearErrorMarkers()
@@ -739,7 +551,8 @@ namespace FT
 
 			if (key == GLFW_KEY_F && action == GLFW_PRESS && mods == GLFW_MOD_CONTROL)
 			{
-				application->ToggleImGui();
+				Renderer* renderer = application->m_Renderer;
+				renderer->ToggleUserInterface();
 			}
 
 			if (key == GLFW_KEY_N && action == GLFW_PRESS && mods == GLFW_MOD_CONTROL)

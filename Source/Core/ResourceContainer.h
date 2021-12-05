@@ -8,6 +8,7 @@ namespace FT
 	class Device;
 	class Swapchain;
 
+	// TODO: Rename?
 	class ResourceContainer
 	{
 	public:

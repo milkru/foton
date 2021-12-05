@@ -11,7 +11,7 @@ namespace FT
 		, m_Swapchain(inSwapchain)
 	{
 		// TODO: Make default texture something else.
-		static const std::string defaultImagePath = std::string(FT_ROOT_DIR) + "icon";
+		const static std::string defaultImagePath = GetFullPath("icon");
 		const ImageFile imageFile(defaultImagePath);
 		m_DefaultImage = new Image(m_Device, imageFile);
 	}
