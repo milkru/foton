@@ -3,25 +3,21 @@
 #include "Core/Renderer.h"
 #include "Utility/ImageFile.h"
 #include "Utility/FileExplorer.h"
+#include "Compiler/ShaderCompiler.h"
+#include "Core/Device.h"
+#include "Core/Swapchain.h"
+#include "Core/Shader.h"
+#include "Utility/ShaderFile.h"
 
 // TODO: Next to do ImageResource and BufferResource.
-
 // TODO: Lightweight light fast tool (foton is small and fast :))
-
 // TODO: Find out if we can make background for all text.
-
 // TODO: Separate Runtime and Editor?
-
 // TODO: When starting application sometimes new row is added at the end on current file.
-
 // TOOD: Shader printf?
-
 // TOOD: How resource loading with paths is going to work if we only run exe files? It's relative to project root, not the exe.
-
 // TOOD: Use more high resolution font file for code editor.
-
 // TOOD: Smart pointers for transient objects (pipeline, shader, shader file...)
-
 // TOOD: Allow user to change shader entry in settings.
 
 namespace FT
@@ -52,13 +48,11 @@ namespace FT
 
 		Renderer* m_Renderer;
 
-		VkDescriptorPool imguiDescPool;
-
 		// TODO: Move this to config. Make foton.ini
 		float codeFontSize = 1.5f;
 		TextEditor editor;
 		ImGuiLogger logger;
-		ShaderLanguage currentFragmentShaderLanguage;
+		VkDescriptorPool imguiDescPool;
 
 		void InitializeWindow()
 		{
@@ -226,10 +220,10 @@ namespace FT
 					ImguiNewFrame();
 				}
 
-				m_Renderer->DrawFramePUBLIC();
+				m_Renderer->DrawFrame();
 			}
 
-			m_Renderer->WaitDevice();
+			m_Renderer->WaitDeviceToFinish();
 		}
 
 		void Cleanup()
