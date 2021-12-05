@@ -3,11 +3,12 @@
 #include "Binding.hpp"
 #include "Resource.hpp"
 
-namespace FT
+FT_BEGIN_NAMESPACE
+
+struct Descriptor
 {
-	struct Descriptor
-	{
-		Binding Binding;
-		Resource Resource;
-	};
-}
+	Binding Binding;
+	Resource Resource;
+};
+
+FT_END_NAMESPACE

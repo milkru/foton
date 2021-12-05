@@ -1,30 +1,28 @@
 #pragma once
 
-namespace FT
+FT_BEGIN_NAMESPACE
+
+class Device;
+class ImageFile;
+
+class Image
 {
-	class Device;
-	class ImageFile;
+public:
+	Image(const Device* inDevice, const ImageFile& inFile);
+	~Image();
+	FT_DELETE_COPY_AND_MOVE(Image)
 
-	class Image
-	{
-	public:
-		Image(const Device* inDevice, const ImageFile& inFile);
-		~Image();
+public:
+	VkImage GetImage() const { return m_Image; }
+	VkImageView GetImageView() const { return m_ImageView; }
+	VkSampler GetSampler() const { return m_Sampler; }
 
-	private:
-		Image(Image const&) = delete;
-		Image& operator=(Image const&) = delete;
+private:
+	const Device* m_Device;
+	VkImage m_Image;
+	VkDeviceMemory m_Memory;
+	VkImageView m_ImageView;
+	VkSampler m_Sampler;
+};
 
-	public:
-		VkImage GetImage() const { return m_Image; }
-		VkImageView GetImageView() const { return m_ImageView; }
-		VkSampler GetSampler() const { return m_Sampler; }
-
-	private:
-		const Device* m_Device;
-		VkImage m_Image;
-		VkDeviceMemory m_Memory;
-		VkImageView m_ImageView;
-		VkSampler m_Sampler;
-	};
-}
+FT_END_NAMESPACE

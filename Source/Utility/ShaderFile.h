@@ -1,50 +1,48 @@
 #pragma once
 
-namespace FT
+FT_BEGIN_NAMESPACE
+
+enum class ShaderLanguage : uint8_t
 {
-	enum class ShaderLanguage : uint8_t
-	{
-		GLSL,
-		HLSL,
+	GLSL,
+	HLSL,
 
-		Count
-	};
+	Count
+};
 
-	struct ShaderFileExtension
-	{
-		ShaderLanguage Language = ShaderLanguage::Count;
-		std::string Extension;
-		std::string Name;
-	};
+struct ShaderFileExtension
+{
+	ShaderLanguage Language = ShaderLanguage::Count;
+	std::string Extension;
+	std::string Name;
+};
 
-	const ShaderFileExtension SupportedShaderFileExtensions[] =
-	{
-		{ ShaderLanguage::GLSL, "glsl", "Graphics Library Shading Language"},
-		{ ShaderLanguage::HLSL, "hlsl", "High-Level Shader Language"}
-	};
+const ShaderFileExtension SupportedShaderFileExtensions[] =
+{
+	{ ShaderLanguage::GLSL, "glsl", "Graphics Library Shading Language"},
+	{ ShaderLanguage::HLSL, "hlsl", "High-Level Shader Language"}
+};
 
-	class ShaderFile
-	{
-	public:
-		explicit ShaderFile(const std::string& inPath);
+class ShaderFile
+{
+public:
+	explicit ShaderFile(const std::string& inPath);
+	FT_DELETE_COPY_AND_MOVE(ShaderFile)
 
-	private:
-		ShaderFile(ShaderFile const&) = delete;
-		ShaderFile& operator=(ShaderFile const&) = delete;
+public:
+	void UpdateSourceCode(const std::string& inSourceCode);
 
-	public:
-		void UpdateSourceCode(const std::string& inSourceCode);
+public:
+	std::string GetPath() const { return m_Path; }
+	std::string GetName() const { return m_Name; }
+	const std::string& GetSourceCode() const { return m_SourceCode; }
+	ShaderLanguage GetLanguage() const { return m_Language; }
 
-	public:
-		std::string GetPath() const { return m_Path; }
-		std::string GetName() const { return m_Name; }
-		const std::string& GetSourceCode() const { return m_SourceCode; }
-		ShaderLanguage GetLanguage() const { return m_Language; }
+private:
+	std::string m_Path;
+	std::string m_SourceCode;
+	std::string m_Name;
+	ShaderLanguage m_Language;
+};
 
-	private:
-		std::string m_Path;
-		std::string m_SourceCode;
-		std::string m_Name;
-		ShaderLanguage m_Language;
-	};
-}
+FT_END_NAMESPACE

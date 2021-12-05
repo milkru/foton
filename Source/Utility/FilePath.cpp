@@ -1,9 +1,11 @@
 #include "FilePath.h"
 
-namespace FT
+FT_BEGIN_NAMESPACE
+
+std::string GetFullPath(const std::string inRelativePath)
 {
-	std::string GetFullPath(const std::string inRelativePath)
-	{
-		return std::string(FT_ROOT_DIR) + inRelativePath;
-	}
+	// TODO: FT_ROOT_DIR is probably wrong for .exe only?
+	return std::string(FT_ROOT_DIR) + inRelativePath;
 }
+
+FT_END_NAMESPACE

@@ -1,6 +1,7 @@
 #include "ShaderFileIncluder.h"
 
-namespace FT
-{
-	// TODO: Implement.
-}
+FT_BEGIN_NAMESPACE
+
+// TODO: Implement.
+
+FT_END_NAMESPACE

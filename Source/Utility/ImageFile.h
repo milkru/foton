@@ -1,25 +1,23 @@
 #pragma once
 
-namespace FT
+FT_BEGIN_NAMESPACE
+
+class ImageFile
 {
-	class ImageFile
-	{
-	public:
-		explicit ImageFile(const std::string& inPath);
-		~ImageFile();
+public:
+	explicit ImageFile(const std::string& inPath);
+	~ImageFile();
+	FT_DELETE_COPY_AND_MOVE(ImageFile)
 
-	private:
-		ImageFile(ImageFile const&) = delete;
-		ImageFile& operator=(ImageFile const&) = delete;
+public:
+	int GetWidth() const { return m_Width; }
+	int GetHeight() const { return m_Height; }
+	unsigned char* GetPixels() const { return m_Pixels; }
 
-	public:
-		int GetWidth() const { return m_Width; }
-		int GetHeight() const { return m_Height; }
-		unsigned char* GetPixels() const { return m_Pixels; }
+private:
+	int m_Width;
+	int m_Height;
+	unsigned char* m_Pixels;
+};
 
-	private:
-		int m_Width;
-		int m_Height;
-		unsigned char* m_Pixels;
-	};
-}
+FT_END_NAMESPACE

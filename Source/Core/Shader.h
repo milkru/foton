@@ -2,50 +2,41 @@
 
 #include "Binding.hpp"
 
-namespace FT
+FT_BEGIN_NAMESPACE
+
+enum class ShaderStage : uint8_t
 {
-	enum class ShaderStage : uint8_t
-	{
-		Vertex,
-		Fragment,
+	Vertex,
+	Fragment,
 
-		Count
-	};
+	Count
+};
 
-	class Device;
-	class ShaderFile;
+class Device;
+class ShaderFile;
 
-	class Shader
-	{
-	public:
-		Shader(const Device* inDevice, const ShaderStage inStage, const std::vector<uint32_t>& inSpvCode, const std::string& inCodeEntry = "main");
-		~Shader();
+class Shader
+{
+public:
+	Shader(const Device* inDevice, const ShaderStage inStage, const std::vector<uint32_t>& inSpvCode, const std::string& inCodeEntry = "main");
+	~Shader();
+	FT_DELETE_COPY_AND_MOVE(Shader)
 
-	private:
-		// Note: Scott Meyers mentions in his Effective Modern
-		// C++ book, that deleted functions should generally
-		// be public as it results in better error messages
-		// due to the compilers behavior to check accessibility
-		// before deleted status
+public:
+	VkPipelineShaderStageCreateInfo GetVkPipelineStageInfo() const;
 
-		// TODO: Prevent move too? Use macro?
-		Shader(Shader const&) = delete;
-		Shader& operator=(Shader const&) = delete;
+public:
+	ShaderStage GetStage() const { return m_Stage; }
+	std::string GetCodeEntry() const { return m_CodeEntry; }
+	VkShaderModule GetModule() const { return m_Module; }
+	const std::vector<Binding>& GetBindings() const { return m_Bindings; }
 
-	public:
-		VkPipelineShaderStageCreateInfo GetVkPipelineStageInfo() const;
+private:
+	const Device* m_Device;
+	ShaderStage m_Stage;
+	std::string m_CodeEntry;
+	VkShaderModule m_Module;
+	std::vector<Binding> m_Bindings;
+};
 
-	public:
-		ShaderStage GetStage() const { return m_Stage; }
-		std::string GetCodeEntry() const { return m_CodeEntry; }
-		VkShaderModule GetModule() const { return m_Module; }
-		const std::vector<Binding>& GetBindings() const { return m_Bindings; }
-
-	private:
-		const Device* m_Device;
-		ShaderStage m_Stage;
-		std::string m_CodeEntry;
-		VkShaderModule m_Module;
-		std::vector<Binding> m_Bindings;
-	};
-}
+FT_END_NAMESPACE

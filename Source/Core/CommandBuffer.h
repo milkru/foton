@@ -1,36 +1,34 @@
 #pragma once
 
-namespace FT
+FT_BEGIN_NAMESPACE
+
+class Device;
+class Swapchain;
+class Pipeline;
+class DescriptorSet;
+
+class CommandBuffer
 {
-	class Device;
-	class Swapchain;
-	class Pipeline;
-	class DescriptorSet;
+public:
+	CommandBuffer(const Device* inDevice, const Swapchain* inSwapchain);
+	~CommandBuffer();
+	FT_DELETE_COPY_AND_MOVE(CommandBuffer)
 
-	class CommandBuffer
-	{
-	public:
-		CommandBuffer(const Device* inDevice, const Swapchain* inSwapchain);
-		~CommandBuffer();
+public:
+	void Begin(const uint32_t inCommandBufferIndex, const Swapchain* inSwapchain);
+	void End();
+	void Draw() const;
+	void BindPipeline(const Pipeline* inPipeline);
+	void BindDescriptorSet(const DescriptorSet* inDescriptorSet) const;
 
-	private:
-		CommandBuffer(CommandBuffer const&) = delete;
-		CommandBuffer& operator=(CommandBuffer const&) = delete;
+public:
+	VkCommandBuffer GetCommandBuffer(const uint32_t inIndex) const { return m_CommandBuffers[inIndex]; }
 
-	public:
-		void Begin(const uint32_t inCommandBufferIndex, const Swapchain* inSwapchain);
-		void End();
-		void Draw() const;
-		void BindPipeline(const Pipeline* inPipeline);
-		void BindDescriptorSet(const DescriptorSet* inDescriptorSet) const;
+private:
+	const Device* m_Device;
+	std::vector<VkCommandBuffer> m_CommandBuffers;
+	VkPipelineLayout m_PipelineLayout;
+	uint32_t m_CurrentCommandBufferIndex;
+};
 
-	public:
-		VkCommandBuffer GetCommandBuffer(const uint32_t inIndex) const { return m_CommandBuffers[inIndex]; }
-
-	private:
-		const Device* m_Device;
-		std::vector<VkCommandBuffer> m_CommandBuffers;
-		VkPipelineLayout m_PipelineLayout;
-		uint32_t m_CurrentCommandBufferIndex;
-	};
-}
+FT_END_NAMESPACE

@@ -1,5 +1,5 @@
 #include "Application.h"
 
-namespace FT
-{
-}
+FT_BEGIN_NAMESPACE
+
+FT_END_NAMESPACE

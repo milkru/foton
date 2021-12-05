@@ -1,27 +1,28 @@
 #pragma once
 
-namespace FT
+FT_BEGIN_NAMESPACE
+
+enum class ResourceType
 {
-	enum class ResourceType
-	{
-		Image,
-		UniformBuffer,
+	Image,
+	UniformBuffer,
 
-		Count
-	};
+	Count
+};
 
-	class Image;
-	class UniformBuffer;
+class Image;
+class UniformBuffer;
 
-	union ResourceHandle
-	{
-		Image* Image;
-		UniformBuffer* UniformBuffer;
-	};
+union ResourceHandle
+{
+	Image* Image;
+	UniformBuffer* UniformBuffer;
+};
 
-	struct Resource
-	{
-		ResourceType Type;
-		ResourceHandle Handle;
-	};
-}
+struct Resource
+{
+	ResourceType Type;
+	ResourceHandle Handle;
+};
+
+FT_END_NAMESPACE

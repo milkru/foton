@@ -5,23 +5,21 @@ namespace NFD
 	class Guard;
 }
 
-namespace FT
+FT_BEGIN_NAMESPACE
+
+class FileExplorer
 {
-	class FileExplorer
-	{
-	public:
-		FileExplorer();
-		~FileExplorer();
+public:
+	FileExplorer();
+	~FileExplorer();
+	FT_DELETE_COPY_AND_MOVE(FileExplorer)
 
-	private:
-		FileExplorer(FileExplorer const&) = delete;
-		FileExplorer& operator=(FileExplorer const&) = delete;
+public:
+	bool OpenShaderDialog(std::string& outFilePath) const;
+	bool SaveShaderDialog(std::string& outFilePath) const;
 
-	public:
-		bool OpenShaderDialog(std::string& outFilePath) const;
-		bool SaveShaderDialog(std::string& outFilePath) const;
+private:
+	NFD::Guard* m_NFDHandle;
+};
 
-	private:
-		NFD::Guard* m_NFDHandle;
-	};
-}
+FT_END_NAMESPACE

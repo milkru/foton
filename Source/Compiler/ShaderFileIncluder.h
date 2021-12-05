@@ -2,10 +2,11 @@
 
 #include <glslang/SPIRV/GlslangToSpv.h>
 
-namespace FT
+FT_BEGIN_NAMESPACE
+
+class ShaderFileIncluder : public glslang::TShader::Includer
 {
-	class ShaderFileIncluder : public glslang::TShader::Includer
-	{
-		virtual void releaseInclude(IncludeResult*) override {};
-	};
-}
+	virtual void releaseInclude(IncludeResult*) override {};
+};
+
+FT_END_NAMESPACE

@@ -1,7 +1,7 @@
 #pragma once
 
 // TOOD: Add FT_LOG_ERR instead direct fprintf. And Log FT_FAIL too.
-#if !defined(NDEBUG) // TODO: Change: Everything but Release.
+#ifdef FT_DEBUG // TODO: Change: Everything but Release.
 #	define FT_CHECK(condition, fmt, ...) \
 		do \
 		{ \
@@ -15,7 +15,7 @@
 
 #else
 #	define FT_CHECK(condition, fmt, ...) do { if(!(condition)) {} } while (0)
-#endif
+#endif // FT_DEBUG
 
 #define FT_FAIL(msg) do { throw std::runtime_error(msg); } while(0)
 
