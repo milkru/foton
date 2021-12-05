@@ -2,10 +2,12 @@
 
 FT_BEGIN_NAMESPACE
 
+class Window;
+
 class Device
 {
 public:
-	Device(GLFWwindow* inWindow);
+	Device(const Window* inWindow);
 	~Device();
 	FT_DELETE_COPY_AND_MOVE(Device)
 

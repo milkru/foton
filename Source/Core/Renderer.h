@@ -1,9 +1,8 @@
 #pragma once
 
-class GLFWwindow;
-
 FT_BEGIN_NAMESPACE
 
+class Window;
 class Device;
 class Swapchain;
 class Shader;
@@ -17,7 +16,7 @@ class ResourceContainer;
 class Renderer
 {
 public:
-	Renderer(GLFWwindow* inWindow);
+	Renderer(Window* inWindow);
 	~Renderer();
 	FT_DELETE_COPY_AND_MOVE(Renderer)
 
@@ -40,7 +39,7 @@ private:
 	void FillCommandBuffers(uint32_t inSwapchainImageIndex);
 
 private:
-	GLFWwindow* m_Window;
+	Window* m_Window;
 	Device* m_Device;
 	Swapchain* m_Swapchain;
 	Shader* m_VertexShader;

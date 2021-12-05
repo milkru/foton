@@ -24,6 +24,8 @@
 #define FT_DEFAULT_WINDOW_WIDTH 1280
 #define FT_DEFAULT_WINDOW_HEIGHT 720
 
+#define FT_APPLICATION_NAME "Foton"
+
 #define FT_DELETE_COPY_AND_MOVE(type) \
 	type(type const&) = delete; \
 	type& operator=(type const&) = delete; \

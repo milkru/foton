@@ -1,4 +1,5 @@
 #include "Device.h"
+#include "Window.h"
 
 FT_BEGIN_NAMESPACE
 
@@ -97,9 +98,9 @@ void CreateInstance(VkInstance& outInstance)
 
 	VkApplicationInfo applicationInfo{};
 	applicationInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-	applicationInfo.pApplicationName = "foton";
+	applicationInfo.pApplicationName = FT_APPLICATION_NAME;
 	applicationInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
-	applicationInfo.pEngineName = "foton";
+	applicationInfo.pEngineName = FT_APPLICATION_NAME;
 	applicationInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
 	applicationInfo.apiVersion = VK_API_VERSION_1_0;
 
@@ -302,11 +303,11 @@ void CreateCommandPool(const VkDevice inDevice, const uint32_t inQueueFamilyInde
 	FT_VK_CALL(vkCreateCommandPool(inDevice, &commandPoolCreateInfo, nullptr, &outCommandPool));
 }
 
-Device::Device(GLFWwindow* inWindow)
+Device::Device(const Window* inWindow)
 {
 	CreateInstance(m_Instance);
 	SetupDebugMessenger(m_Instance, m_DebugMessenger);
-	CreateSurface(m_Instance, inWindow, m_Surface);
+	CreateSurface(m_Instance, inWindow->GetWindow(), m_Surface);
 	PickPhysicalDevice(m_Instance, m_Surface, m_PhysicalDevice);
 	CreateLogicalDevice(m_PhysicalDevice, m_Surface, m_Device, m_GraphicsQueue, m_GraphicsQueueFamilyIndex);
 	CreateCommandPool(m_Device, m_GraphicsQueueFamilyIndex, m_CommandPool);

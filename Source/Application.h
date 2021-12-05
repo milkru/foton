@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Window.h"
 #include "Core/Renderer.h"
 #include "Utility/ImageFile.h"
 #include "Utility/FileExplorer.h"
@@ -24,99 +25,92 @@ FT_BEGIN_NAMESPACE
 
 class Application
 {
-private:
-	static void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
-	{
-		auto* application = static_cast<Application*>(glfwGetWindowUserPointer(window));
-
-		if (key == GLFW_KEY_S && action == GLFW_PRESS && mods == GLFW_MOD_CONTROL)
-		{
-			if (application->RecompileFragmentShader())
-			{
-				application->SaveFragmentShader();
-			}
-		}
-
-		if (key == GLFW_KEY_S && action == GLFW_PRESS && mods & GLFW_MOD_CONTROL && mods & GLFW_MOD_SHIFT)
-		{
-			// TODO: Make new file with current editor contents.
-		}
-
-		if (key == GLFW_KEY_R && action == GLFW_PRESS && mods == GLFW_MOD_CONTROL)
-		{
-			application->RecompileFragmentShader();
-		}
-
-		if (key == GLFW_KEY_F && action == GLFW_PRESS && mods == GLFW_MOD_CONTROL)
-		{
-			Renderer* renderer = application->m_Renderer;
-			renderer->ToggleUserInterface();
-		}
-
-		if (key == GLFW_KEY_N && action == GLFW_PRESS && mods == GLFW_MOD_CONTROL)
-		{
-			// TODO: New file.
-		}
-
-		if (key == GLFW_KEY_O && action == GLFW_PRESS && mods == GLFW_MOD_CONTROL)
-		{
-			// TOOD: Open file.
-		}
-	}
-
-	static void ScrollCallback(GLFWwindow* window, double xoffset, double yoffset)
-	{
-		auto* application = static_cast<Application*>(glfwGetWindowUserPointer(window));
-
-		if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) || glfwGetKey(window, GLFW_KEY_RIGHT_CONTROL))
-		{
-			application->UpdateCodeFontSize(static_cast<float>(yoffset));
-		}
-	}
-
 public:
-	Application()
-	{
-		Run();
-	}
+	Application() = default;
 	FT_DELETE_COPY_AND_MOVE(Application)
 
 public:
 	void Run()
 	{
-		InitializeWindow();
-		m_Renderer = new Renderer(window);
+		m_Window = new Window(this);
+		m_Renderer = new Renderer(m_Window);
 		InitializeImGui();
 		MainLoop();
 		Cleanup();
 	}
 
-private:
-	void InitializeWindow()
+public:
+	void UpdateCodeFontSize(float offset)
 	{
-		glfwInit();
+		const static float MinCodeFontSize = 1.f;
+		const static float MaxCodeFontSize = 3.f;
+		const static float CodeFontSizeMul = 0.1f;
 
-		glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-		glfwWindowHint(GLFW_MAXIMIZED, GLFW_TRUE);
-		glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
+		codeFontSize += offset * CodeFontSizeMul; // TODO: Multiplier
 
-		window = glfwCreateWindow(FT_DEFAULT_WINDOW_WIDTH, FT_DEFAULT_WINDOW_HEIGHT, "Foton", nullptr, nullptr);
-		glfwSetWindowUserPointer(window, this);
+		// TODO: Clamp.
+		if (codeFontSize < MinCodeFontSize)
+		{
+			codeFontSize = MinCodeFontSize;
+		}
 
-		glfwSetFramebufferSizeCallback(window, Swapchain::FramebufferResized);
-		glfwSetKeyCallback(window, KeyCallback);
-		glfwSetScrollCallback(window, ScrollCallback);
-
-		const ImageFile iconImage(GetFullPath("icon"));
-
-		GLFWimage icon;
-		icon.width = iconImage.GetWidth();
-		icon.height = iconImage.GetHeight();
-		icon.pixels = iconImage.GetPixels();
-
-		glfwSetWindowIcon(window, 1, &icon);
+		if (codeFontSize > MaxCodeFontSize)
+		{
+			codeFontSize = MaxCodeFontSize;
+		}
 	}
 
+	void SaveFragmentShader()
+	{
+		ShaderFile* fragmentShaderFile = m_Renderer->GetFragmentShaderFile();
+		fragmentShaderFile->UpdateSourceCode(editor.GetText());
+	}
+
+	bool RecompileFragmentShader()
+	{
+		ShaderFile* fragmentShaderFile = m_Renderer->GetFragmentShaderFile();
+		if (editor.GetText().compare(fragmentShaderFile->GetSourceCode()) == 0)
+		{
+			return false;
+		}
+
+		const std::string& fragmentShaderSourceCode = editor.GetText();
+		const ShaderCompileResult compileResult = CompileShader(fragmentShaderFile->GetLanguage(), ShaderStage::Fragment, fragmentShaderSourceCode);
+
+		if (compileResult.Status != ShaderCompileStatus::Success)
+		{
+			FT_LOG("Failed %s shader %s.\n", ConvertCompilationStatusToText(compileResult.Status), fragmentShaderFile->GetName().c_str());
+			return false;
+		}
+
+		ClearErrorMarkers();
+
+		m_Renderer->OnFragmentShaderRecompiled(compileResult.SpvCode);
+
+		return true;
+	}
+
+	void LoadShader(const std::string& inPath)
+	{
+		ShaderFile* loadedShaderFile = new ShaderFile(inPath);
+		const ShaderCompileResult compileResult = CompileShader(loadedShaderFile->GetLanguage(), ShaderStage::Fragment, loadedShaderFile->GetSourceCode());
+
+		if (compileResult.Status != ShaderCompileStatus::Success)
+		{
+			FT_LOG("Failed %s for loaded shader %s.\n", ConvertCompilationStatusToText(compileResult.Status), loadedShaderFile->GetName().c_str());
+			return;
+		}
+
+		m_Renderer->UpdateFragmentShaderFile(loadedShaderFile);
+		editor.SetText(loadedShaderFile->GetSourceCode());
+	}
+
+	void ToggleUserInterface()
+	{
+		m_Renderer->ToggleUserInterface();
+	}
+
+private:
 	void ApplyImGuiStyle()
 	{
 		ImGuiStyle* style = &ImGui::GetStyle();
@@ -216,7 +210,7 @@ private:
 		ImGuiIO& io = ImGui::GetIO();
 		io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
-		ImGui_ImplGlfw_InitForVulkan(window, true);
+		ImGui_ImplGlfw_InitForVulkan(m_Window->GetWindow(), true);
 
 		ImGui_ImplVulkan_InitInfo vulkanImplementationInitInfo{};
 		vulkanImplementationInitInfo.Instance = device->GetInstance();
@@ -247,9 +241,9 @@ private:
 
 	void MainLoop()
 	{
-		glfwShowWindow(window);
+		m_Window->Show();
 
-		while (!glfwWindowShouldClose(window))
+		while (!m_Window->ShouldClose())
 		{
 			glfwPollEvents();
 
@@ -274,9 +268,7 @@ private:
 		vkDestroyDescriptorPool(device->GetDevice(), imguiDescPool, nullptr);
 
 		delete(m_Renderer);
-
-		glfwDestroyWindow(window);
-		glfwTerminate();
+		delete(m_Window);
 	}
 
 	void ImguiMenuBar()
@@ -324,7 +316,7 @@ private:
 
 				if (ImGui::MenuItem("Quit", "Alt-F4"))
 				{
-					glfwSetWindowShouldClose(window, GLFW_TRUE);
+					m_Window->Close();
 				}
 
 				ImGui::EndMenu();
@@ -469,71 +461,6 @@ private:
 		ImGui::Render();
 	}
 
-	void UpdateCodeFontSize(float offset)
-	{
-		const static float MinCodeFontSize = 1.f;
-		const static float MaxCodeFontSize = 3.f;
-		const static float CodeFontSizeMul = 0.1f;
-
-		codeFontSize += offset * CodeFontSizeMul; // TODO: Multiplier
-
-		// TODO: Clamp.
-		if (codeFontSize < MinCodeFontSize)
-		{
-			codeFontSize = MinCodeFontSize;
-		}
-
-		if (codeFontSize > MaxCodeFontSize)
-		{
-			codeFontSize = MaxCodeFontSize;
-		}
-	}
-
-	void SaveFragmentShader()
-	{
-		ShaderFile* fragmentShaderFile = m_Renderer->GetFragmentShaderFile();
-		fragmentShaderFile->UpdateSourceCode(editor.GetText());
-	}
-
-	bool RecompileFragmentShader()
-	{
-		ShaderFile* fragmentShaderFile = m_Renderer->GetFragmentShaderFile();
-		if (editor.GetText().compare(fragmentShaderFile->GetSourceCode()) == 0)
-		{
-			return false;
-		}
-
-		const std::string& fragmentShaderSourceCode = editor.GetText();
-		const ShaderCompileResult compileResult = CompileShader(fragmentShaderFile->GetLanguage(), ShaderStage::Fragment, fragmentShaderSourceCode);
-
-		if (compileResult.Status != ShaderCompileStatus::Success)
-		{
-			FT_LOG("Failed %s shader %s.\n", ConvertCompilationStatusToText(compileResult.Status), fragmentShaderFile->GetName().c_str());
-			return false;
-		}
-
-		ClearErrorMarkers();
-
-		m_Renderer->OnFragmentShaderRecompiled(compileResult.SpvCode);
-
-		return true;
-	}
-
-	void LoadShader(const std::string& inPath)
-	{
-		ShaderFile* loadedShaderFile = new ShaderFile(inPath);
-		const ShaderCompileResult compileResult = CompileShader(loadedShaderFile->GetLanguage(), ShaderStage::Fragment, loadedShaderFile->GetSourceCode());
-
-		if (compileResult.Status != ShaderCompileStatus::Success)
-		{
-			FT_LOG("Failed %s for loaded shader %s.\n", ConvertCompilationStatusToText(compileResult.Status), loadedShaderFile->GetName().c_str());
-			return;
-		}
-
-		m_Renderer->UpdateFragmentShaderFile(loadedShaderFile);
-		editor.SetText(loadedShaderFile->GetSourceCode());
-	}
-
 	void ClearErrorMarkers()
 	{
 		TextEditor::ErrorMarkers ems;
@@ -560,7 +487,7 @@ private:
 	}
 
 private:
-	GLFWwindow* window;
+	Window* m_Window;
 	FileExplorer m_FileExplorer;
 	Renderer* m_Renderer;
 	float codeFontSize = 1.5f; // TODO: Move this to config. Make foton.ini

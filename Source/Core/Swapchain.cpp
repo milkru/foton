@@ -1,4 +1,5 @@
 #include "Swapchain.h"
+#include "Window.h"
 #include "Device.h"
 #include "Buffer.h"
 #include "CommandBuffer.h"
@@ -268,7 +269,7 @@ void Swapchain::FramebufferResized(GLFWwindow* inWindow, int inWidth, int inHeig
 
 bool Swapchain::s_FramebufferResized = false;
 
-Swapchain::Swapchain(const Device* inDevice, GLFWwindow* inWindow)
+Swapchain::Swapchain(const Device* inDevice, const Window* inWindow)
 	: m_Device(inDevice)
 	, m_Window(inWindow)
 {
@@ -289,7 +290,7 @@ Swapchain::~Swapchain()
 
 void Swapchain::Recreate()
 {
-	CreateSwapChain(m_Device, m_Window, m_Swapchain, m_Images, m_Format, m_Extent);
+	CreateSwapChain(m_Device, m_Window->GetWindow(), m_Swapchain, m_Images, m_Format, m_Extent);
 	CreateImageViews(m_Device->GetDevice(), m_Images, m_Format, m_ImageViews);
 	CreateRenderPass(m_Device->GetDevice(), m_Format, m_RenderPass);
 	CreateFramebuffers(m_Device->GetDevice(), m_RenderPass, m_ImageViews, m_Extent, m_Framebuffers);

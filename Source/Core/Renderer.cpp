@@ -1,4 +1,5 @@
 #include "Renderer.h"
+#include "Window.h"
 #include "Device.h"
 #include "Swapchain.h"
 #include "Buffer.h"
@@ -16,7 +17,7 @@
 
 FT_BEGIN_NAMESPACE
 
-Renderer::Renderer(GLFWwindow* inWindow)
+Renderer::Renderer(Window* inWindow)
 	: m_Window(inWindow)
 	, m_EnableUserInterface(true)
 {
@@ -141,10 +142,10 @@ void Renderer::CleanupSwapchain()
 void Renderer::RecreateSwapchain()
 {
 	int width = 0, height = 0;
-	glfwGetFramebufferSize(m_Window, &width, &height);
+	glfwGetFramebufferSize(m_Window->GetWindow(), &width, &height);
 	while (width == 0 || height == 0)
 	{
-		glfwGetFramebufferSize(m_Window, &width, &height);
+		glfwGetFramebufferSize(m_Window->GetWindow(), &width, &height);
 		glfwWaitEvents();
 	}
 

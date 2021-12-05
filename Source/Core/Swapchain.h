@@ -17,6 +17,7 @@ struct SwapchainImageAcquireResult
 	uint32_t ImageIndex;
 };
 
+class Window;
 class Device;
 class CommandBuffer;
 
@@ -27,7 +28,7 @@ public:
 	static bool s_FramebufferResized;
 
 public:
-	Swapchain(const Device* inDevice, GLFWwindow* inWindow);
+	Swapchain(const Device* inDevice, const Window* inWindow);
 	~Swapchain();
 	FT_DELETE_COPY_AND_MOVE(Swapchain)
 
@@ -45,7 +46,7 @@ public:
 
 private:
 	const Device* m_Device;
-	GLFWwindow* m_Window;
+	const Window* m_Window;
 	VkSwapchainKHR m_Swapchain;
 	std::vector<VkImage> m_Images;
 	VkFormat m_Format;
