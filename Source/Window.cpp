@@ -1,6 +1,8 @@
 #include "Window.h"
 #include "Application.h"
 #include "Core/Renderer.h"
+#include "Core/Swapchain.h"
+#include "Utility/ImageFile.h"
 
 FT_BEGIN_NAMESPACE
 
