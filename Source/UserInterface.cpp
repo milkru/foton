@@ -73,7 +73,7 @@ UserInterface::UserInterface(Application* inApplication, Window* inWindow, Rende
 	ApplyImGuiStyle();
 
 	ShaderFile* fragmentShaderFile = m_Renderer->GetFragmentShaderFile();
-	editor.SetText(fragmentShaderFile->GetSourceCode());
+	m_Editor.SetText(fragmentShaderFile->GetSourceCode());
 }
 
 UserInterface::~UserInterface()
@@ -105,8 +105,8 @@ void UserInterface::ImguiNewFrame()
 	ImGui::SetWindowSize(ImVec2(FT_DEFAULT_WINDOW_WIDTH, FT_DEFAULT_WINDOW_HEIGHT), ImGuiCond_FirstUseEver); // TODO: Change this!!!
 	ImGui::SetNextWindowBgAlpha(0.f);
 	ImGui::SetWindowFontScale(codeFontSize);
-	editor.SetShowWhitespaces(false); // TODO: Settings.
-	editor.Render("TextEditor");
+	m_Editor.SetShowWhitespaces(false); // TODO: Settings.
+	m_Editor.Render("TextEditor");
 	ImGui::End();
 
 	logger.Draw("Log");
@@ -136,13 +136,13 @@ void UserInterface::UpdateCodeFontSize(float offset)
 
 void UserInterface::SetEditorText(const std::string& inText)
 {
-	return editor.SetText(inText);
+	return m_Editor.SetText(inText);
 }
 
 void UserInterface::ClearErrorMarkers()
 {
 	TextEditor::ErrorMarkers ems;
-	editor.SetErrorMarkers(ems);
+	m_Editor.SetErrorMarkers(ems);
 }
 
 void UserInterface::ApplyImGuiStyle()
@@ -246,7 +246,7 @@ void UserInterface::ImguiMenuBar()
 				std::string shaderFilePath;
 				if (m_Application->SaveShaderDialog(shaderFilePath))
 				{
-					const std::string& textToSave = editor.GetText();
+					const std::string& textToSave = m_Editor.GetText();
 					// TODO: Make new file with current contents and keep it open.
 				}
 			}
@@ -261,44 +261,44 @@ void UserInterface::ImguiMenuBar()
 
 		if (ImGui::BeginMenu("Edit"))
 		{
-			bool readOnly = editor.IsReadOnly();
+			bool readOnly = m_Editor.IsReadOnly();
 			if (ImGui::MenuItem("Read-only mode", nullptr, &readOnly))
 			{
-				editor.SetReadOnly(readOnly);
+				m_Editor.SetReadOnly(readOnly);
 			}
 
 			ImGui::Separator();
 
-			if (ImGui::MenuItem("Undo", "Alt-Backspace", nullptr, !readOnly && editor.CanUndo()))
+			if (ImGui::MenuItem("Undo", "Alt-Backspace", nullptr, !readOnly && m_Editor.CanUndo()))
 			{
-				editor.Undo();
+				m_Editor.Undo();
 			}
 
-			if (ImGui::MenuItem("Redo", "Ctrl-Y", nullptr, !readOnly && editor.CanRedo()))
+			if (ImGui::MenuItem("Redo", "Ctrl-Y", nullptr, !readOnly && m_Editor.CanRedo()))
 			{
-				editor.Redo();
+				m_Editor.Redo();
 			}
 
 			ImGui::Separator();
 
-			if (ImGui::MenuItem("Copy", "Ctrl-C", nullptr, editor.HasSelection()))
+			if (ImGui::MenuItem("Copy", "Ctrl-C", nullptr, m_Editor.HasSelection()))
 			{
-				editor.Copy();
+				m_Editor.Copy();
 			}
 
-			if (ImGui::MenuItem("Cut", "Ctrl-X", nullptr, !readOnly && editor.HasSelection()))
+			if (ImGui::MenuItem("Cut", "Ctrl-X", nullptr, !readOnly && m_Editor.HasSelection()))
 			{
-				editor.Cut();
+				m_Editor.Cut();
 			}
 
-			if (ImGui::MenuItem("Delete", "Del", nullptr, !readOnly && editor.HasSelection()))
+			if (ImGui::MenuItem("Delete", "Del", nullptr, !readOnly && m_Editor.HasSelection()))
 			{
-				editor.Delete();
+				m_Editor.Delete();
 			}
 
 			if (ImGui::MenuItem("Paste", "Ctrl-V", nullptr, !readOnly && ImGui::GetClipboardText() != nullptr))
 			{
-				editor.Paste();
+				m_Editor.Paste();
 			}
 
 			ImGui::Separator();
@@ -312,7 +312,7 @@ void UserInterface::ImguiMenuBar()
 
 			if (ImGui::MenuItem("Select all", nullptr, nullptr))
 			{
-				editor.SetSelection(TextEditor::Coordinates(), TextEditor::Coordinates(editor.GetTotalLines(), 0));
+				m_Editor.SetSelection(TextEditor::Coordinates(), TextEditor::Coordinates(m_Editor.GetTotalLines(), 0));
 			}
 
 			ImGui::EndMenu();
@@ -386,7 +386,7 @@ void UserInterface::DisplayErrorMarkers(const char* message)
 
 	TextEditor::ErrorMarkers ems;
 	ems[lineInt] = message;
-	editor.SetErrorMarkers(ems);
+	m_Editor.SetErrorMarkers(ems);
 }
 
 FT_END_NAMESPACE

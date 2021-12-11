@@ -20,7 +20,7 @@ public:
 	void ClearErrorMarkers();
 
 public:
-	std::string GetEditorText() const { return editor.GetText(); }
+	std::string GetEditorText() const { return m_Editor.GetText(); }
 
 private:
 	void ApplyImGuiStyle();
@@ -32,10 +32,11 @@ private:
 	Application* m_Application;
 	Renderer* m_Renderer;
 	Window* m_Window;
-	float codeFontSize = 1.5f; // TODO: Move this to config. Make foton.ini
-	TextEditor editor;
+	TextEditor m_Editor;
 	ImGuiLogger logger;
 	VkDescriptorPool imguiDescPool;
+	// TODO: Move this to config. Make foton.ini
+	float codeFontSize = 1.5f;
 };
 
 FT_END_NAMESPACE

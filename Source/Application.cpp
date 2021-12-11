@@ -33,11 +33,6 @@ void Application::Run()
 	Cleanup();
 }
 
-void Application::UpdateCodeFontSize(float offset)
-{
-	m_UserInterface->UpdateCodeFontSize(offset);
-}
-
 void Application::SaveFragmentShader()
 {
 	ShaderFile* fragmentShaderFile = m_Renderer->GetFragmentShaderFile();
@@ -84,11 +79,6 @@ void Application::LoadShader(const std::string& inPath)
 	m_UserInterface->SetEditorText(loadedShaderFile->GetSourceCode());
 }
 
-void Application::ToggleUserInterface()
-{
-	m_Renderer->ToggleUserInterface();
-}
-
 bool Application::OpenShaderDialog(std::string& outFilePath) const
 {
 	return m_FileExplorer->OpenShaderDialog(outFilePath);
@@ -97,6 +87,16 @@ bool Application::OpenShaderDialog(std::string& outFilePath) const
 bool Application::SaveShaderDialog(std::string& outFilePath) const
 {
 	return m_FileExplorer->SaveShaderDialog(outFilePath);
+}
+
+void Application::UpdateCodeFontSize(float inOffset) const
+{
+	m_UserInterface->UpdateCodeFontSize(inOffset);
+}
+
+void Application::ToggleUserInterface() const
+{
+	m_Renderer->ToggleUserInterface();
 }
 
 void Application::MainLoop()

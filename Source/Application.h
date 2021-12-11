@@ -17,13 +17,13 @@ public:
 	void Run();
 
 public:
-	void UpdateCodeFontSize(float offset);
 	void SaveFragmentShader();
 	bool RecompileFragmentShader();
 	void LoadShader(const std::string& inPath);
-	void ToggleUserInterface();
 	bool OpenShaderDialog(std::string& outFilePath) const;
 	bool SaveShaderDialog(std::string& outFilePath) const;
+	void UpdateCodeFontSize(float inOffset) const;
+	void ToggleUserInterface() const;
 
 private:
 	void MainLoop();
