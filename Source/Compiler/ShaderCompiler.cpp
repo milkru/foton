@@ -77,10 +77,9 @@ ShaderCompileResult CompileShader(const ShaderLanguage inLanguage, const ShaderS
 
 	if (!compiledShader.preprocess(&builtInResource, defaultVersion, ENoProfile, false, false, messages, &preprocessedShader, fileIncluder))
 	{
-		FT_LOG(compiledShader.getInfoLog());
-
 		ShaderCompileResult result{};
 		result.Status = ShaderCompileStatus::PreprocessingFailed;
+		result.InfoLog = compiledShader.getInfoLog();
 		return result;
 	}
 
@@ -90,10 +89,9 @@ ShaderCompileResult CompileShader(const ShaderLanguage inLanguage, const ShaderS
 
 	if (!compiledShader.parse(&builtInResource, defaultVersion, false, messages))
 	{
-		FT_LOG(compiledShader.getInfoLog());
-
 		ShaderCompileResult result{};
 		result.Status = ShaderCompileStatus::ParsingFailed;
+		result.InfoLog = compiledShader.getInfoLog();
 		return result;
 	}
 
@@ -102,10 +100,9 @@ ShaderCompileResult CompileShader(const ShaderLanguage inLanguage, const ShaderS
 
 	if (!shaderProgram.link(messages))
 	{
-		FT_LOG(compiledShader.getInfoLog());
-
 		ShaderCompileResult result{};
 		result.Status = ShaderCompileStatus::LinkingFailed;
+		result.InfoLog = compiledShader.getInfoLog();
 		return result;
 	}
 
@@ -121,9 +118,8 @@ ShaderCompileResult CompileShader(const ShaderLanguage inLanguage, const ShaderS
 	const glslang::TIntermediate* intermediate = shaderProgram.getIntermediate(shaderType);
 	glslang::GlslangToSpv(*intermediate, result.SpvCode, &spvBuildLogger, &spvOptions);
 
-	FT_LOG(spvBuildLogger.getAllMessages().c_str());
-
 	result.Status = ShaderCompileStatus::Success;
+	result.InfoLog = spvBuildLogger.getAllMessages().c_str();
 	return result;
 }
 

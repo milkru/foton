@@ -65,6 +65,12 @@ void ResourceContainer::RecreateUniformBuffers()
 	}
 }
 
+// TOOD: Test padded size with different array counts.
+uint32_t CalculateUniformBufferSize(const SpvReflectDescriptorBinding inReflectDescriptorBinding)
+{
+	return inReflectDescriptorBinding.block.padded_size * inReflectDescriptorBinding.count;
+}
+
 void ResourceContainer::UpdateBindings(const std::vector<Binding> inBindings)
 {
 	for (uint32_t i = 0; i < m_Descriptors.size(); ++i)
@@ -91,7 +97,7 @@ void ResourceContainer::UpdateBindings(const std::vector<Binding> inBindings)
 			{
 				DeleteResource(resource);
 
-				const uint32_t bufferSize = newBinding.ReflectDescriptorBinding.block.size;
+				const uint32_t bufferSize = CalculateUniformBufferSize(newBinding.ReflectDescriptorBinding);
 				resource.Handle.UniformBuffer = new UniformBuffer(m_Device, m_Swapchain, bufferSize);
 			}
 
@@ -100,7 +106,7 @@ void ResourceContainer::UpdateBindings(const std::vector<Binding> inBindings)
 
 		case ResourceType::UniformBuffer:
 		{
-			const uint32_t bufferSize = newBinding.ReflectDescriptorBinding.block.size;
+			const uint32_t bufferSize = CalculateUniformBufferSize(newBinding.ReflectDescriptorBinding);
 			if (newResourceType == ResourceType::Image)
 			{
 				DeleteResource(resource);
@@ -149,7 +155,7 @@ void ResourceContainer::UpdateBindings(const std::vector<Binding> inBindings)
 
 		case ResourceType::UniformBuffer:
 		{
-			const uint32_t bufferSize = newBinding.ReflectDescriptorBinding.block.size;
+			const uint32_t bufferSize = CalculateUniformBufferSize(newBinding.ReflectDescriptorBinding);
 			resource.Handle.UniformBuffer = new UniformBuffer(m_Device, m_Swapchain, bufferSize);
 
 			break;

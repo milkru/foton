@@ -19,6 +19,7 @@ struct ShaderCompileResult
 {
 	ShaderCompileStatus Status = ShaderCompileStatus::Count;
 	std::vector<uint32_t> SpvCode;
+	std::string InfoLog;
 };
 
 extern void InitializeShaderCompiler();

@@ -64,6 +64,7 @@ void CreateDescriptorSets(const VkDevice inDevice, const VkDescriptorPool inDesc
 			const Binding binding = inDescriptors[j].Binding;
 			const Resource resource = inDescriptors[j].Resource;
 
+			descriptorWrites[j] = {};
 			descriptorWrites[j].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 			descriptorWrites[j].dstSet = outDescriptorSets[i];
 			descriptorWrites[j].dstBinding = binding.DescriptorSetBinding.binding;
@@ -74,24 +75,12 @@ void CreateDescriptorSets(const VkDevice inDevice, const VkDescriptorPool inDesc
 			if (resource.Type == ResourceType::UniformBuffer)
 			{
 				const Buffer* buffer = resource.Handle.UniformBuffer->GetBuffer(i);
-
-				VkDescriptorBufferInfo bufferInfo{};
-				bufferInfo.buffer = buffer->GetBuffer();
-				bufferInfo.offset = 0;
-				bufferInfo.range = buffer->GetSize();
-
-				descriptorWrites[j].pBufferInfo = &bufferInfo;
+				descriptorWrites[j].pBufferInfo = buffer->GetDescriptorInfo();
 			}
 			else if (resource.Type == ResourceType::Image)
 			{
 				const Image* image = resource.Handle.Image;
-
-				VkDescriptorImageInfo imageInfo{};
-				imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-				imageInfo.imageView = image->GetImageView();
-				imageInfo.sampler = image->GetSampler();
-
-				descriptorWrites[j].pImageInfo = &imageInfo;
+				descriptorWrites[j].pImageInfo = image->GetDescriptorInfo();
 			}
 			else
 			{

@@ -36,6 +36,7 @@ private:
 	ShaderStage m_Stage;
 	std::string m_CodeEntry;
 	VkShaderModule m_Module;
+	SpvReflectShaderModule m_ReflectModule;
 	std::vector<Binding> m_Bindings;
 };
 

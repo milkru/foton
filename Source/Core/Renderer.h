@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Descriptor.hpp"
+
 FT_BEGIN_NAMESPACE
 
 class Window;
@@ -23,15 +25,19 @@ public:
 public:
 	void DrawFrame();
 	void WaitDeviceToFinish();
+	void WaitQueueToFinish();
 	void UpdateFragmentShaderFile(ShaderFile* inFragmentShaderFile);
 	void ToggleUserInterface();
 	void OnFragmentShaderRecompiled(const std::vector<uint32_t>& inSpvCode);
+	void UpdateImageDescriptor(const uint32_t inBindingIndex, const std::string& inPath);
+	void RecreateDescriptorSet();
 
 public:
 	Device* GetDevice() const { return m_Device; }
 	Swapchain* GetSwapchain() const { return m_Swapchain; }
 	ShaderFile* GetFragmentShaderFile() const { return m_FragmentShaderFile; }
 	bool IsUserInterfaceEnabled() const { return m_EnableUserInterface; }
+	std::vector<Descriptor> GetDescriptors() const;
 
 private:
 	void CleanupSwapchain();

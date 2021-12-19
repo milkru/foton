@@ -102,6 +102,11 @@ void Renderer::WaitDeviceToFinish()
 	vkDeviceWaitIdle(m_Device->GetDevice());
 }
 
+void Renderer::WaitQueueToFinish()
+{
+	vkQueueWaitIdle(m_Device->GetGraphicsQueue());
+}
+
 void Renderer::UpdateFragmentShaderFile(ShaderFile* inFragmentShaderFile)
 {
 	delete(m_FragmentShaderFile);
@@ -116,18 +121,33 @@ void Renderer::ToggleUserInterface()
 	
 void Renderer::OnFragmentShaderRecompiled(const std::vector<uint32_t>& inSpvCode)
 {
-	vkQueueWaitIdle(m_Device->GetGraphicsQueue());
+	WaitQueueToFinish();
 
 	delete(m_FragmentShader);
 	m_FragmentShader = new Shader(m_Device, ShaderStage::Fragment, inSpvCode);
 
 	m_ResourceContainer->UpdateBindings(m_FragmentShader->GetBindings());
 
-	delete(m_DescriptorSet);
-	m_DescriptorSet = new DescriptorSet(m_Device, m_Swapchain, m_ResourceContainer->GetDescriptors());
+	RecreateDescriptorSet();
 
 	delete(m_Pipeline);
 	m_Pipeline = new Pipeline(m_Device, m_Swapchain, m_DescriptorSet, m_VertexShader, m_FragmentShader);
+}
+
+void Renderer::UpdateImageDescriptor(const uint32_t inBindingIndex, const std::string& inPath)
+{
+	m_ResourceContainer->UpdateImage(inBindingIndex, inPath);
+}
+
+void Renderer::RecreateDescriptorSet()
+{
+	delete(m_DescriptorSet);
+	m_DescriptorSet = new DescriptorSet(m_Device, m_Swapchain, m_ResourceContainer->GetDescriptors());
+}
+
+std::vector<Descriptor> Renderer::GetDescriptors() const
+{
+	return m_ResourceContainer->GetDescriptors();
 }
 
 void Renderer::CleanupSwapchain()

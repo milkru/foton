@@ -71,12 +71,12 @@ void CopyBufferToImage(const Device* inDevice, const VkBuffer inBuffer, const Vk
 	inDevice->EndSingleTimeCommands(commandBuffer);
 }
 
-void CreateImage(const Device* inDevice, const ImageFile& inImageFile, VkImage& outImage, VkDeviceMemory& outMemory)
+void CreateImage(const Device* inDevice, const ImageFile& inImageFile, VkImage& outImage, VkDeviceMemory& outMemory, uint32_t& outWidth, uint32_t& outHeight)
 {
-	const int width = inImageFile.GetWidth();
-	const int height = inImageFile.GetHeight();
+	outWidth = inImageFile.GetWidth();
+	outHeight = inImageFile.GetHeight();
 
-	const VkDeviceSize imageSize = width * height * 4;
+	const VkDeviceSize imageSize = outWidth * outHeight * 4;
 
 	Buffer stagingBuffer(inDevice, imageSize, BufferUsageFlags::TransferSrc);
 
@@ -87,8 +87,8 @@ void CreateImage(const Device* inDevice, const ImageFile& inImageFile, VkImage& 
 	VkImageCreateInfo imageCreateInfo{};
 	imageCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
 	imageCreateInfo.imageType = VK_IMAGE_TYPE_2D;
-	imageCreateInfo.extent.width = width;
-	imageCreateInfo.extent.height = height;
+	imageCreateInfo.extent.width = outWidth;
+	imageCreateInfo.extent.height = outHeight;
 	imageCreateInfo.extent.depth = 1;
 	imageCreateInfo.mipLevels = 1;
 	imageCreateInfo.arrayLayers = 1;
@@ -114,7 +114,7 @@ void CreateImage(const Device* inDevice, const ImageFile& inImageFile, VkImage& 
 	vkBindImageMemory(inDevice->GetDevice(), outImage, outMemory, 0);
 
 	TransitionImageLayout(inDevice, outImage, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-	CopyBufferToImage(inDevice, stagingBuffer.GetBuffer(), outImage, static_cast<uint32_t>(width), static_cast<uint32_t>(height));
+	CopyBufferToImage(inDevice, stagingBuffer.GetBuffer(), outImage, static_cast<uint32_t>(outWidth), static_cast<uint32_t>(outHeight));
 	TransitionImageLayout(inDevice, outImage, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 }
 
@@ -157,12 +157,21 @@ void CreateSampler(const VkPhysicalDevice inPhysicalDevice, const VkDevice inDev
 	FT_VK_CALL(vkCreateSampler(inDevice, &samplerCreateInfo, nullptr, &outSampler));
 }
 
+void CreateDescriptorInfo(const VkImageView inImageView, const VkSampler inSampler, VkDescriptorImageInfo& outDescriptorInfo)
+{
+	outDescriptorInfo = {};
+	outDescriptorInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	outDescriptorInfo.imageView = inImageView;
+	outDescriptorInfo.sampler = inSampler;
+}
+
 Image::Image(const Device* inDevice, const ImageFile& inFile)
 	: m_Device(inDevice)
 {
-	CreateImage(m_Device, inFile, m_Image, m_Memory);
+	CreateImage(m_Device, inFile, m_Image, m_Memory, m_Width, m_Height);
 	CreateImageView(inDevice->GetDevice(), m_Image, VK_FORMAT_R8G8B8A8_UNORM, m_ImageView);
 	CreateSampler(inDevice->GetPhysicalDevice(), inDevice->GetDevice(), m_Sampler);
+	CreateDescriptorInfo(m_ImageView, m_Sampler, m_DescriptorInfo);
 }
 
 Image::~Image()

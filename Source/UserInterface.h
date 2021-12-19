@@ -17,6 +17,7 @@ public:
 	void ImguiNewFrame();
 	void UpdateCodeFontSize(float offset);
 	void SetEditorText(const std::string& inText);
+	void DisplayErrorMarkers(const std::string& message);
 	void ClearErrorMarkers();
 
 public:
@@ -26,7 +27,11 @@ private:
 	void ApplyImGuiStyle();
 	void ImguiMenuBar();
 	void ImguiDockSpace();
-	void DisplayErrorMarkers(const char* message);
+	void ImguiBindingsWindow();
+	void DrawTextBackground();
+	void DrawVectorInput(const SpvReflectTypeDescription* inReflectTypeDescription, const char* inName);
+	void DrawStruct(const SpvReflectBlockVariable* inReflectBlock, const char* inName);
+	void DrawUniformBufferInput(const SpvReflectBlockVariable* inReflectBlock, const uint32_t inArrayDimension = 0, const char* inArrayNameSuffix = "");
 
 private:
 	Application* m_Application;

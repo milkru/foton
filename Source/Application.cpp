@@ -28,7 +28,7 @@ void Application::Run()
 	m_Window = new Window(this);
 	m_Renderer = new Renderer(m_Window);
 	m_UserInterface = new UserInterface(this, m_Window, m_Renderer);
-	m_FileExplorer = new FileExplorer();
+	FileExplorer::Initialize();
 	MainLoop();
 	Cleanup();
 }
@@ -41,6 +41,8 @@ void Application::SaveFragmentShader()
 
 bool Application::RecompileFragmentShader()
 {
+	m_UserInterface->ClearErrorMarkers();
+
 	ShaderFile* fragmentShaderFile = m_Renderer->GetFragmentShaderFile();
 	const std::string& fragmentShaderSourceCode = m_UserInterface->GetEditorText();
 
@@ -54,10 +56,16 @@ bool Application::RecompileFragmentShader()
 	if (compileResult.Status != ShaderCompileStatus::Success)
 	{
 		FT_LOG("Failed %s shader %s.\n", ConvertCompilationStatusToText(compileResult.Status), fragmentShaderFile->GetName().c_str());
+		if (!compileResult.InfoLog.empty())
+		{
+			FT_LOG(compileResult.InfoLog.c_str());
+			m_UserInterface->DisplayErrorMarkers(compileResult.InfoLog);
+		}
+
 		return false;
 	}
 
-	m_UserInterface->ClearErrorMarkers();
+	FT_LOG("Successfully compiled shader %s.\n", fragmentShaderFile->GetName().c_str());
 
 	m_Renderer->OnFragmentShaderRecompiled(compileResult.SpvCode);
 
@@ -77,16 +85,6 @@ void Application::LoadShader(const std::string& inPath)
 
 	m_Renderer->UpdateFragmentShaderFile(loadedShaderFile);
 	m_UserInterface->SetEditorText(loadedShaderFile->GetSourceCode());
-}
-
-bool Application::OpenShaderDialog(std::string& outFilePath) const
-{
-	return m_FileExplorer->OpenShaderDialog(outFilePath);
-}
-
-bool Application::SaveShaderDialog(std::string& outFilePath) const
-{
-	return m_FileExplorer->SaveShaderDialog(outFilePath);
 }
 
 void Application::UpdateCodeFontSize(float inOffset) const
@@ -120,7 +118,7 @@ void Application::MainLoop()
 
 void Application::Cleanup()
 {
-	delete(m_FileExplorer);
+	FileExplorer::Terminate();
 	delete(m_UserInterface);
 	delete(m_Renderer);
 	delete(m_Window);

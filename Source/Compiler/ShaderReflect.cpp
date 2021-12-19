@@ -31,19 +31,17 @@ VkDescriptorType GetVkDescriptorType(const SpvReflectDescriptorType inDescriptor
 	}
 }
 
-std::vector<Binding> ReflectShader(const std::vector<uint32_t>& inSpvCode, const VkShaderStageFlags inShaderStage)
+std::vector<Binding> ReflectShader(const std::vector<uint32_t>& inSpvCode, const VkShaderStageFlags inShaderStage, SpvReflectShaderModule& outSpvModule)
 {
-	SpvReflectShaderModule spvModule;
-
 	size_t spvCodeSize = sizeof(uint32_t) * inSpvCode.size();
 	const void* spvCode = reinterpret_cast<const void*>(inSpvCode.data());
-	FT_SPV_REFLECT_CALL(spvReflectCreateShaderModule(spvCodeSize, spvCode, &spvModule));
+	FT_SPV_REFLECT_CALL(spvReflectCreateShaderModule(spvCodeSize, spvCode, &outSpvModule));
 
 	uint32_t bindingCount = 0;
-	FT_SPV_REFLECT_CALL(spvReflectEnumerateDescriptorBindings(&spvModule, &bindingCount, nullptr));
+	FT_SPV_REFLECT_CALL(spvReflectEnumerateDescriptorBindings(&outSpvModule, &bindingCount, nullptr));
 
 	std::vector<SpvReflectDescriptorBinding*> spvBindings(bindingCount);
-	FT_SPV_REFLECT_CALL(spvReflectEnumerateDescriptorBindings(&spvModule, &bindingCount, spvBindings.data()));
+	FT_SPV_REFLECT_CALL(spvReflectEnumerateDescriptorBindings(&outSpvModule, &bindingCount, spvBindings.data()));
 
 	std::vector<Binding> bindings(spvBindings.size());
 	for (uint32_t i = 0; i < bindingCount; ++i)
@@ -59,8 +57,6 @@ std::vector<Binding> ReflectShader(const std::vector<uint32_t>& inSpvCode, const
 
 		binding.ReflectDescriptorBinding = *spvBindings[i];
 	}
-
-	spvReflectDestroyShaderModule(&spvModule);
 
 	return bindings;
 }

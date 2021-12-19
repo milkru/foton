@@ -6,11 +6,13 @@
 
 FT_BEGIN_NAMESPACE
 
-FileExplorer::FileExplorer()
+NFD::Guard* FileExplorer::s_NFDHandle = nullptr;
+
+void FileExplorer::Initialize()
 {
 	try
 	{
-		m_NFDHandle = new NFD::Guard();
+		s_NFDHandle = new NFD::Guard();
 	}
 	catch (const std::runtime_error& error)
 	{
@@ -18,9 +20,9 @@ FileExplorer::FileExplorer()
 	}
 }
 
-FileExplorer::~FileExplorer()
+void FileExplorer::Terminate()
 {
-	delete(m_NFDHandle);
+	delete(s_NFDHandle);
 }
 
 std::vector<nfdfilteritem_t> GetShaderFileExtensionFilter()
@@ -42,12 +44,44 @@ std::vector<nfdfilteritem_t> GetShaderFileExtensionFilter()
 	return filterItems;
 }
 
-bool FileExplorer::OpenShaderDialog(std::string& outFilePath) const
+struct ImageFileExtension
 {
-	NFD::UniquePath filePath;
-	const std::vector<nfdfilteritem_t> filterItems = GetShaderFileExtensionFilter();
+	std::string Extension;
+	std::string Name;
+};
 
-	const nfdresult_t result = NFD::OpenDialog(filePath, filterItems.data(), filterItems.size());
+const ImageFileExtension SupportedImageFileExtensions[] =
+{
+	{ "jpg", "Joint Photographic Experts Group"}, // TODO: Check in PhotoShop how this is handled.
+	{ "png", "Portable Graphics Format"}
+};
+
+std::vector<nfdfilteritem_t> GetImageFileExtensionFilter()
+{
+	static std::vector<nfdfilteritem_t> filterItems;
+	if (filterItems.size() > 0)
+	{
+		return filterItems;
+	}
+
+	for (const auto& shaderFileExtension : SupportedImageFileExtensions)
+	{
+		nfdfilteritem_t filterItem;
+		filterItem.name = shaderFileExtension.Name.c_str();
+		filterItem.spec = shaderFileExtension.Extension.c_str();
+		filterItems.push_back(filterItem);
+	}
+
+	return filterItems;
+}
+
+bool OpenFileDialog(const std::vector<nfdfilteritem_t>& inFilterItems, std::string& outFilePath)
+{
+	FT_CHECK(FileExplorer::s_NFDHandle != nullptr, "File dialog not initialized.");
+
+	NFD::UniquePath filePath;
+
+	const nfdresult_t result = NFD::OpenDialog(filePath, inFilterItems.data(), inFilterItems.size());
 	if (filePath && (result == NFD_OKAY || result == NFD_CANCEL))
 	{
 		outFilePath = filePath.get();
@@ -60,12 +94,13 @@ bool FileExplorer::OpenShaderDialog(std::string& outFilePath) const
 	}
 }
 
-bool FileExplorer::SaveShaderDialog(std::string& outFilePath) const
+bool SaveFileDialog(const std::vector<nfdfilteritem_t>& inFilterItems, std::string& outFilePath)
 {
-	NFD::UniquePath filePath;
-	const std::vector<nfdfilteritem_t> filterItems = GetShaderFileExtensionFilter();
+	FT_CHECK(FileExplorer::s_NFDHandle != nullptr, "File dialog not initialized.");
 
-	const nfdresult_t result = NFD::SaveDialog(filePath, filterItems.data(), filterItems.size());
+	NFD::UniquePath filePath;
+
+	const nfdresult_t result = NFD::SaveDialog(filePath, inFilterItems.data(), inFilterItems.size());
 	if (filePath && (result == NFD_OKAY || result == NFD_CANCEL))
 	{
 		outFilePath = filePath.get();
@@ -76,6 +111,30 @@ bool FileExplorer::SaveShaderDialog(std::string& outFilePath) const
 		FT_LOG("Saving shader file failed.\n");
 		return false;
 	}
+}
+
+bool FileExplorer::OpenShaderDialog(std::string& outFilePath)
+{
+	const auto shaderFilters = GetShaderFileExtensionFilter();
+	return OpenFileDialog(shaderFilters, outFilePath);
+}
+
+bool FileExplorer::SaveShaderDialog(std::string& outFilePath)
+{
+	const auto shaderFilters = GetShaderFileExtensionFilter();
+	return SaveFileDialog(shaderFilters, outFilePath);
+}
+
+bool FileExplorer::OpenImageDialog(std::string& outFilePath)
+{
+	const auto imageFilters = GetImageFileExtensionFilter();
+	return OpenFileDialog(imageFilters, outFilePath);
+}
+
+bool FileExplorer::SaveImageDialog(std::string& outFilePath)
+{
+	const auto imageFilters = GetImageFileExtensionFilter();
+	return SaveFileDialog(imageFilters, outFilePath);
 }
 
 FT_END_NAMESPACE

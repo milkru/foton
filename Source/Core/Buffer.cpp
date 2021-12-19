@@ -47,12 +47,21 @@ void CreateBuffer(const Device* inDevice, const VkDeviceSize inSize, const VkBuf
 	vkBindBufferMemory(inDevice->GetDevice(), outBuffer, outBufferMemory, 0);
 }
 
+void CreateDescriptorInfo(const VkBuffer inBuffer, const size_t inSize, VkDescriptorBufferInfo& outDescriptorInfo)
+{
+	outDescriptorInfo = {};
+	outDescriptorInfo.buffer = inBuffer;
+	outDescriptorInfo.offset = 0;
+	outDescriptorInfo.range = inSize;
+}
+
 Buffer::Buffer(const Device* inDevice, const size_t inSize, const BufferUsageFlags inUsageFlags)
 	: m_Device(inDevice)
 	, m_Size(inSize)
 	, m_HostVisibleData(nullptr)
 {
 	CreateBuffer(inDevice, inSize, GetVkBufferUsageFlags(inUsageFlags), VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, m_Buffer, m_Memory);
+	CreateDescriptorInfo(m_Buffer, m_Size, m_DescriptorInfo);
 }
 
 Buffer::~Buffer()

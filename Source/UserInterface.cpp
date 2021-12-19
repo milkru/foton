@@ -4,7 +4,10 @@
 #include "Core/Renderer.h"
 #include "Core/Device.h"
 #include "Core/Swapchain.h"
+#include "Core/Image.h"
+#include "Core/UniformBuffer.h"
 #include "Utility/ShaderFile.h"
+#include "Utility/FileExplorer.h"
 
 FT_BEGIN_NAMESPACE
 
@@ -74,6 +77,7 @@ UserInterface::UserInterface(Application* inApplication, Window* inWindow, Rende
 
 	ShaderFile* fragmentShaderFile = m_Renderer->GetFragmentShaderFile();
 	m_Editor.SetText(fragmentShaderFile->GetSourceCode());
+	m_Editor.SetPalette(TextEditor::GetDarkPalette());
 }
 
 UserInterface::~UserInterface()
@@ -84,6 +88,165 @@ UserInterface::~UserInterface()
 
 	Device* device = m_Renderer->GetDevice();
 	vkDestroyDescriptorPool(device->GetDevice(), imguiDescPool, nullptr);
+}
+
+// https://en.wikipedia.org/wiki/UTF-8
+static int UTF8CharLength(const TextEditor::Char c)
+{
+	if ((c & 0xFE) == 0xFC)
+	{
+		return 6;
+	}
+
+	if ((c & 0xFC) == 0xF8)
+	{
+		return 5;
+	}
+
+	if ((c & 0xF8) == 0xF0)
+	{
+		return 4;
+	}
+	else if ((c & 0xF0) == 0xE0)
+	{
+		return 3;
+	}
+	else if ((c & 0xE0) == 0xC0)
+	{
+		return 2;
+	}
+
+	return 1;
+}
+
+int GetCharacterIndex(const TextEditor::Coordinates& aCoordinates, const std::vector<std::string>& mLines, const int mTabSize)
+{
+	if (aCoordinates.mLine >= mLines.size())
+	{
+		return -1;
+	}
+
+	auto& line = mLines[aCoordinates.mLine];
+	int c = 0;
+	int i = 0;
+	for (; i < line.size() && c < aCoordinates.mColumn;)
+	{
+		if (line[i] == '\t')
+		{
+			c = (c / mTabSize) * mTabSize + mTabSize;
+		}
+		else
+		{
+			++c;
+		}
+
+		i += UTF8CharLength(line[i]);
+	}
+
+	return i;
+}
+
+float TextDistanceToLineStart(const TextEditor::Coordinates& aFrom, const std::vector<std::string>& mLines, const int mTabSize)
+{
+	auto& line = mLines[aFrom.mLine];
+	float distance = 0.0f;
+	float spaceSize = ImGui::GetFont()->CalcTextSizeA(ImGui::GetFontSize(), FLT_MAX, -1.0f, " ", nullptr, nullptr).x;
+	int colIndex = GetCharacterIndex(aFrom, mLines, mTabSize);
+	for (size_t it = 0u; it < line.size() && it < colIndex; )
+	{
+		if (line[it] == '\t')
+		{
+			distance = (1.0f + std::floor((1.0f + distance) / (float(mTabSize) * spaceSize))) * (float(mTabSize) * spaceSize);
+			++it;
+		}
+		else
+		{
+			auto d = UTF8CharLength(line[it]);
+			char tempCString[7];
+			int i = 0;
+			for (; i < 6 && d-- > 0 && it < (int)line.size(); i++, it++)
+			{
+				tempCString[i] = line[it];
+			}
+
+			tempCString[i] = '\0';
+			distance += ImGui::GetFont()->CalcTextSizeA(ImGui::GetFontSize(), FLT_MAX, -1.0f, tempCString, nullptr, nullptr).x;
+		}
+	}
+
+	return distance;
+}
+
+int GetLineMaxColumn(int aLine, const std::vector<std::string>& mLines, const int mTabSize)
+{
+	if (aLine >= mLines.size())
+	{
+		return 0;
+	}
+
+	auto& line = mLines[aLine];
+	int col = 0;
+	for (unsigned i = 0; i < line.size(); )
+	{
+		auto c = line[i];
+		if (c == '\t')
+		{
+			col = (col / mTabSize) * mTabSize + mTabSize;
+		}
+		else
+		{
+			col++;
+		}
+
+		i += UTF8CharLength(c);
+	}
+
+	return col;
+}
+
+void UserInterface::DrawTextBackground()
+{
+	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, 0.0f));
+
+	const std::vector<std::string> mLines = m_Editor.GetTextLines();
+	const int mTabSize = m_Editor.GetTabSize();
+
+	ImVec2 cursorScreenPos = ImGui::GetCursorScreenPos();
+	const float scrollX = ImGui::GetScrollX();
+	const float scrollY = ImGui::GetScrollY();
+
+	// Default unchanged values in TextEditor constructor.
+	const float mLineSpacing = 1.0f;
+	const int mLeftMargin = 10;
+
+	const float fontSize = ImGui::GetFont()->CalcTextSizeA(ImGui::GetFontSize(), FLT_MAX, -1.0f, "#", nullptr, nullptr).x;
+	const ImVec2 mCharAdvance = ImVec2(fontSize, ImGui::GetTextLineHeightWithSpacing() * mLineSpacing);
+
+	char lineMaxBuf[16];
+	const size_t globalLineMax = (int)mLines.size();
+	snprintf(lineMaxBuf, 16, " %zd ", globalLineMax);
+	const float mTextStart = ImGui::GetFont()->CalcTextSizeA(ImGui::GetFontSize(), FLT_MAX, -1.0f, lineMaxBuf, nullptr, nullptr).x + mLeftMargin;
+	const ImVec2 contentSize = ImGui::GetWindowContentRegionMax();
+
+	int lineNo = (int)floor(scrollY / mCharAdvance.y);
+	const int lineMax = std::max(0, std::min((int)mLines.size() - 1, lineNo + (int)floor((scrollY + contentSize.y) / mCharAdvance.y)));
+	while (lineNo <= lineMax)
+	{
+		ImVec2 lineStartScreenPos = ImVec2(cursorScreenPos.x, cursorScreenPos.y + lineNo * mCharAdvance.y);
+		ImVec2 textScreenPos = ImVec2(lineStartScreenPos.x + mTextStart, lineStartScreenPos.y);
+		TextEditor::Coordinates lineEndCoord(lineNo, GetLineMaxColumn(lineNo, mLines, mTabSize));
+
+		ImVec2 vstart(lineStartScreenPos.x + mTextStart, lineStartScreenPos.y);
+		ImVec2 vend(lineStartScreenPos.x + mTextStart + TextDistanceToLineStart(lineEndCoord, mLines, mTabSize), lineStartScreenPos.y + mCharAdvance.y);
+		auto drawList = ImGui::GetWindowDrawList();
+
+		const ImU32 textBackgroundColor = 0x80000000;
+		drawList->AddRectFilled(vstart, vend, textBackgroundColor);
+
+		++lineNo;
+	}
+
+	ImGui::PopStyleVar();
 }
 
 void UserInterface::ImguiNewFrame()
@@ -102,6 +265,12 @@ void UserInterface::ImguiNewFrame()
 	sprintf_s(buf, "%s###ShaderTitle", fragmentShaderFile->GetName().c_str());
 
 	ImGui::Begin(buf, nullptr, ImGuiWindowFlags_HorizontalScrollbar);
+	// TODO: Set different LanguageDefinition to editor for GLSL and HLSL.
+	// TODO: Text color Palette can be changed as well.
+	// TODO: More commands can be added.
+
+	DrawTextBackground();
+
 	ImGui::SetWindowSize(ImVec2(FT_DEFAULT_WINDOW_WIDTH, FT_DEFAULT_WINDOW_HEIGHT), ImGuiCond_FirstUseEver); // TODO: Change this!!!
 	ImGui::SetNextWindowBgAlpha(0.f);
 	ImGui::SetWindowFontScale(codeFontSize);
@@ -110,6 +279,8 @@ void UserInterface::ImguiNewFrame()
 	ImGui::End();
 
 	logger.Draw("Log");
+
+	ImguiBindingsWindow();
 
 	ImGui::Render();
 }
@@ -217,7 +388,7 @@ void UserInterface::ImguiMenuBar()
 			if (ImGui::MenuItem("New", "Ctrl-N"))
 			{
 				std::string shaderFilePath;
-				if (m_Application->SaveShaderDialog(shaderFilePath))
+				if (FileExplorer::SaveShaderDialog(shaderFilePath))
 				{
 					// TODO: Make new empty/default file and keep it open.
 				}
@@ -226,7 +397,7 @@ void UserInterface::ImguiMenuBar()
 			if (ImGui::MenuItem("Open", "Ctrl-O"))
 			{
 				std::string shaderFilePath;
-				if (m_Application->OpenShaderDialog(shaderFilePath))
+				if (FileExplorer::OpenShaderDialog(shaderFilePath))
 				{
 					m_Application->LoadShader(shaderFilePath);
 					m_Application->RecompileFragmentShader();
@@ -244,7 +415,7 @@ void UserInterface::ImguiMenuBar()
 			if (ImGui::MenuItem("Save As", "Ctrl-Shift-S"))
 			{
 				std::string shaderFilePath;
-				if (m_Application->SaveShaderDialog(shaderFilePath))
+				if (FileExplorer::SaveShaderDialog(shaderFilePath))
 				{
 					const std::string& textToSave = m_Editor.GetText();
 					// TODO: Make new file with current contents and keep it open.
@@ -370,16 +541,276 @@ void UserInterface::ImguiDockSpace()
 	ImGui::End();
 }
 
-void UserInterface::DisplayErrorMarkers(const char* message)
+ImGuiDataType GetComponentDataType(const SpvReflectTypeDescription* inReflectTypeDescription)
 {
-	// TOOD: BROKEN.
-	// TODO: HACK!!!
+	if (inReflectTypeDescription->type_flags & SPV_REFLECT_TYPE_FLAG_BOOL)
+	{
+		return ImGuiDataType_U32;
+	}
+	else if (inReflectTypeDescription->type_flags & SPV_REFLECT_TYPE_FLAG_INT)
+	{
+		return inReflectTypeDescription->traits.numeric.scalar.signedness ? ImGuiDataType_S32 : ImGuiDataType_U32;
+	}
+	else if (inReflectTypeDescription->type_flags & SPV_REFLECT_TYPE_FLAG_FLOAT)
+	{
+		uint32_t typeSize = inReflectTypeDescription->traits.numeric.scalar.width;
+		if (typeSize == 32)
+		{
+			return ImGuiDataType_Float;
+		}
+		else if (typeSize == 64)
+		{
+			return ImGuiDataType_Double;
+		}
+		else
+		{
+			FT_FAIL("Unsupported floating point type.");
+		}
+	}
+	else
+	{
+		FT_FAIL("Unsupported basic type type.");
+	}
+}
+
+struct VectorDataType
+{
+	uint32_t ComponentCount;
+	ImGuiDataType ComponentDataType;
+};
+
+VectorDataType GetVectorDataType(const SpvReflectTypeDescription* inReflectTypeDescription)
+{
+	// SPV_REFLECT_TYPE_FLAG_MATRIX uses this flag as well.
+	const uint32_t componentCount = inReflectTypeDescription->type_flags & SPV_REFLECT_TYPE_FLAG_VECTOR ?	
+		inReflectTypeDescription->traits.numeric.vector.component_count : 1;
+
+	const ImGuiDataType componentType = GetComponentDataType(inReflectTypeDescription);
+	return { componentCount , componentType };
+}
+
+float GetInputDragSpeed(const ImGuiDataType inDataType)
+{
+	switch (inDataType)
+	{
+		case ImGuiDataType_S8:
+		case ImGuiDataType_U8:
+		case ImGuiDataType_S16:
+		case ImGuiDataType_U16:
+		case ImGuiDataType_S32:
+		case ImGuiDataType_U32:
+		case ImGuiDataType_S64:
+		case ImGuiDataType_U64:
+			return 1.0f;
+
+		case ImGuiDataType_Float:
+		case ImGuiDataType_Double:
+			return 0.005f;
+
+		default:
+			FT_FAIL("Unsupported ImGuiDataType.");
+	}
+}
+
+// TODO: Temp.
+char* GetTempDummyMem()
+{
+	static char* mem = nullptr;
+
+	if (mem == nullptr)
+	{
+		mem = new char[1024 * 1024]();
+	}
+
+	return mem;
+}
+
+void UserInterface::DrawVectorInput(const SpvReflectTypeDescription* inReflectTypeDescription, const char* inName)
+{
+	const VectorDataType vectorDataType = GetVectorDataType(inReflectTypeDescription);
+
+	ImGui::DragScalarN(inName, vectorDataType.ComponentDataType, GetTempDummyMem(), vectorDataType.ComponentCount, GetInputDragSpeed(vectorDataType.ComponentDataType));
+}
+
+void UserInterface::DrawStruct(const SpvReflectBlockVariable* inReflectBlock, const char* inName)
+{
+	if (ImGui::TreeNode(inName))
+	{
+		for (uint32_t i = 0; i < inReflectBlock->member_count; ++i)
+		{
+			const SpvReflectBlockVariable* memberReflectBlock = &(inReflectBlock->members[i]);
+			DrawUniformBufferInput(memberReflectBlock);
+		}
+
+		ImGui::TreePop();
+	}
+}
+
+void UserInterface::DrawUniformBufferInput(const SpvReflectBlockVariable* inReflectBlock, const uint32_t inArrayDimension, const char* inArrayNameSuffix)
+{
+	if (inReflectBlock == nullptr)
+	{
+		return;
+	}
+
+	switch (inReflectBlock->type_description->op)
+	{
+	case SpvOpTypeStruct:
+	{
+		std::string structTreeName = inReflectBlock->name;
+		structTreeName += inArrayNameSuffix;
+		DrawStruct(inReflectBlock, structTreeName.c_str());
+
+		break;
+	}
+
+	case SpvOpTypeArray:
+	{
+		const SpvReflectArrayTraits arrayTraits = inReflectBlock->type_description->traits.array;
+
+		std::string arrayTreeName = inReflectBlock->name;
+		arrayTreeName += inArrayNameSuffix;
+		if (ImGui::TreeNode(arrayTreeName.c_str()))
+		{
+			if (inArrayDimension == arrayTraits.dims_count - 1)
+			{
+				for (uint32_t arrayElementIndex = 0; arrayElementIndex < arrayTraits.dims[inArrayDimension]; ++arrayElementIndex)
+				{
+					std::string arrayElementName = arrayTreeName;
+					arrayElementName += "[";
+					arrayElementName += std::to_string(arrayElementIndex);;
+					arrayElementName += "]";
+
+					if (inReflectBlock->type_description->type_flags & SPV_REFLECT_TYPE_FLAG_STRUCT)
+					{
+						DrawStruct(inReflectBlock, arrayElementName.c_str());
+					}
+					else
+					{
+						DrawVectorInput(inReflectBlock->type_description, arrayElementName.c_str());
+					}
+				}
+			}
+			else
+			{
+				for (uint32_t arrayElementIndex = 0; arrayElementIndex < arrayTraits.dims[inArrayDimension]; ++arrayElementIndex)
+				{
+					std::string nameSuffix = inArrayNameSuffix;
+					nameSuffix += "[";
+					nameSuffix += std::to_string(arrayElementIndex);;
+					nameSuffix += "]";
+					DrawUniformBufferInput(inReflectBlock, inArrayDimension + 1, nameSuffix.c_str());
+				}
+			}
+
+			ImGui::TreePop();
+		}
+		
+		break;
+	}
+
+	case SpvOpTypeMatrix:
+	{
+		if (ImGui::TreeNode(inReflectBlock->name))
+		{
+			const SpvReflectNumericTraits numericTraits = inReflectBlock->type_description->traits.numeric;
+
+			for (uint32_t matrixRowIndex = 0; matrixRowIndex < numericTraits.matrix.row_count; ++matrixRowIndex)
+			{
+				std::string rowName = inReflectBlock->name;
+				rowName += "[";
+				rowName += std::to_string(matrixRowIndex);;
+				rowName += "]";
+				DrawVectorInput(inReflectBlock->type_description, rowName.c_str());
+			}
+
+			ImGui::TreePop();
+		}
+
+		break;
+	}
+
+	default:
+	{
+		DrawVectorInput(inReflectBlock->type_description, inReflectBlock->name);
+		break;
+	}
+	}
+
+	ImGui::Spacing();
+}
+
+void UserInterface::ImguiBindingsWindow()
+{
+	static const ImVec2 DefaultWindowSize = ImVec2(400, 400);
+
+	// TODO: Rename it to Shader Input? Or something more general? In that case we can change the shader entry point function name as well.
+	ImGui::Begin("Bindings");
+
+	const auto& descriptors = m_Renderer->GetDescriptors();
+
+	for (uint32_t i = 0; i < descriptors.size(); ++i)
+	{
+		const auto& descriptor = descriptors[i];
+
+		switch (descriptor.Resource.Type)
+		{
+		case ResourceType::Image:
+		{
+			ImGui::Text(descriptor.Binding.ReflectDescriptorBinding.name);
+			ImGui::Spacing();
+
+			if (ImGui::Button(descriptor.Binding.ReflectDescriptorBinding.name))
+			{
+				std::string imagePath;
+				if (FileExplorer::OpenImageDialog(imagePath))
+				{
+					m_Renderer->WaitQueueToFinish();
+					m_Renderer->UpdateImageDescriptor(descriptor.Binding.DescriptorSetBinding.binding, imagePath);
+					m_Renderer->RecreateDescriptorSet();
+				}
+			}
+
+			ImGui::Spacing();
+
+			break;
+		}
+
+		case ResourceType::UniformBuffer:
+		{
+			// TODO: Reset data after field data type switch for example.
+			// TODO: Window options: No move and No close flags should be enabled for all docked windows. see demo.
+			// TODO: IMGUI PROBABLY HAS SOME SORT OF ID WHICH COULD BE USE FOR MEMORY MAPPING OF UBO LEAF NODES!
+
+			DrawUniformBufferInput(&descriptor.Binding.ReflectDescriptorBinding.block);
+			
+			break;
+		}
+
+		default:
+			FT_FAIL("Unsupported ResourceType.");
+		}
+
+		if (i != descriptors.size() - 1)
+		{
+			ImGui::Separator();
+			ImGui::Spacing();
+		}
+	}
+
+	ImGui::End();
+}
+
+void UserInterface::DisplayErrorMarkers(const std::string& message)
+{
 	char line[10];
 	int j = 0;
-	for (int i = 9; message[i] != ':'; ++i)
+	const uint32_t ignoreCharacterCount = 9;
+	for (int i = ignoreCharacterCount; message[i] != ':'; ++i)
 	{
 		line[j++] = message[i];
 	}
+
 	line[j] = '\0';
 
 	int lineInt = atoi(line);

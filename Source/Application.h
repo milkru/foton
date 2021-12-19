@@ -20,8 +20,6 @@ public:
 	void SaveFragmentShader();
 	bool RecompileFragmentShader();
 	void LoadShader(const std::string& inPath);
-	bool OpenShaderDialog(std::string& outFilePath) const;
-	bool SaveShaderDialog(std::string& outFilePath) const;
 	void UpdateCodeFontSize(float inOffset) const;
 	void ToggleUserInterface() const;
 
@@ -31,7 +29,6 @@ private:
 
 private:
 	Window* m_Window;
-	FileExplorer* m_FileExplorer;
 	Renderer* m_Renderer;
 	UserInterface* m_UserInterface;
 };
