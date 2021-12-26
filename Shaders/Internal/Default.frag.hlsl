@@ -7,10 +7,10 @@ struct UBO
 cbuffer ubo : register(b0) { UBO ubo; };
 
 Texture2D textureInput : register(t1);
-SamplerState samplerInput : register(s1);
+SamplerState samplerInput : register(s2);
 
 float4 main([[vk::location(0)]] float2 inUV : TEXCOORD0) : SV_TARGET
 {
-	return float4(inUV, 0.0, 1.0);
+	float4 fragCol = textureInput.Sample(samplerInput, inUV);
+	return fragCol;
 }
-

@@ -52,8 +52,12 @@ struct ImageFileExtension
 
 const ImageFileExtension SupportedImageFileExtensions[] =
 {
-	{ "jpg", "Joint Photographic Experts Group"}, // TODO: Check in PhotoShop how this is handled.
-	{ "png", "Portable Graphics Format"}
+	{ "png", "PNG"},
+	{ "jpg", "JPG"},
+	{ "jpeg", "JPEG"},
+	{ "bmp", "BMP"},
+	{ "tga", "TGA"},
+	{ "psd", "PSD"}
 };
 
 std::vector<nfdfilteritem_t> GetImageFileExtensionFilter()

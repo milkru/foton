@@ -7,8 +7,8 @@ FT_BEGIN_NAMESPACE
 
 class Device;
 class Swapchain;
+struct SamplerInfo;
 
-// TODO: Rename?
 class ResourceContainer
 {
 public:
@@ -20,6 +20,7 @@ public:
 	void RecreateUniformBuffers();
 	void UpdateBindings(const std::vector<Binding> inBindings);
 	void UpdateImage(const uint32_t inBindingIndex, const std::string& inPath);
+	void UpdateSampler(const uint32_t inBindingIndex, const SamplerInfo& inSamplerInfo);
 
 public:
 	std::vector<Descriptor> GetDescriptors() const { return m_Descriptors; }
@@ -30,7 +31,6 @@ private:
 private:
 	const Device* m_Device;
 	const Swapchain* m_Swapchain;
-	Image* m_DefaultImage;
 	std::vector<Descriptor> m_Descriptors;
 };
 

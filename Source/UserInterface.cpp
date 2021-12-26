@@ -4,7 +4,9 @@
 #include "Core/Renderer.h"
 #include "Core/Device.h"
 #include "Core/Swapchain.h"
+#include "Core/CombinedImageSampler.h"
 #include "Core/Image.h"
+#include "Core/Sampler.h"
 #include "Core/UniformBuffer.h"
 #include "Utility/ShaderFile.h"
 #include "Utility/FileExplorer.h"
@@ -15,6 +17,7 @@ UserInterface::UserInterface(Application* inApplication, Window* inWindow, Rende
 	: m_Application(inApplication)
 	, m_Renderer(inRenderer)
 	, m_Window(inWindow)
+	, m_Enable(true)
 {
 	const static uint32_t resourceCount = 512;
 	VkDescriptorPoolSize descriptorPoolSIzes[] =
@@ -255,32 +258,35 @@ void UserInterface::ImguiNewFrame()
 	ImGui_ImplGlfw_NewFrame();
 	ImGui::NewFrame();
 
-	ImguiDockSpace();
+	if (m_Enable)
+	{
+		ImguiDockSpace();
 
-	ImGui::ShowDemoWindow();
+		ImGui::ShowDemoWindow();
 
-	// TODO: Refactor a bit.
-	char buf[128];
-	ShaderFile* fragmentShaderFile = m_Renderer->GetFragmentShaderFile();
-	sprintf_s(buf, "%s###ShaderTitle", fragmentShaderFile->GetName().c_str());
+		// TODO: Refactor a bit.
+		char buf[128];
+		ShaderFile* fragmentShaderFile = m_Renderer->GetFragmentShaderFile();
+		sprintf_s(buf, "%s###ShaderTitle", fragmentShaderFile->GetName().c_str());
 
-	ImGui::Begin(buf, nullptr, ImGuiWindowFlags_HorizontalScrollbar);
-	// TODO: Set different LanguageDefinition to editor for GLSL and HLSL.
-	// TODO: Text color Palette can be changed as well.
-	// TODO: More commands can be added.
+		ImGui::Begin(buf, nullptr, ImGuiWindowFlags_HorizontalScrollbar);
+		// TODO: Set different LanguageDefinition to editor for GLSL and HLSL.
+		// TODO: Text color Palette can be changed as well.
+		// TODO: More commands can be added.
 
-	DrawTextBackground();
+		DrawTextBackground();
 
-	ImGui::SetWindowSize(ImVec2(FT_DEFAULT_WINDOW_WIDTH, FT_DEFAULT_WINDOW_HEIGHT), ImGuiCond_FirstUseEver); // TODO: Change this!!!
-	ImGui::SetNextWindowBgAlpha(0.f);
-	ImGui::SetWindowFontScale(codeFontSize);
-	m_Editor.SetShowWhitespaces(false); // TODO: Settings.
-	m_Editor.Render("TextEditor");
-	ImGui::End();
+		ImGui::SetWindowSize(ImVec2(FT_DEFAULT_WINDOW_WIDTH, FT_DEFAULT_WINDOW_HEIGHT), ImGuiCond_FirstUseEver); // TODO: Change this!!!
+		ImGui::SetNextWindowBgAlpha(0.f);
+		ImGui::SetWindowFontScale(codeFontSize);
+		m_Editor.SetShowWhitespaces(false); // TODO: Settings.
+		m_Editor.Render("TextEditor");
+		ImGui::End();
 
-	logger.Draw("Log");
+		ImGuiLogger::Draw("Log");
 
-	ImguiBindingsWindow();
+		ImguiBindingsWindow();
+	}
 
 	ImGui::Render();
 }
@@ -314,6 +320,11 @@ void UserInterface::ClearErrorMarkers()
 {
 	TextEditor::ErrorMarkers ems;
 	m_Editor.SetErrorMarkers(ems);
+}
+
+void UserInterface::ToggleEnabled()
+{
+	m_Enable = !m_Enable;
 }
 
 void UserInterface::ApplyImGuiStyle()
@@ -493,7 +504,7 @@ void UserInterface::ImguiMenuBar()
 		{
 			if (ImGui::MenuItem("Show UI", "Ctrl-F"))
 			{
-				m_Renderer->ToggleUserInterface();
+				ToggleEnabled();
 			}
 
 			ImGui::EndMenu();
@@ -646,6 +657,107 @@ void UserInterface::DrawStruct(const SpvReflectBlockVariable* inReflectBlock, co
 	}
 }
 
+void UserInterface::DrawImage(const Binding& inBinding)
+{
+	ImGui::PushID(inBinding.DescriptorSetBinding.binding);
+
+	if (ImGui::Button("Load Image"))
+	{
+		std::string imagePath;
+		if (FileExplorer::OpenImageDialog(imagePath))
+		{
+			m_Renderer->WaitQueueToFinish();
+			m_Renderer->UpdateImageDescriptor(inBinding.DescriptorSetBinding.binding, imagePath);
+			m_Renderer->RecreateDescriptorSet();
+		}
+	}
+
+	ImGui::PopID();
+}
+
+void UserInterface::DrawSampler(const SamplerInfo& inSamplerInfo, const Binding& inBinding)
+{
+	ImGui::PushID(inBinding.DescriptorSetBinding.binding);
+
+	SamplerInfo newSamplerInfo{};
+
+	{
+		const static char* samplerFilters[] = { "Nearest", "Linear" };
+		const static int samplerFilterSize = IM_ARRAYSIZE(samplerFilters);
+		static_assert(samplerFilterSize == static_cast<int>(SamplerFilter::Count), "Update SamplerFilter names array.");
+
+		{
+			const int previousFilterMode = static_cast<int>(inSamplerInfo.MagFilter);
+			int currentFilterMode = previousFilterMode;
+			ImGui::Combo("Magnification Filter Mode", &currentFilterMode, samplerFilters, samplerFilterSize);
+			newSamplerInfo.MagFilter = static_cast<SamplerFilter>(currentFilterMode);
+		}
+
+		{
+			const int previousFilterMode = static_cast<int>(inSamplerInfo.MinFilter);
+			int currentFilterMode = previousFilterMode;
+			ImGui::Combo("Minification Filter Mode", &currentFilterMode, samplerFilters, samplerFilterSize);
+			newSamplerInfo.MinFilter = static_cast<SamplerFilter>(currentFilterMode);
+		}
+	}
+
+	ImGui::Spacing();
+
+	{
+		const char* samplerAddresses[] = { "Repeat", "Mirrored Repeat", "Clamp to Edge", "Clamp to Border", "Mirror Clamp to Edge" };
+		const static int samplerAddressesSize = IM_ARRAYSIZE(samplerAddresses);
+		static_assert(samplerAddressesSize == static_cast<int>(SamplerAddressMode::Count), "Update SamplerAddressMode names array.");
+
+		{
+			const int previousAddressMode = static_cast<int>(inSamplerInfo.AddressModeU);
+			int currentAddressMode = previousAddressMode;
+			ImGui::Combo("Addressing Mode U", &currentAddressMode, samplerAddresses, samplerAddressesSize);
+			newSamplerInfo.AddressModeU = static_cast<SamplerAddressMode>(currentAddressMode);
+		}
+
+		{
+			const int previousAddressMode = static_cast<int>(inSamplerInfo.AddressModeV);
+			int currentAddressMode = previousAddressMode;
+			ImGui::Combo("Addressing Mode V", &currentAddressMode, samplerAddresses, samplerAddressesSize);
+			newSamplerInfo.AddressModeV = static_cast<SamplerAddressMode>(currentAddressMode);
+		}
+
+		{
+			const int previousAddressMode = static_cast<int>(inSamplerInfo.AddressModeW);
+			int currentAddressMode = previousAddressMode;
+			ImGui::Combo("Addressing Mode W", &currentAddressMode, samplerAddresses, samplerAddressesSize);
+			newSamplerInfo.AddressModeW = static_cast<SamplerAddressMode>(currentAddressMode);
+		}
+	}
+
+	if (inSamplerInfo.AddressModeU == SamplerAddressMode::ClampToBorder ||
+		inSamplerInfo.AddressModeV == SamplerAddressMode::ClampToBorder ||
+		inSamplerInfo.AddressModeW == SamplerAddressMode::ClampToBorder)
+	{
+		ImGui::Spacing();
+
+		const char* samplerBorderColors[] = { "Transparent Black", "Opaque Black", "Opaque White" };
+		const static int samplerBorderColorsSize = IM_ARRAYSIZE(samplerBorderColors);
+		static_assert(samplerBorderColorsSize == static_cast<int>(SamplerBorderColor::Count), "Update SamplerBorderColor names array.");
+
+		{
+			const int previousBorderColor = static_cast<int>(inSamplerInfo.BorderColor);
+			int currentBorderColor = previousBorderColor;
+			ImGui::Combo("Border Color", &currentBorderColor, samplerBorderColors, samplerBorderColorsSize);
+			newSamplerInfo.BorderColor = static_cast<SamplerBorderColor>(currentBorderColor);
+		}
+	}
+
+	ImGui::PopID();
+
+	if (inSamplerInfo != newSamplerInfo)
+	{
+		m_Renderer->WaitQueueToFinish();
+		m_Renderer->UpdateSamplerDescriptor(inBinding.DescriptorSetBinding.binding, newSamplerInfo);
+		m_Renderer->RecreateDescriptorSet();
+	}
+}
+
 void UserInterface::DrawUniformBufferInput(const SpvReflectBlockVariable* inReflectBlock, const uint32_t inArrayDimension, const char* inArrayNameSuffix)
 {
 	if (inReflectBlock == nullptr)
@@ -747,55 +859,87 @@ void UserInterface::ImguiBindingsWindow()
 	// TODO: Rename it to Shader Input? Or something more general? In that case we can change the shader entry point function name as well.
 	ImGui::Begin("Bindings");
 
+	// TODO: Generalize and use for each window.
+	ImGui::SetWindowFontScale(1.25f);
+
 	const auto& descriptors = m_Renderer->GetDescriptors();
 
-	for (uint32_t i = 0; i < descriptors.size(); ++i)
+	for (uint32_t descriptorIndex = 0; descriptorIndex < descriptors.size(); ++descriptorIndex)
 	{
-		const auto& descriptor = descriptors[i];
+		const auto& descriptor = descriptors[descriptorIndex];
+		const SpvReflectDescriptorBinding& reflectDescriptorBinding = descriptor.Binding.ReflectDescriptorBinding;
 
-		switch (descriptor.Resource.Type)
+		const char* headerName = reflectDescriptorBinding.name;
+		if (descriptor.Resource.Type == ResourceType::UniformBuffer &&
+			m_Renderer->GetFragmentShaderFile()->GetLanguage() == ShaderLanguage::HLSL &&
+			reflectDescriptorBinding.block.member_count > 0)
 		{
-		case ResourceType::Image:
-		{
-			ImGui::Text(descriptor.Binding.ReflectDescriptorBinding.name);
-			ImGui::Spacing();
+			headerName = reflectDescriptorBinding.block.members[0].name;
+		}
 
-			if (ImGui::Button(descriptor.Binding.ReflectDescriptorBinding.name))
+		if (ImGui::CollapsingHeader(headerName))
+		{
+			ImGui::Indent();
+
+			switch (descriptor.Resource.Type)
 			{
-				std::string imagePath;
-				if (FileExplorer::OpenImageDialog(imagePath))
-				{
-					m_Renderer->WaitQueueToFinish();
-					m_Renderer->UpdateImageDescriptor(descriptor.Binding.DescriptorSetBinding.binding, imagePath);
-					m_Renderer->RecreateDescriptorSet();
-				}
+			case ResourceType::CombinedImageSampler:
+			{
+				DrawImage(descriptor.Binding);
+
+				ImGui::Spacing();
+				ImGui::Separator();
+				ImGui::Spacing();
+
+				SamplerInfo samplerInfo = descriptor.Resource.Handle.CombinedImageSampler->GetSampler()->GetInfo();
+				DrawSampler(samplerInfo, descriptor.Binding);
+
+				break;
 			}
 
-			ImGui::Spacing();
+			case ResourceType::Image:
+			{
+				DrawImage(descriptor.Binding);
 
-			break;
+				break;
+			}
+
+			case ResourceType::UniformBuffer:
+			{
+				// TODO: Reset data after field data type switch for example.
+				// TODO: Window options: No move and No close flags should be enabled for all docked windows. see demo.
+				// TODO: IMGUI PROBABLY HAS SOME SORT OF ID WHICH COULD BE USE FOR MEMORY MAPPING OF UBO LEAF NODES!
+				// TODO: Implement different types of data passed to uniform buffer elements: time, keyboard inputs etc. So you can make a game in this as well.
+
+				const SpvReflectBlockVariable* reflectBlockVariable = &reflectDescriptorBinding.block;
+				if (m_Renderer->GetFragmentShaderFile()->GetLanguage() == ShaderLanguage::HLSL)
+				{
+					reflectBlockVariable = reflectBlockVariable->members;
+				}
+
+				ImGui::PushID(descriptor.Binding.DescriptorSetBinding.binding);
+				DrawUniformBufferInput(reflectBlockVariable);
+				ImGui::PopID();
+
+				break;
+			}
+
+			case ResourceType::Sampler:
+			{
+				SamplerInfo samplerInfo = descriptor.Resource.Handle.Sampler->GetInfo();
+				DrawSampler(samplerInfo, descriptor.Binding);
+
+				break;
+			}
+
+			default:
+				FT_FAIL("Unsupported ResourceType.");
+			}
+
+			ImGui::Unindent();
 		}
 
-		case ResourceType::UniformBuffer:
-		{
-			// TODO: Reset data after field data type switch for example.
-			// TODO: Window options: No move and No close flags should be enabled for all docked windows. see demo.
-			// TODO: IMGUI PROBABLY HAS SOME SORT OF ID WHICH COULD BE USE FOR MEMORY MAPPING OF UBO LEAF NODES!
-
-			DrawUniformBufferInput(&descriptor.Binding.ReflectDescriptorBinding.block);
-			
-			break;
-		}
-
-		default:
-			FT_FAIL("Unsupported ResourceType.");
-		}
-
-		if (i != descriptors.size() - 1)
-		{
-			ImGui::Separator();
-			ImGui::Spacing();
-		}
+		ImGui::Spacing();
 	}
 
 	ImGui::End();

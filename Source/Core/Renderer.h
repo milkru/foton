@@ -14,6 +14,7 @@ class Pipeline;
 class DescriptorSet;
 class CommandBuffer;
 class ResourceContainer;
+struct SamplerInfo;
 
 class Renderer
 {
@@ -27,16 +28,15 @@ public:
 	void WaitDeviceToFinish();
 	void WaitQueueToFinish();
 	void UpdateFragmentShaderFile(ShaderFile* inFragmentShaderFile);
-	void ToggleUserInterface();
 	void OnFragmentShaderRecompiled(const std::vector<uint32_t>& inSpvCode);
 	void UpdateImageDescriptor(const uint32_t inBindingIndex, const std::string& inPath);
+	void UpdateSamplerDescriptor(const uint32_t inBindingIndex, const SamplerInfo& inSamplerInfo);
 	void RecreateDescriptorSet();
 
 public:
 	Device* GetDevice() const { return m_Device; }
 	Swapchain* GetSwapchain() const { return m_Swapchain; }
 	ShaderFile* GetFragmentShaderFile() const { return m_FragmentShaderFile; }
-	bool IsUserInterfaceEnabled() const { return m_EnableUserInterface; }
 	std::vector<Descriptor> GetDescriptors() const;
 
 private:
@@ -55,7 +55,6 @@ private:
 	DescriptorSet* m_DescriptorSet;
 	CommandBuffer* m_CommandBuffer;
 	ResourceContainer* m_ResourceContainer;
-	bool m_EnableUserInterface;
 };
 
 FT_END_NAMESPACE

@@ -15,11 +15,11 @@
 // TODO: Find out if we can make background for all text.
 // TODO: Separate Runtime and Editor?
 // TODO: When starting application sometimes new row is added at the end on current file.
-// TOOD: Shader printf?
-// TOOD: How resource loading with paths is going to work if we only run exe files? It's relative to project root, not the exe.
-// TOOD: Use more high resolution font file for code editor.
-// TOOD: Smart pointers for transient objects (pipeline, shader, shader file...)
-// TOOD: Allow user to change shader entry in settings.
+// TODO: Shader printf?
+// TODO: How resource loading with paths is going to work if we only run exe files? It's relative to project root, not the exe.
+// TODO: Use more high resolution font file for code editor.
+// TODO: Smart pointers for transient objects (pipeline, shader, shader file...)
+// TODO: Allow user to change shader entry in settings.
 
 FT_BEGIN_NAMESPACE
 
@@ -94,7 +94,7 @@ void Application::UpdateCodeFontSize(float inOffset) const
 
 void Application::ToggleUserInterface() const
 {
-	m_Renderer->ToggleUserInterface();
+	m_UserInterface->ToggleEnabled();
 }
 
 void Application::MainLoop()
@@ -105,10 +105,7 @@ void Application::MainLoop()
 	{
 		glfwPollEvents();
 
-		if (m_Renderer->IsUserInterfaceEnabled())
-		{
-			m_UserInterface->ImguiNewFrame();
-		}
+		m_UserInterface->ImguiNewFrame();
 
 		m_Renderer->DrawFrame();
 	}

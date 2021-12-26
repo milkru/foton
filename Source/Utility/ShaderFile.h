@@ -19,14 +19,17 @@ struct ShaderFileExtension
 
 const ShaderFileExtension SupportedShaderFileExtensions[] =
 {
-	{ ShaderLanguage::GLSL, "glsl", "Graphics Library Shading Language"},
-	{ ShaderLanguage::HLSL, "hlsl", "High-Level Shader Language"}
+	{ ShaderLanguage::GLSL, "glsl", "GLSL"},
+	{ ShaderLanguage::HLSL, "hlsl", "HLSL"}
 };
 
 class ShaderFile
 {
 public:
+	// TODO: Since we have "All formats" thing in the file explorer, we need to filter those again here.
 	explicit ShaderFile(const std::string& inPath);
+
+public:
 	FT_DELETE_COPY_AND_MOVE(ShaderFile)
 
 public:

@@ -1,20 +1,19 @@
 #include "ResourceContainer.h"
 #include "Swapchain.h"
+#include "CombinedImageSampler.h"
 #include "Image.h"
+#include "Sampler.h"
 #include "UniformBuffer.h"
 #include "Utility/ImageFile.h"
 
 FT_BEGIN_NAMESPACE
 
+// TODO: Make default texture something else.
+const static std::string DefaultImagePath = GetFullPath("icon");
+
 ResourceContainer::ResourceContainer(const Device* inDevice, const Swapchain* inSwapchain)
 	: m_Device(inDevice)
-	, m_Swapchain(inSwapchain)
-{
-	// TODO: Make default texture something else.
-	const static std::string defaultImagePath = GetFullPath("icon");
-	const ImageFile imageFile(defaultImagePath);
-	m_DefaultImage = new Image(m_Device, imageFile);
-}
+	, m_Swapchain(inSwapchain) {}
 
 ResourceContainer::~ResourceContainer()
 {
@@ -22,8 +21,6 @@ ResourceContainer::~ResourceContainer()
 	{
 		DeleteResource(descriptor.Resource);
 	}
-
-	delete(m_DefaultImage);
 }
 
 ResourceType GetResourceType(const VkDescriptorType inDescriptorType)
@@ -31,13 +28,18 @@ ResourceType GetResourceType(const VkDescriptorType inDescriptorType)
 	switch (inDescriptorType)
 	{
 	case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
+		return ResourceType::CombinedImageSampler;
+
+	case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
 		return ResourceType::Image;
+
+	case VK_DESCRIPTOR_TYPE_SAMPLER:
+		return ResourceType::Sampler;
 
 	case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
 		return ResourceType::UniformBuffer;
 
 	default:
-		// TODO: How to handle VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE and VK_DESCRIPTOR_TYPE_SAMPLER.
 		FT_FAIL("Unsupported VkDescriptorType.");
 	}
 }
@@ -65,10 +67,52 @@ void ResourceContainer::RecreateUniformBuffers()
 	}
 }
 
-// TOOD: Test padded size with different array counts.
+// TODO: Test padded size with different array counts.
 uint32_t CalculateUniformBufferSize(const SpvReflectDescriptorBinding inReflectDescriptorBinding)
 {
 	return inReflectDescriptorBinding.block.padded_size * inReflectDescriptorBinding.count;
+}
+
+ResourceHandle CreateResource(const Device* inDevice, const Swapchain* inSwapchain, const ResourceType inResourceType, const SpvReflectDescriptorBinding inReflectDescriptorBinding)
+{
+	ResourceHandle handle;
+
+	switch (inResourceType)
+	{
+	case ResourceType::CombinedImageSampler:
+	{
+		const ImageFile imageFile(DefaultImagePath);
+		const SamplerInfo samplerInfo{}; // TOOD: Will default values work if we add {}?.
+		handle.CombinedImageSampler = new CombinedImageSampler(inDevice, imageFile, samplerInfo);
+		break;
+	}
+
+	case ResourceType::Image:
+	{
+		const ImageFile imageFile(DefaultImagePath);
+		handle.Image = new Image(inDevice, imageFile);
+		break;
+	}
+
+	case ResourceType::Sampler:
+	{
+		const SamplerInfo samplerInfo{}; // TOOD: Will default values work if we add {}?.
+		handle.Sampler = new Sampler(inDevice, samplerInfo);
+		break;
+	}
+
+	case ResourceType::UniformBuffer:
+	{
+		const uint32_t bufferSize = CalculateUniformBufferSize(inReflectDescriptorBinding);
+		handle.UniformBuffer = new UniformBuffer(inDevice, inSwapchain, bufferSize);
+		break;
+	}
+
+	default:
+		FT_FAIL("Unsupported ResourceType.");
+	}
+
+	return handle;
 }
 
 void ResourceContainer::UpdateBindings(const std::vector<Binding> inBindings)
@@ -89,45 +133,14 @@ void ResourceContainer::UpdateBindings(const std::vector<Binding> inBindings)
 
 		const ResourceType newResourceType = GetResourceType(newBinding.DescriptorSetBinding.descriptorType);
 
-		switch (resource.Type)
+		if (newResourceType != resource.Type ||
+			(resource.Type == ResourceType::UniformBuffer &&
+				resource.Handle.UniformBuffer->GetSize() != CalculateUniformBufferSize(newBinding.ReflectDescriptorBinding)))
 		{
-		case ResourceType::Image:
-		{
-			if (newResourceType == ResourceType::UniformBuffer)
-			{
-				DeleteResource(resource);
-
-				const uint32_t bufferSize = CalculateUniformBufferSize(newBinding.ReflectDescriptorBinding);
-				resource.Handle.UniformBuffer = new UniformBuffer(m_Device, m_Swapchain, bufferSize);
-			}
-
-			break;
+			DeleteResource(resource);
+			resource.Handle = CreateResource(m_Device, m_Swapchain, newResourceType, newBinding.ReflectDescriptorBinding);
+			resource.Type = newResourceType;
 		}
-
-		case ResourceType::UniformBuffer:
-		{
-			const uint32_t bufferSize = CalculateUniformBufferSize(newBinding.ReflectDescriptorBinding);
-			if (newResourceType == ResourceType::Image)
-			{
-				DeleteResource(resource);
-
-				resource.Handle.Image = m_DefaultImage;
-			}
-			else if (newResourceType == ResourceType::UniformBuffer && resource.Handle.UniformBuffer->GetSize() != bufferSize)
-			{
-				DeleteResource(resource);
-
-				resource.Handle.UniformBuffer = new UniformBuffer(m_Device, m_Swapchain, bufferSize);
-			}
-
-			break;
-		}
-
-		default:
-			FT_FAIL("Unsupported ResourceType.");
-		}
-
-		resource.Type = newResourceType;
 	}
 
 	const size_t oldDescriptorCount = m_Descriptors.size();
@@ -142,28 +155,9 @@ void ResourceContainer::UpdateBindings(const std::vector<Binding> inBindings)
 		descriptor.Binding = newBinding;
 
 		const ResourceType newResourceType = GetResourceType(newBinding.DescriptorSetBinding.descriptorType);
+		
+		resource.Handle = CreateResource(m_Device, m_Swapchain, newResourceType, newBinding.ReflectDescriptorBinding);
 		resource.Type = newResourceType;
-
-		switch (resource.Type)
-		{
-		case ResourceType::Image:
-		{
-			resource.Handle.Image = m_DefaultImage;
-
-			break;
-		}
-
-		case ResourceType::UniformBuffer:
-		{
-			const uint32_t bufferSize = CalculateUniformBufferSize(newBinding.ReflectDescriptorBinding);
-			resource.Handle.UniformBuffer = new UniformBuffer(m_Device, m_Swapchain, bufferSize);
-
-			break;
-		}
-
-		default:
-			FT_FAIL("Unsupported ResourceType.");
-		}
 	}
 }
 
@@ -172,12 +166,54 @@ void ResourceContainer::UpdateImage(const uint32_t inBindingIndex, const std::st
 	FT_CHECK(inBindingIndex < m_Descriptors.size(), "BindingIndex is out of bounds.");
 
 	Resource& resource = m_Descriptors[inBindingIndex].Resource;
-	FT_CHECK(resource.Type == ResourceType::Image, "Bound resource needs to be Image type.");
-
-	DeleteResource(resource);
-
 	const ImageFile imageFile(inPath);
-	resource.Handle.Image = new Image(m_Device, imageFile);
+
+	switch (resource.Type)
+	{
+	case ResourceType::CombinedImageSampler:
+	{
+		resource.Handle.CombinedImageSampler->UpdateImage(imageFile);
+		break;
+	}
+
+	case ResourceType::Image:
+	{
+		DeleteResource(resource);
+		resource.Handle.Image = new Image(m_Device, imageFile);
+
+		break;
+	}
+
+	default:
+		FT_FAIL("Unsupported ResourceType.");
+	}
+}
+
+void ResourceContainer::UpdateSampler(const uint32_t inBindingIndex, const SamplerInfo& inSamplerInfo)
+{
+	FT_CHECK(inBindingIndex < m_Descriptors.size(), "BindingIndex is out of bounds.");
+
+	Resource& resource = m_Descriptors[inBindingIndex].Resource;
+
+	switch (resource.Type)
+	{
+	case ResourceType::CombinedImageSampler:
+	{
+		resource.Handle.CombinedImageSampler->UpdateSampler(inSamplerInfo);
+		break;
+	}
+
+	case ResourceType::Image:
+	{
+		DeleteResource(resource);
+		resource.Handle.Sampler = new Sampler(m_Device, inSamplerInfo);
+
+		break;
+	}
+
+	default:
+		FT_FAIL("Unsupported ResourceType.");
+	}
 }
 
 void ResourceContainer::DeleteResource(const Resource& inResource)
@@ -186,13 +222,21 @@ void ResourceContainer::DeleteResource(const Resource& inResource)
 
 	switch (inResource.Type)
 	{
+	case ResourceType::CombinedImageSampler:
+	{
+		delete(Handle.CombinedImageSampler);
+		break;
+	}
+
 	case ResourceType::Image:
 	{
-		if (Handle.Image != m_DefaultImage)
-		{
-			delete(Handle.Image);
-		}
+		delete(Handle.Image);
+		break;
+	}
 
+	case ResourceType::Sampler:
+	{
+		delete(Handle.Sampler);
 		break;
 	}
 

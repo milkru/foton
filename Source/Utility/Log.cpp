@@ -2,38 +2,89 @@
 
 FT_BEGIN_NAMESPACE
 
-void ImGuiLogger::Log(const char* fmt, ...) IM_FMTARGS(2)
+ImGuiTextBuffer ImGuiLogger::s_TextBuffer;
+ImVector<int> ImGuiLogger::s_LineOffsets;
+bool ImGuiLogger::s_AutoScroll = true;
+
+void ImGuiLogger::Log(const char* inFormat, ...) IM_FMTARGS(2)
 {
-	va_list args;
-	va_start(args, fmt);
-	m_TextBuffer.appendfv(fmt, args);
-	va_end(args);
+	int oldSize = s_TextBuffer.size();
+	va_list arguments;
+	va_start(arguments, inFormat);
+	s_TextBuffer.appendfv(inFormat, arguments);
+	va_end(arguments);
 
-	m_ScrollToBottom = true;
-}
-
-void ImGuiLogger::Draw(const char* title)
-{
-	static const ImVec2 DefaultWindowSize = ImVec2(200, 200);
-
-	ImGui::Begin(title);
-
-	ImGui::SetWindowSize(DefaultWindowSize, ImGuiCond_FirstUseEver);
-	ImGui::TextUnformatted(m_TextBuffer.begin());
-
-	if (m_ScrollToBottom)
+	for (int newSize = s_TextBuffer.size(); oldSize < newSize; ++oldSize)
 	{
-		ImGui::SetScrollHereY(1.0f);
+		if (s_TextBuffer[oldSize] == '\n')
+		{
+			s_LineOffsets.push_back(oldSize + 1);
+		}
 	}
-
-	ImGui::End();
-
-	m_ScrollToBottom = false;
 }
 
 void ImGuiLogger::Clear()
 {
-	m_TextBuffer.clear();
+	s_TextBuffer.clear();
+	s_LineOffsets.clear();
+	s_LineOffsets.push_back(0);
+}
+
+void ImGuiLogger::Draw(const char* title)
+{
+	if (!ImGui::Begin(title))
+	{
+		ImGui::End();
+		return;
+	}
+
+	ImGui::SameLine();
+	const bool clear = ImGui::Button("Clear");
+
+	ImGui::SameLine();
+	const bool copy = ImGui::Button("Copy");
+
+	ImGui::Separator();
+	ImGui::BeginChild("scrolling", ImVec2(0, 0), false, ImGuiWindowFlags_HorizontalScrollbar);
+
+	if (clear)
+	{
+		Clear();
+	}
+
+	if (copy)
+	{
+		ImGui::LogToClipboard();
+	}
+
+	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
+	const char* buffer = s_TextBuffer.begin();
+	const char* bufferEnd = s_TextBuffer.end();
+
+	ImGuiListClipper clipper;
+	clipper.Begin(s_LineOffsets.Size);
+
+	while (clipper.Step())
+	{
+		for (int line_no = clipper.DisplayStart; line_no < clipper.DisplayEnd; line_no++)
+		{
+			const char* line_start = buffer + s_LineOffsets[line_no];
+			const char* line_end = (line_no + 1 < s_LineOffsets.Size) ? (buffer + s_LineOffsets[line_no + 1] - 1) : bufferEnd;
+			ImGui::TextUnformatted(line_start, line_end);
+		}
+	}
+
+	clipper.End();
+
+	ImGui::PopStyleVar();
+
+	if (s_AutoScroll && ImGui::GetScrollY() >= ImGui::GetScrollMaxY())
+	{
+		ImGui::SetScrollHereY(1.0f);
+	}
+
+	ImGui::EndChild();
+	ImGui::End();
 }
 
 FT_END_NAMESPACE

@@ -19,15 +19,15 @@ FT_BEGIN_NAMESPACE
 
 Renderer::Renderer(Window* inWindow)
 	: m_Window(inWindow)
-	, m_EnableUserInterface(true)
 {
 	InitializeShaderCompiler();
 
 	m_Device = new Device(m_Window);
 	m_Swapchain = new Swapchain(m_Device, m_Window);
 
+	// TODO: Load both glsl and hlsl vertex shaders and swap between them as needed depending on the fragment shader language.
 	{
-		const ShaderFile shaderFile(GetFullPath("Shaders/Internal/FullScreen.vert.glsl"));
+		const ShaderFile shaderFile(GetFullPath("Shaders/Internal/FullScreen.vert.hlsl"));
 
 		const ShaderCompileResult compileResult = CompileShader(shaderFile.GetLanguage(), ShaderStage::Vertex, shaderFile.GetSourceCode());
 		const char* status = ConvertCompilationStatusToText(compileResult.Status);
@@ -37,7 +37,7 @@ Renderer::Renderer(Window* inWindow)
 	}
 
 	{
-		m_FragmentShaderFile = new ShaderFile(GetFullPath("Shaders/Internal/Default.frag.glsl"));
+		m_FragmentShaderFile = new ShaderFile(GetFullPath("Shaders/Internal/Default.frag.hlsl"));
 
 		const ShaderCompileResult compileResult = CompileShader(m_FragmentShaderFile->GetLanguage(), ShaderStage::Fragment, m_FragmentShaderFile->GetSourceCode());
 		// TODO: Just load default shader if the compilation fails for fragment shader.
@@ -112,13 +112,7 @@ void Renderer::UpdateFragmentShaderFile(ShaderFile* inFragmentShaderFile)
 	delete(m_FragmentShaderFile);
 	m_FragmentShaderFile = inFragmentShaderFile;
 }
-	
-void Renderer::ToggleUserInterface()
-{
-	// TODO: Imgui Demo Window -> Style -> Rendering -> Global alpha. You can use this to fade toggle.
-	m_EnableUserInterface = !m_EnableUserInterface;
-}
-	
+
 void Renderer::OnFragmentShaderRecompiled(const std::vector<uint32_t>& inSpvCode)
 {
 	WaitQueueToFinish();
@@ -137,6 +131,11 @@ void Renderer::OnFragmentShaderRecompiled(const std::vector<uint32_t>& inSpvCode
 void Renderer::UpdateImageDescriptor(const uint32_t inBindingIndex, const std::string& inPath)
 {
 	m_ResourceContainer->UpdateImage(inBindingIndex, inPath);
+}
+
+void Renderer::UpdateSamplerDescriptor(const uint32_t inBindingIndex, const SamplerInfo& inSamplerInfo)
+{
+	m_ResourceContainer->UpdateSampler(inBindingIndex, inSamplerInfo);
 }
 
 void Renderer::RecreateDescriptorSet()
@@ -191,12 +190,9 @@ void Renderer::FillCommandBuffers(uint32_t inSwapchainImageIndex)
 	m_CommandBuffer->BindDescriptorSet(m_DescriptorSet);
 	m_CommandBuffer->Draw();
 
-	if (m_EnableUserInterface)
-	{
-		ImDrawData* drawData = ImGui::GetDrawData();
-		VkCommandBuffer commandBuffer = m_CommandBuffer->GetCommandBuffer(inSwapchainImageIndex);
-		ImGui_ImplVulkan_RenderDrawData(drawData, commandBuffer);
-	}
+	ImDrawData* drawData = ImGui::GetDrawData();
+	VkCommandBuffer commandBuffer = m_CommandBuffer->GetCommandBuffer(inSwapchainImageIndex);
+	ImGui_ImplVulkan_RenderDrawData(drawData, commandBuffer);
 
 	m_CommandBuffer->End();
 }

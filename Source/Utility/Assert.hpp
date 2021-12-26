@@ -1,6 +1,6 @@
 #pragma once
 
-// TOOD: Add FT_LOG_ERR instead direct fprintf. And Log FT_FAIL too.
+// TODO: Add FT_LOG_ERR instead direct fprintf. And Log FT_FAIL too.
 #ifdef FT_DEBUG // TODO: Change: Everything but Release.
 #	define FT_CHECK(condition, fmt, ...) \
 		do \

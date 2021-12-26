@@ -40,7 +40,7 @@ void Window::KeyCallback(GLFWwindow* inWindow, int inKey, int inScanCode, int in
 
 	if (inKey == GLFW_KEY_O && inAction == GLFW_PRESS && inMods == GLFW_MOD_CONTROL)
 	{
-		// TOOD: Open file.
+		// TODO: Open file.
 	}
 }
 

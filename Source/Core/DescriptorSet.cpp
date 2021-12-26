@@ -2,8 +2,10 @@
 #include "Device.h"
 #include "Swapchain.h"
 #include "Buffer.h"
-#include "UniformBuffer.h"
+#include "CombinedImageSampler.h"
 #include "Image.h"
+#include "Sampler.h"
+#include "UniformBuffer.h"
 
 FT_BEGIN_NAMESPACE
 
@@ -72,15 +74,25 @@ void CreateDescriptorSets(const VkDevice inDevice, const VkDescriptorPool inDesc
 			descriptorWrites[j].descriptorType = binding.DescriptorSetBinding.descriptorType;
 			descriptorWrites[j].descriptorCount = 1;
 
-			if (resource.Type == ResourceType::UniformBuffer)
+			if (resource.Type == ResourceType::CombinedImageSampler)
 			{
-				const Buffer* buffer = resource.Handle.UniformBuffer->GetBuffer(i);
-				descriptorWrites[j].pBufferInfo = buffer->GetDescriptorInfo();
+				const CombinedImageSampler* combinedImageSampler = resource.Handle.CombinedImageSampler;
+				descriptorWrites[j].pImageInfo = combinedImageSampler->GetDescriptorInfo();
 			}
 			else if (resource.Type == ResourceType::Image)
 			{
 				const Image* image = resource.Handle.Image;
 				descriptorWrites[j].pImageInfo = image->GetDescriptorInfo();
+			}
+			else if (resource.Type == ResourceType::Sampler)
+			{
+				const Sampler* sampler = resource.Handle.Sampler;
+				descriptorWrites[j].pImageInfo = sampler->GetDescriptorInfo();
+			}
+			else if (resource.Type == ResourceType::UniformBuffer)
+			{
+				const Buffer* buffer = resource.Handle.UniformBuffer->GetBuffer(i);
+				descriptorWrites[j].pBufferInfo = buffer->GetDescriptorInfo();
 			}
 			else
 			{

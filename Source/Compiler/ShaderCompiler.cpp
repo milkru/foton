@@ -57,7 +57,7 @@ ShaderCompileResult CompileShader(const ShaderLanguage inLanguage, const ShaderS
 	const char* sourceCode = inSourceCode.c_str();
 	compiledShader.setStrings(&sourceCode, 1);
 
-	const static glslang::EShSource shaderLanguage = GetGlslangShaderLanguage(inLanguage);
+	const glslang::EShSource shaderLanguage = GetGlslangShaderLanguage(inLanguage);
 	const static glslang::EShClient client = glslang::EShClientVulkan;
 	const static int version = 330;
 	compiledShader.setEnvInput(shaderLanguage, shaderType, client, version);

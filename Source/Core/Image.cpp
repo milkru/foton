@@ -134,35 +134,11 @@ void CreateImageView(const VkDevice inDevice, const VkImage inImage, const VkFor
 	FT_VK_CALL(vkCreateImageView(inDevice, &imageViewCreateInfo, nullptr, &outImageView));
 }
 
-void CreateSampler(const VkPhysicalDevice inPhysicalDevice, const VkDevice inDevice, VkSampler& outSampler)
-{
-	VkPhysicalDeviceProperties physicalDeviceProperties{};
-	vkGetPhysicalDeviceProperties(inPhysicalDevice, &physicalDeviceProperties);
-
-	VkSamplerCreateInfo samplerCreateInfo{};
-	samplerCreateInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-	samplerCreateInfo.magFilter = VK_FILTER_LINEAR;
-	samplerCreateInfo.minFilter = VK_FILTER_LINEAR;
-	samplerCreateInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-	samplerCreateInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-	samplerCreateInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-	samplerCreateInfo.anisotropyEnable = VK_TRUE;
-	samplerCreateInfo.maxAnisotropy = physicalDeviceProperties.limits.maxSamplerAnisotropy;
-	samplerCreateInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
-	samplerCreateInfo.unnormalizedCoordinates = VK_FALSE;
-	samplerCreateInfo.compareEnable = VK_FALSE;
-	samplerCreateInfo.compareOp = VK_COMPARE_OP_ALWAYS;
-	samplerCreateInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-
-	FT_VK_CALL(vkCreateSampler(inDevice, &samplerCreateInfo, nullptr, &outSampler));
-}
-
-void CreateDescriptorInfo(const VkImageView inImageView, const VkSampler inSampler, VkDescriptorImageInfo& outDescriptorInfo)
+void CreateDescriptorInfo(const VkImageView inImageView, VkDescriptorImageInfo& outDescriptorInfo)
 {
 	outDescriptorInfo = {};
 	outDescriptorInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	outDescriptorInfo.imageView = inImageView;
-	outDescriptorInfo.sampler = inSampler;
 }
 
 Image::Image(const Device* inDevice, const ImageFile& inFile)
@@ -170,13 +146,11 @@ Image::Image(const Device* inDevice, const ImageFile& inFile)
 {
 	CreateImage(m_Device, inFile, m_Image, m_Memory, m_Width, m_Height);
 	CreateImageView(inDevice->GetDevice(), m_Image, VK_FORMAT_R8G8B8A8_UNORM, m_ImageView);
-	CreateSampler(inDevice->GetPhysicalDevice(), inDevice->GetDevice(), m_Sampler);
-	CreateDescriptorInfo(m_ImageView, m_Sampler, m_DescriptorInfo);
+	CreateDescriptorInfo(m_ImageView, m_DescriptorInfo);
 }
 
 Image::~Image()
 {
-	vkDestroySampler(m_Device->GetDevice(), m_Sampler, nullptr);
 	vkDestroyImageView(m_Device->GetDevice(), m_ImageView, nullptr);
 	vkDestroyImage(m_Device->GetDevice(), m_Image, nullptr);
 	vkFreeMemory(m_Device->GetDevice(), m_Memory, nullptr);
