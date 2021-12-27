@@ -13,10 +13,9 @@
 
 FT_BEGIN_NAMESPACE
 
-UserInterface::UserInterface(Application* inApplication, Window* inWindow, Renderer* inRenderer)
+UserInterface::UserInterface(Application* inApplication)
 	: m_Application(inApplication)
-	, m_Renderer(inRenderer)
-	, m_Window(inWindow)
+	, m_Renderer(inApplication->GetRenderer())
 	, m_Enable(true)
 {
 	const static uint32_t resourceCount = 512;
@@ -53,7 +52,7 @@ UserInterface::UserInterface(Application* inApplication, Window* inWindow, Rende
 	ImGuiIO& io = ImGui::GetIO();
 	io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
-	ImGui_ImplGlfw_InitForVulkan(m_Window->GetWindow(), true);
+	ImGui_ImplGlfw_InitForVulkan(inApplication->GetWindow()->GetWindow(), true);
 
 	ImGui_ImplVulkan_InitInfo vulkanImplementationInitInfo{};
 	vulkanImplementationInitInfo.Instance = device->GetInstance();
@@ -122,7 +121,7 @@ static int UTF8CharLength(const TextEditor::Char c)
 	return 1;
 }
 
-int GetCharacterIndex(const TextEditor::Coordinates& aCoordinates, const std::vector<std::string>& mLines, const int mTabSize)
+static int GetCharacterIndex(const TextEditor::Coordinates& aCoordinates, const std::vector<std::string>& mLines, const int mTabSize)
 {
 	if (aCoordinates.mLine >= mLines.size())
 	{
@@ -149,7 +148,7 @@ int GetCharacterIndex(const TextEditor::Coordinates& aCoordinates, const std::ve
 	return i;
 }
 
-float TextDistanceToLineStart(const TextEditor::Coordinates& aFrom, const std::vector<std::string>& mLines, const int mTabSize)
+static float TextDistanceToLineStart(const TextEditor::Coordinates& aFrom, const std::vector<std::string>& mLines, const int mTabSize)
 {
 	auto& line = mLines[aFrom.mLine];
 	float distance = 0.0f;
@@ -180,7 +179,7 @@ float TextDistanceToLineStart(const TextEditor::Coordinates& aFrom, const std::v
 	return distance;
 }
 
-int GetLineMaxColumn(int aLine, const std::vector<std::string>& mLines, const int mTabSize)
+static int GetLineMaxColumn(int aLine, const std::vector<std::string>& mLines, const int mTabSize)
 {
 	if (aLine >= mLines.size())
 	{
@@ -264,10 +263,10 @@ void UserInterface::ImguiNewFrame()
 
 		ImGui::ShowDemoWindow();
 
-		// TODO: Refactor a bit.
-		char buf[128];
+		const static uint32_t maxShaderFileName = 128;
+		char buf[maxShaderFileName];
 		ShaderFile* fragmentShaderFile = m_Renderer->GetFragmentShaderFile();
-		sprintf_s(buf, "%s###ShaderTitle", fragmentShaderFile->GetName().c_str());
+		sprintf(buf, "%s###ShaderTitle", fragmentShaderFile->GetName().c_str());
 
 		ImGui::Begin(buf, nullptr, ImGuiWindowFlags_HorizontalScrollbar);
 		// TODO: Set different LanguageDefinition to editor for GLSL and HLSL.
@@ -325,6 +324,18 @@ void UserInterface::ClearErrorMarkers()
 void UserInterface::ToggleEnabled()
 {
 	m_Enable = !m_Enable;
+}
+
+std::string UserInterface::GetEditorText() const
+{
+	std::string text = m_Editor.GetText();
+	if (text.length() > 1)
+	{
+		// Editor returns additional new line character for unknown reason.
+		return text.substr(0, text.length() - 1);
+	}
+
+	return text;
 }
 
 void UserInterface::ApplyImGuiStyle()
@@ -398,44 +409,27 @@ void UserInterface::ImguiMenuBar()
 		{
 			if (ImGui::MenuItem("New", "Ctrl-N"))
 			{
-				std::string shaderFilePath;
-				if (FileExplorer::SaveShaderDialog(shaderFilePath))
-				{
-					// TODO: Make new empty/default file and keep it open.
-				}
+				m_Application->NewShaderMenuItem();
 			}
 
 			if (ImGui::MenuItem("Open", "Ctrl-O"))
 			{
-				std::string shaderFilePath;
-				if (FileExplorer::OpenShaderDialog(shaderFilePath))
-				{
-					m_Application->LoadShader(shaderFilePath);
-					m_Application->RecompileFragmentShader();
-				}
+				m_Application->OpenShaderMenuItem();
 			}
 
 			if (ImGui::MenuItem("Save", "Ctrl-S"))
 			{
-				if (m_Application->RecompileFragmentShader())
-				{
-					m_Application->SaveFragmentShader();
-				}
+				m_Application->SaveShaderMenuItem();
 			}
 
 			if (ImGui::MenuItem("Save As", "Ctrl-Shift-S"))
 			{
-				std::string shaderFilePath;
-				if (FileExplorer::SaveShaderDialog(shaderFilePath))
-				{
-					const std::string& textToSave = m_Editor.GetText();
-					// TODO: Make new file with current contents and keep it open.
-				}
+				m_Application->SaveAsShaderMenuItem();
 			}
 
 			if (ImGui::MenuItem("Quit", "Alt-F4"))
 			{
-				m_Window->Close();
+				m_Application->QuitMenuItem();
 			}
 
 			ImGui::EndMenu();
@@ -443,20 +437,12 @@ void UserInterface::ImguiMenuBar()
 
 		if (ImGui::BeginMenu("Edit"))
 		{
-			bool readOnly = m_Editor.IsReadOnly();
-			if (ImGui::MenuItem("Read-only mode", nullptr, &readOnly))
-			{
-				m_Editor.SetReadOnly(readOnly);
-			}
-
-			ImGui::Separator();
-
-			if (ImGui::MenuItem("Undo", "Alt-Backspace", nullptr, !readOnly && m_Editor.CanUndo()))
+			if (ImGui::MenuItem("Undo", "Ctrl-Z", nullptr, m_Editor.CanUndo()))
 			{
 				m_Editor.Undo();
 			}
 
-			if (ImGui::MenuItem("Redo", "Ctrl-Y", nullptr, !readOnly && m_Editor.CanRedo()))
+			if (ImGui::MenuItem("Redo", "Ctrl-Y", nullptr, m_Editor.CanRedo()))
 			{
 				m_Editor.Redo();
 			}
@@ -468,31 +454,31 @@ void UserInterface::ImguiMenuBar()
 				m_Editor.Copy();
 			}
 
-			if (ImGui::MenuItem("Cut", "Ctrl-X", nullptr, !readOnly && m_Editor.HasSelection()))
+			if (ImGui::MenuItem("Cut", "Ctrl-X", nullptr, m_Editor.HasSelection()))
 			{
 				m_Editor.Cut();
 			}
 
-			if (ImGui::MenuItem("Delete", "Del", nullptr, !readOnly && m_Editor.HasSelection()))
+			if (ImGui::MenuItem("Delete", "Del", nullptr, m_Editor.HasSelection()))
 			{
 				m_Editor.Delete();
 			}
 
-			if (ImGui::MenuItem("Paste", "Ctrl-V", nullptr, !readOnly && ImGui::GetClipboardText() != nullptr))
+			if (ImGui::MenuItem("Paste", "Ctrl-V", nullptr, ImGui::GetClipboardText() != nullptr))
 			{
 				m_Editor.Paste();
 			}
 
 			ImGui::Separator();
 
-			if (ImGui::MenuItem("Compile", "Ctrl-R", nullptr, !readOnly))
+			if (ImGui::MenuItem("Compile", "Ctrl-R", nullptr))
 			{
 				m_Application->RecompileFragmentShader();
 			}
 
 			ImGui::Separator();
 
-			if (ImGui::MenuItem("Select all", nullptr, nullptr))
+			if (ImGui::MenuItem("Select all", "Ctrl-A", nullptr))
 			{
 				m_Editor.SetSelection(TextEditor::Coordinates(), TextEditor::Coordinates(m_Editor.GetTotalLines(), 0));
 			}
@@ -624,7 +610,7 @@ float GetInputDragSpeed(const ImGuiDataType inDataType)
 }
 
 // TODO: Temp.
-char* GetTempDummyMem()
+static char* GetTempDummyMem()
 {
 	static char* mem = nullptr;
 
@@ -868,6 +854,8 @@ void UserInterface::ImguiBindingsWindow()
 	{
 		const auto& descriptor = descriptors[descriptorIndex];
 		const SpvReflectDescriptorBinding& reflectDescriptorBinding = descriptor.Binding.ReflectDescriptorBinding;
+
+		// HLSL wraps uniform buffers additionally. TODO: Check if this is always the case.
 
 		const char* headerName = reflectDescriptorBinding.name;
 		if (descriptor.Resource.Type == ResourceType::UniformBuffer &&

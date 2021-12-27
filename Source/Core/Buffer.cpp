@@ -3,7 +3,7 @@
 
 FT_BEGIN_NAMESPACE
 
-VkBufferUsageFlags GetVkBufferUsageFlags(const BufferUsageFlags usageFlags)
+static VkBufferUsageFlags GetVkBufferUsageFlags(const BufferUsageFlags usageFlags)
 {
 	VkBufferUsageFlags bufferUsageFlags = 0;
 	if (IsFlagSet(usageFlags & BufferUsageFlags::TransferSrc))
@@ -24,7 +24,7 @@ VkBufferUsageFlags GetVkBufferUsageFlags(const BufferUsageFlags usageFlags)
 	return bufferUsageFlags;
 }
 
-void CreateBuffer(const Device* inDevice, const VkDeviceSize inSize, const VkBufferUsageFlags inUsage, const VkMemoryPropertyFlags inProperties, VkBuffer& outBuffer, VkDeviceMemory& outBufferMemory)
+static void CreateBuffer(const Device* inDevice, const VkDeviceSize inSize, const VkBufferUsageFlags inUsage, const VkMemoryPropertyFlags inProperties, VkBuffer& outBuffer, VkDeviceMemory& outBufferMemory)
 {
 	VkBufferCreateInfo bufferCreateInfo{};
 	bufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -47,7 +47,7 @@ void CreateBuffer(const Device* inDevice, const VkDeviceSize inSize, const VkBuf
 	vkBindBufferMemory(inDevice->GetDevice(), outBuffer, outBufferMemory, 0);
 }
 
-void CreateDescriptorInfo(const VkBuffer inBuffer, const size_t inSize, VkDescriptorBufferInfo& outDescriptorInfo)
+static void CreateDescriptorInfo(const VkBuffer inBuffer, const size_t inSize, VkDescriptorBufferInfo& outDescriptorInfo)
 {
 	outDescriptorInfo = {};
 	outDescriptorInfo.buffer = inBuffer;

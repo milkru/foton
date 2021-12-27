@@ -4,6 +4,7 @@ FT_BEGIN_NAMESPACE
 
 enum class ShaderLanguage : uint8_t
 {
+	None,
 	GLSL,
 	HLSL,
 
@@ -17,7 +18,7 @@ struct ShaderFileExtension
 	std::string Name;
 };
 
-const ShaderFileExtension SupportedShaderFileExtensions[] =
+const ShaderFileExtension g_SupportedShaderFileExtensions[] =
 {
 	{ ShaderLanguage::GLSL, "glsl", "GLSL"},
 	{ ShaderLanguage::HLSL, "hlsl", "HLSL"}

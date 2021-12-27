@@ -11,7 +11,7 @@ struct SamplerInfo;
 class UserInterface
 {
 public:
-	UserInterface(Application* inApplication, class Window* inWindow, Renderer* inRenderer);
+	UserInterface(Application* inApplication);
 	~UserInterface();
 	FT_DELETE_COPY_AND_MOVE(UserInterface)
 
@@ -24,7 +24,7 @@ public:
 	void ToggleEnabled();
 
 public:
-	std::string GetEditorText() const { return m_Editor.GetText(); }
+	std::string GetEditorText() const;
 
 private:
 	void ApplyImGuiStyle();
@@ -41,7 +41,6 @@ private:
 private:
 	Application* m_Application;
 	Renderer* m_Renderer;
-	Window* m_Window;
 	TextEditor m_Editor;
 	VkDescriptorPool imguiDescPool;
 	// TODO: Move this to config. Make foton.ini

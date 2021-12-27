@@ -4,22 +4,22 @@
 FT_BEGIN_NAMESPACE
 
 #ifdef FT_DEBUG
-	const static bool enableValidationLayers = true;
+	static const bool enableValidationLayers = true;
 #else
-	const static bool enableValidationLayers = false;
+	static const bool enableValidationLayers = false;
 #endif // FT_DEBUG
 
-const static std::vector<const char*> deviceExtensions =
+static const std::vector<const char*> deviceExtensions =
 {
 	VK_KHR_SWAPCHAIN_EXTENSION_NAME
 };
 
-const static std::vector<const char*> validationLayers =
+static const std::vector<const char*> validationLayers =
 {
 	"VK_LAYER_KHRONOS_validation"
 };
 
-bool CheckValidationLayerSupport()
+static bool CheckValidationLayerSupport()
 {
 	uint32_t layerCount;
 	vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
@@ -49,7 +49,7 @@ bool CheckValidationLayerSupport()
 	return true;
 }
 
-std::vector<const char*> GetRequiredExtensions()
+static std::vector<const char*> GetRequiredExtensions()
 {
 	uint32_t glfwExtensionCount = 0;
 	const char** glfwExtensions;
@@ -75,7 +75,7 @@ VKAPI_ATTR VkBool32 VKAPI_CALL DebugMessageCallback(
 	return VK_FALSE;
 }
 
-void PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& debugMessangerCreateInfo)
+static void PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& debugMessangerCreateInfo)
 {
 	debugMessangerCreateInfo = {};
 	debugMessangerCreateInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
@@ -89,7 +89,7 @@ void PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& debugM
 	debugMessangerCreateInfo.pfnUserCallback = DebugMessageCallback;
 }
 
-void CreateInstance(VkInstance& outInstance)
+static void CreateInstance(VkInstance& outInstance)
 {
 	if (enableValidationLayers)
 	{
@@ -130,7 +130,7 @@ void CreateInstance(VkInstance& outInstance)
 	FT_VK_CALL(vkCreateInstance(&instanceCreateInfo, nullptr, &outInstance));
 }
 
-void SetupDebugMessenger(const VkInstance inInstance, VkDebugUtilsMessengerEXT& outDebugMessanger)
+static void SetupDebugMessenger(const VkInstance inInstance, VkDebugUtilsMessengerEXT& outDebugMessanger)
 {
 	if (!enableValidationLayers)
 	{
@@ -146,12 +146,12 @@ void SetupDebugMessenger(const VkInstance inInstance, VkDebugUtilsMessengerEXT& 
 	FT_VK_CALL(vkCreateDebugUtilsMessengerEXT(inInstance, &debugMessangerCreateInfo, nullptr, &outDebugMessanger));
 }
 
-void CreateSurface(const VkInstance inInstance, GLFWwindow* inWindow, VkSurfaceKHR& outSurface)
+static void CreateSurface(const VkInstance inInstance, GLFWwindow* inWindow, VkSurfaceKHR& outSurface)
 {
 	FT_VK_CALL(glfwCreateWindowSurface(inInstance, inWindow, nullptr, &outSurface));
 }
 
-uint32_t FindGraphicsQueueFamily(const VkPhysicalDevice inDevice)
+static uint32_t FindGraphicsQueueFamily(const VkPhysicalDevice inDevice)
 {
 	uint32_t queueFamilyCount = 0;
 	vkGetPhysicalDeviceQueueFamilyProperties(inDevice, &queueFamilyCount, nullptr);
@@ -173,7 +173,7 @@ uint32_t FindGraphicsQueueFamily(const VkPhysicalDevice inDevice)
 	FT_FAIL("Could not find a graphics queue family index.");
 }
 
-bool IsDeviceExtensionAvailable(const std::vector<VkExtensionProperties> inAvailableExtensions, const std::string& inExtensionName)
+static bool IsDeviceExtensionAvailable(const std::vector<VkExtensionProperties> inAvailableExtensions, const std::string& inExtensionName)
 {
 	for (const VkExtensionProperties& availableExtension : inAvailableExtensions)
 	{
@@ -186,7 +186,7 @@ bool IsDeviceExtensionAvailable(const std::vector<VkExtensionProperties> inAvail
 	return false;
 }
 
-bool CheckDeviceExtensionSupport(const VkPhysicalDevice inDevice)
+static bool CheckDeviceExtensionSupport(const VkPhysicalDevice inDevice)
 {
 	uint32_t extensionCount;
 	vkEnumerateDeviceExtensionProperties(inDevice, nullptr, &extensionCount, nullptr);
@@ -205,7 +205,7 @@ bool CheckDeviceExtensionSupport(const VkPhysicalDevice inDevice)
 	return true;
 }
 
-bool IsDeviceSuitable(const VkPhysicalDevice inDevice, const VkSurfaceKHR inSurface)
+static bool IsDeviceSuitable(const VkPhysicalDevice inDevice, const VkSurfaceKHR inSurface)
 {
 	uint32_t index = FindGraphicsQueueFamily(inDevice);
 
@@ -229,7 +229,7 @@ bool IsDeviceSuitable(const VkPhysicalDevice inDevice, const VkSurfaceKHR inSurf
 	return index >= 0 && extensionsSupported && swapChainAdequate && supportedFeatures.samplerAnisotropy;
 }
 
-void PickPhysicalDevice(const VkInstance inInstance, const VkSurfaceKHR inSurface, VkPhysicalDevice& outPhysicalDevice)
+static void PickPhysicalDevice(const VkInstance inInstance, const VkSurfaceKHR inSurface, VkPhysicalDevice& outPhysicalDevice)
 {
 	uint32_t deviceCount = 0;
 	vkEnumeratePhysicalDevices(inInstance, &deviceCount, nullptr);
@@ -251,7 +251,7 @@ void PickPhysicalDevice(const VkInstance inInstance, const VkSurfaceKHR inSurfac
 	FT_FAIL("Failed to find a suitable GPU.");
 }
 
-void CreateLogicalDevice(const VkPhysicalDevice inPhysicalDevice, const VkSurfaceKHR inSurface, VkDevice& outDevice, VkQueue& outGraphicsQueue, uint32_t& outGraphicsQueueFamilyIndex)
+static void CreateLogicalDevice(const VkPhysicalDevice inPhysicalDevice, const VkSurfaceKHR inSurface, VkDevice& outDevice, VkQueue& outGraphicsQueue, uint32_t& outGraphicsQueueFamilyIndex)
 {
 	outGraphicsQueueFamilyIndex = FindGraphicsQueueFamily(inPhysicalDevice);
 
@@ -293,7 +293,7 @@ void CreateLogicalDevice(const VkPhysicalDevice inPhysicalDevice, const VkSurfac
 	vkGetDeviceQueue(outDevice, outGraphicsQueueFamilyIndex, 0, &outGraphicsQueue);
 }
 
-void CreateCommandPool(const VkDevice inDevice, const uint32_t inQueueFamilyIndex, VkCommandPool& outCommandPool)
+static void CreateCommandPool(const VkDevice inDevice, const uint32_t inQueueFamilyIndex, VkCommandPool& outCommandPool)
 {
 	VkCommandPoolCreateInfo commandPoolCreateInfo{};
 	commandPoolCreateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;

@@ -19,9 +19,12 @@ struct SamplerInfo;
 class Renderer
 {
 public:
-	Renderer(Window* inWindow);
-	~Renderer();
+	Renderer() = default;
 	FT_DELETE_COPY_AND_MOVE(Renderer)
+
+public:
+	bool Initialize(Window* inWindow);
+	void Terminate();
 
 public:
 	void DrawFrame();

@@ -10,7 +10,7 @@ FT_BEGIN_NAMESPACE
 	} \
 	while (0)
 
-VkDescriptorType GetVkDescriptorType(const SpvReflectDescriptorType inDescriptorType)
+static VkDescriptorType GetVkDescriptorType(const SpvReflectDescriptorType inDescriptorType)
 {
 	switch (inDescriptorType)
 	{

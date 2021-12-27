@@ -3,7 +3,7 @@
 
 FT_BEGIN_NAMESPACE
 
-VkFilter GetFilter(const SamplerFilter inSamplerFilter)
+static VkFilter GetFilter(const SamplerFilter inSamplerFilter)
 {
 	switch (inSamplerFilter)
 	{
@@ -18,7 +18,7 @@ VkFilter GetFilter(const SamplerFilter inSamplerFilter)
 	}
 }
 
-VkSamplerAddressMode GetSamplerAddressMode(const SamplerAddressMode inSamplerAddressMode)
+static VkSamplerAddressMode GetSamplerAddressMode(const SamplerAddressMode inSamplerAddressMode)
 {
 	switch (inSamplerAddressMode)
 	{
@@ -42,7 +42,7 @@ VkSamplerAddressMode GetSamplerAddressMode(const SamplerAddressMode inSamplerAdd
 	}
 }
 
-VkBorderColor GetBorderColor(const SamplerBorderColor inSamplerBorderColor)
+static VkBorderColor GetBorderColor(const SamplerBorderColor inSamplerBorderColor)
 {
 	switch (inSamplerBorderColor)
 	{
@@ -60,7 +60,7 @@ VkBorderColor GetBorderColor(const SamplerBorderColor inSamplerBorderColor)
 	}
 }
 
-void CreateSampler(const VkPhysicalDevice inPhysicalDevice, const VkDevice inDevice, const SamplerInfo& inInfo, VkSampler& outSampler)
+static void CreateSampler(const VkPhysicalDevice inPhysicalDevice, const VkDevice inDevice, const SamplerInfo& inInfo, VkSampler& outSampler)
 {
 	VkPhysicalDeviceProperties physicalDeviceProperties{};
 	vkGetPhysicalDeviceProperties(inPhysicalDevice, &physicalDeviceProperties);
@@ -83,7 +83,7 @@ void CreateSampler(const VkPhysicalDevice inPhysicalDevice, const VkDevice inDev
 	FT_VK_CALL(vkCreateSampler(inDevice, &samplerCreateInfo, nullptr, &outSampler));
 }
 
-void CreateDescriptorInfo(const VkSampler inSampler, VkDescriptorImageInfo& outDescriptorInfo)
+static void CreateDescriptorInfo(const VkSampler inSampler, VkDescriptorImageInfo& outDescriptorInfo)
 {
 	outDescriptorInfo = {};
 	outDescriptorInfo.sampler = inSampler;

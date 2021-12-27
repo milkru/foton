@@ -5,7 +5,7 @@
 
 FT_BEGIN_NAMESPACE
 
-VkShaderStageFlagBits GetShaderStageFlag(const ShaderStage inStage)
+static VkShaderStageFlagBits GetShaderStageFlag(const ShaderStage inStage)
 {
 	switch (inStage)
 	{
@@ -20,18 +20,23 @@ VkShaderStageFlagBits GetShaderStageFlag(const ShaderStage inStage)
 	}
 }
 
-Shader::Shader(const Device* inDevice, const ShaderStage inStage, const std::vector<uint32_t>& inSpvCode, const std::string& inCodeEntry)
-	: m_Stage(inStage)
-	, m_CodeEntry(inCodeEntry)
-	, m_Device(inDevice)
-	, m_Bindings(ReflectShader(inSpvCode, GetShaderStageFlag(m_Stage), m_ReflectModule))
+static void CreateShader(const VkDevice inDevice, const std::vector<uint32_t>& inSpvCode, VkShaderModule& outModule)
 {
 	VkShaderModuleCreateInfo shaderModuleCreateInfo{};
 	shaderModuleCreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
 	shaderModuleCreateInfo.codeSize = sizeof(uint32_t) * inSpvCode.size();
 	shaderModuleCreateInfo.pCode = inSpvCode.data();
 
-	FT_VK_CALL(vkCreateShaderModule(inDevice->GetDevice(), &shaderModuleCreateInfo, nullptr, &m_Module));
+	FT_VK_CALL(vkCreateShaderModule(inDevice, &shaderModuleCreateInfo, nullptr, &outModule));
+}
+
+Shader::Shader(const Device* inDevice, const ShaderStage inStage, const std::vector<uint32_t>& inSpvCode, const std::string& inCodeEntry)
+	: m_Stage(inStage)
+	, m_CodeEntry(inCodeEntry)
+	, m_Device(inDevice)
+	, m_Bindings(ReflectShader(inSpvCode, GetShaderStageFlag(m_Stage), m_ReflectModule))
+{
+	CreateShader(inDevice->GetDevice(), inSpvCode, m_Module);
 }
 
 Shader::~Shader()

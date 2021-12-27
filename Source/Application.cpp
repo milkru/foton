@@ -9,6 +9,7 @@
 #include "Core/Swapchain.h"
 #include "Core/Shader.h"
 #include "Utility/ShaderFile.h"
+#include "Utility/DefaultShader.h"
 
 // TODO: Next to do ImageResource and BufferResource.
 // TODO: Lightweight light fast tool (foton is small and fast :))
@@ -25,11 +26,22 @@ FT_BEGIN_NAMESPACE
 
 void Application::Run()
 {
-	m_Window = new Window(this);
-	m_Renderer = new Renderer(m_Window);
-	m_UserInterface = new UserInterface(this, m_Window, m_Renderer);
 	FileExplorer::Initialize();
-	MainLoop();
+
+	m_Window = new Window(this);
+	m_Renderer = new Renderer();
+	
+	bool rendererInitialized = m_Renderer->Initialize(m_Window);
+	if (rendererInitialized)
+	{
+		m_UserInterface = new UserInterface(this);
+		MainLoop();
+	}
+	else
+	{
+		m_UserInterface = nullptr;
+	}
+
 	Cleanup();
 }
 
@@ -37,6 +49,7 @@ void Application::SaveFragmentShader()
 {
 	ShaderFile* fragmentShaderFile = m_Renderer->GetFragmentShaderFile();
 	fragmentShaderFile->UpdateSourceCode(m_UserInterface->GetEditorText());
+	FT_LOG("Shader saved to file %s.\n", fragmentShaderFile->GetPath().c_str());
 }
 
 bool Application::RecompileFragmentShader()
@@ -45,11 +58,6 @@ bool Application::RecompileFragmentShader()
 
 	ShaderFile* fragmentShaderFile = m_Renderer->GetFragmentShaderFile();
 	const std::string& fragmentShaderSourceCode = m_UserInterface->GetEditorText();
-
-	if (fragmentShaderSourceCode.compare(fragmentShaderFile->GetSourceCode()) == 0)
-	{
-		return false;
-	}
 
 	const ShaderCompileResult compileResult = CompileShader(fragmentShaderFile->GetLanguage(), ShaderStage::Fragment, fragmentShaderSourceCode);
 
@@ -72,6 +80,21 @@ bool Application::RecompileFragmentShader()
 	return true;
 }
 
+void Application::NewShader(const std::string& inPath, const std::string& inCode)
+{
+	ShaderFile* newShaderFile = new ShaderFile(inPath);
+
+	const char* defaultFragmentShader = GetDefaultFragmentShader(newShaderFile->GetLanguage());
+	newShaderFile->UpdateSourceCode(defaultFragmentShader);
+
+	m_Renderer->UpdateFragmentShaderFile(newShaderFile);
+	m_UserInterface->SetEditorText(newShaderFile->GetSourceCode());
+
+	RecompileFragmentShader();
+
+	FT_LOG("New shader file %s created.\n", inPath.c_str());
+}
+
 void Application::LoadShader(const std::string& inPath)
 {
 	ShaderFile* loadedShaderFile = new ShaderFile(inPath);
@@ -85,6 +108,10 @@ void Application::LoadShader(const std::string& inPath)
 
 	m_Renderer->UpdateFragmentShaderFile(loadedShaderFile);
 	m_UserInterface->SetEditorText(loadedShaderFile->GetSourceCode());
+
+	RecompileFragmentShader();
+
+	FT_LOG("Shader file %s loaded.\n", inPath.c_str());
 }
 
 void Application::UpdateCodeFontSize(float inOffset) const
@@ -95,6 +122,63 @@ void Application::UpdateCodeFontSize(float inOffset) const
 void Application::ToggleUserInterface() const
 {
 	m_UserInterface->ToggleEnabled();
+}
+
+void Application::NewShaderMenuItem()
+{
+	std::string shaderFilePath;
+	if (FileExplorer::SaveShaderDialog(shaderFilePath))
+	{
+		NewShader(shaderFilePath, "");
+	}
+}
+
+void Application::OpenShaderMenuItem()
+{
+	std::string shaderFilePath;
+	if (FileExplorer::OpenShaderDialog(shaderFilePath))
+	{
+		LoadShader(shaderFilePath);
+	}
+}
+
+void Application::SaveShaderMenuItem()
+{
+	ShaderFile* fragmentShaderFile = m_Renderer->GetFragmentShaderFile();
+	const std::string& fragmentShaderSourceCode = m_UserInterface->GetEditorText();
+
+	if (fragmentShaderSourceCode.compare(fragmentShaderFile->GetSourceCode()) == 0)
+	{
+		return;
+	}
+
+	RecompileFragmentShader();
+	SaveFragmentShader();
+}
+
+void Application::SaveAsShaderMenuItem()
+{
+	ShaderFileExtension currentShaderFileExtension;
+	ShaderLanguage currentShaderLanguage = m_Renderer->GetFragmentShaderFile()->GetLanguage();
+	for (const auto& supportedShaderFileExtension : g_SupportedShaderFileExtensions)
+	{
+		if (supportedShaderFileExtension.Language == currentShaderLanguage)
+		{
+			currentShaderFileExtension = supportedShaderFileExtension;
+		}
+	}
+
+	std::string shaderFilePath;
+	if (FileExplorer::SaveShaderDialog(shaderFilePath, currentShaderFileExtension))
+	{
+		const std::string& textToSave = m_UserInterface->GetEditorText();
+		NewShader(shaderFilePath, m_Renderer->GetFragmentShaderFile()->GetSourceCode());
+	}
+}
+
+void Application::QuitMenuItem()
+{
+	m_Window->Close();
 }
 
 void Application::MainLoop()
@@ -117,6 +201,7 @@ void Application::Cleanup()
 {
 	FileExplorer::Terminate();
 	delete(m_UserInterface);
+	m_Renderer->Terminate();
 	delete(m_Renderer);
 	delete(m_Window);
 }

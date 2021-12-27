@@ -19,9 +19,21 @@ public:
 public:
 	void SaveFragmentShader();
 	bool RecompileFragmentShader();
+	void NewShader(const std::string& inPath, const std::string& inCode);
 	void LoadShader(const std::string& inPath);
 	void UpdateCodeFontSize(float inOffset) const;
 	void ToggleUserInterface() const;
+
+public:
+	void NewShaderMenuItem();
+	void OpenShaderMenuItem();
+	void SaveShaderMenuItem();
+	void SaveAsShaderMenuItem();
+	void QuitMenuItem();
+
+public:
+	Window* GetWindow() const { return m_Window; }
+	Renderer* GetRenderer() const { return m_Renderer; }
 
 private:
 	void MainLoop();

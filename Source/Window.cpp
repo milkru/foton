@@ -10,37 +10,34 @@ void Window::KeyCallback(GLFWwindow* inWindow, int inKey, int inScanCode, int in
 {
 	Application* application = static_cast<Application*>(glfwGetWindowUserPointer(inWindow));
 
+	if (inKey == GLFW_KEY_N && inAction == GLFW_PRESS && inMods == GLFW_MOD_CONTROL)
+	{
+		application->NewShaderMenuItem();
+	}
+
+	if (inKey == GLFW_KEY_O && inAction == GLFW_PRESS && inMods == GLFW_MOD_CONTROL)
+	{
+		application->OpenShaderMenuItem();
+	}
+
 	if (inKey == GLFW_KEY_S && inAction == GLFW_PRESS && inMods == GLFW_MOD_CONTROL)
 	{
-		if (application->RecompileFragmentShader())
-		{
-			application->SaveFragmentShader();
-		}
+		application->SaveShaderMenuItem();
 	}
 
 	if (inKey == GLFW_KEY_S && inAction == GLFW_PRESS && inMods & GLFW_MOD_CONTROL && inMods & GLFW_MOD_SHIFT)
 	{
-		// TODO: Make new file with current editor contents.
+		application->SaveAsShaderMenuItem();
 	}
 
 	if (inKey == GLFW_KEY_R && inAction == GLFW_PRESS && inMods == GLFW_MOD_CONTROL)
 	{
-		application->RecompileFragmentShader();
+		application->QuitMenuItem();
 	}
 
 	if (inKey == GLFW_KEY_F && inAction == GLFW_PRESS && inMods == GLFW_MOD_CONTROL)
 	{
 		application->ToggleUserInterface();
-	}
-
-	if (inKey == GLFW_KEY_N && inAction == GLFW_PRESS && inMods == GLFW_MOD_CONTROL)
-	{
-		// TODO: New file.
-	}
-
-	if (inKey == GLFW_KEY_O && inAction == GLFW_PRESS && inMods == GLFW_MOD_CONTROL)
-	{
-		// TODO: Open file.
 	}
 }
 

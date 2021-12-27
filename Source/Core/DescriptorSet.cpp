@@ -9,7 +9,7 @@
 
 FT_BEGIN_NAMESPACE
 
-void CreateDescriptorSetLayout(const VkDevice inDevice, const std::vector<Descriptor>& inDescriptors, VkDescriptorSetLayout& outDescriptorSetLayout)
+static void CreateDescriptorSetLayout(const VkDevice inDevice, const std::vector<Descriptor>& inDescriptors, VkDescriptorSetLayout& outDescriptorSetLayout)
 {
 	std::vector<VkDescriptorSetLayoutBinding> descriptorSetBindings;
 	descriptorSetBindings.resize(inDescriptors.size());
@@ -26,7 +26,7 @@ void CreateDescriptorSetLayout(const VkDevice inDevice, const std::vector<Descri
 	FT_VK_CALL(vkCreateDescriptorSetLayout(inDevice, &descriptorSetLayoutCreateInfo, nullptr, &outDescriptorSetLayout));
 }
 
-void CreateDescriptorPool(const VkDevice inDevice, const uint32_t inSwapchainImageCount, VkDescriptorPool& outDescriptorPool)
+static void CreateDescriptorPool(const VkDevice inDevice, const uint32_t inSwapchainImageCount, VkDescriptorPool& outDescriptorPool)
 {
 	const static uint32_t MaxDescriptorCount = 128;
 
@@ -45,7 +45,7 @@ void CreateDescriptorPool(const VkDevice inDevice, const uint32_t inSwapchainIma
 	FT_VK_CALL(vkCreateDescriptorPool(inDevice, &poolInfo, nullptr, &outDescriptorPool));
 }
 
-void CreateDescriptorSets(const VkDevice inDevice, const VkDescriptorPool inDescriptorPool, const VkDescriptorSetLayout inDescriptorSetLayout, const uint32_t inSwapchainImageCount, const std::vector<Descriptor>& inDescriptors, std::vector<VkDescriptorSet>& outDescriptorSets)
+static void CreateDescriptorSets(const VkDevice inDevice, const VkDescriptorPool inDescriptorPool, const VkDescriptorSetLayout inDescriptorSetLayout, const uint32_t inSwapchainImageCount, const std::vector<Descriptor>& inDescriptors, std::vector<VkDescriptorSet>& outDescriptorSets)
 {
 	std::vector<VkDescriptorSetLayout> descriptorSetLayouts(inSwapchainImageCount, inDescriptorSetLayout);
 

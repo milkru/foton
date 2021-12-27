@@ -16,7 +16,7 @@ void FinalizeShaderCompiler()
 	glslang::FinalizeProcess();
 }
 
-glslang::EShSource GetGlslangShaderLanguage(const ShaderLanguage inShaderLanguage)
+static glslang::EShSource GetGlslangShaderLanguage(const ShaderLanguage inShaderLanguage)
 {
 	switch (inShaderLanguage)
 	{
@@ -31,7 +31,7 @@ glslang::EShSource GetGlslangShaderLanguage(const ShaderLanguage inShaderLanguag
 	}
 }
 
-EShLanguage GetGlslangShaderStage(const ShaderStage inShaderStage)
+static EShLanguage GetGlslangShaderStage(const ShaderStage inShaderStage)
 {
 	switch (inShaderStage)
 	{

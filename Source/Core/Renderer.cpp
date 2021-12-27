@@ -14,34 +14,47 @@
 #include "ResourceContainer.h"
 #include "Compiler/ShaderCompiler.h"
 #include "Utility/ShaderFile.h"
+#include "Utility/DefaultShader.h"
+#include "Utility/FileExplorer.h"
 
 FT_BEGIN_NAMESPACE
 
-Renderer::Renderer(Window* inWindow)
-	: m_Window(inWindow)
+bool Renderer::Initialize(Window* inWindow)
 {
+	m_Window = inWindow;
+
 	InitializeShaderCompiler();
 
 	m_Device = new Device(m_Window);
 	m_Swapchain = new Swapchain(m_Device, m_Window);
 
-	// TODO: Load both glsl and hlsl vertex shaders and swap between them as needed depending on the fragment shader language.
 	{
-		const ShaderFile shaderFile(GetFullPath("Shaders/Internal/FullScreen.vert.hlsl"));
-
-		const ShaderCompileResult compileResult = CompileShader(shaderFile.GetLanguage(), ShaderStage::Vertex, shaderFile.GetSourceCode());
+		const char* defaultVertexShader = GetDefaultVertexShader(ShaderLanguage::GLSL);
+		const ShaderCompileResult compileResult = CompileShader(ShaderLanguage::GLSL, ShaderStage::Vertex, defaultVertexShader);
 		const char* status = ConvertCompilationStatusToText(compileResult.Status);
-		FT_CHECK(compileResult.Status == ShaderCompileStatus::Success, "Failed %s vertex shader %s.", status, shaderFile.GetName().c_str());
+		FT_CHECK(compileResult.Status == ShaderCompileStatus::Success, "Failed %s default vertex shader.", status);
 
 		m_VertexShader = new Shader(m_Device, ShaderStage::Vertex, compileResult.SpvCode);
 	}
 
 	{
-		m_FragmentShaderFile = new ShaderFile(GetFullPath("Shaders/Internal/Default.frag.hlsl"));
+		// TODO: Get cached fragment shader file first and if that doesn't exist, use this one.
+		std::string fragmentShaderPath;
+		if (FileExplorer::SaveShaderDialog(fragmentShaderPath))
+		{
+			m_FragmentShaderFile = new ShaderFile(fragmentShaderPath);
+
+			const char* defaultFragmentShader = GetDefaultFragmentShader(m_FragmentShaderFile->GetLanguage());
+			m_FragmentShaderFile->UpdateSourceCode(defaultFragmentShader);
+		}
+		else
+		{
+			return false;
+		}
 
 		const ShaderCompileResult compileResult = CompileShader(m_FragmentShaderFile->GetLanguage(), ShaderStage::Fragment, m_FragmentShaderFile->GetSourceCode());
-		// TODO: Just load default shader if the compilation fails for fragment shader.
 		const char* status = ConvertCompilationStatusToText(compileResult.Status);
+
 		FT_CHECK(compileResult.Status == ShaderCompileStatus::Success, "Failed %s fragment shader %s.", status, m_FragmentShaderFile->GetName().c_str());
 
 		m_FragmentShader = new Shader(m_Device, ShaderStage::Fragment, compileResult.SpvCode);
@@ -53,9 +66,11 @@ Renderer::Renderer(Window* inWindow)
 	m_DescriptorSet = new DescriptorSet(m_Device, m_Swapchain, m_ResourceContainer->GetDescriptors());
 	m_Pipeline = new Pipeline(m_Device, m_Swapchain, m_DescriptorSet, m_VertexShader, m_FragmentShader);
 	m_CommandBuffer = new CommandBuffer(m_Device, m_Swapchain);
+
+	return true;
 }
-	
-Renderer::~Renderer()
+
+void Renderer::Terminate()
 {
 	delete(m_FragmentShaderFile);
 	delete(m_FragmentShader);

@@ -5,7 +5,7 @@
 
 FT_BEGIN_NAMESPACE
 
-void TransitionImageLayout(const Device* inDevice, const VkImage inImage, const VkFormat inFormat, const VkImageLayout inOldLayout, const VkImageLayout inNewLayout)
+static void TransitionImageLayout(const Device* inDevice, const VkImage inImage, const VkFormat inFormat, const VkImageLayout inOldLayout, const VkImageLayout inNewLayout)
 {
 	VkCommandBuffer commandBuffer = inDevice->BeginSingleTimeCommands();
 
@@ -51,7 +51,7 @@ void TransitionImageLayout(const Device* inDevice, const VkImage inImage, const 
 	inDevice->EndSingleTimeCommands(commandBuffer);
 }
 
-void CopyBufferToImage(const Device* inDevice, const VkBuffer inBuffer, const VkImage inImage, const uint32_t inWwidth, const uint32_t inHeight)
+static void CopyBufferToImage(const Device* inDevice, const VkBuffer inBuffer, const VkImage inImage, const uint32_t inWwidth, const uint32_t inHeight)
 {
 	const VkCommandBuffer commandBuffer = inDevice->BeginSingleTimeCommands();
 
@@ -71,7 +71,7 @@ void CopyBufferToImage(const Device* inDevice, const VkBuffer inBuffer, const Vk
 	inDevice->EndSingleTimeCommands(commandBuffer);
 }
 
-void CreateImage(const Device* inDevice, const ImageFile& inImageFile, VkImage& outImage, VkDeviceMemory& outMemory, uint32_t& outWidth, uint32_t& outHeight)
+static void CreateImage(const Device* inDevice, const ImageFile& inImageFile, VkImage& outImage, VkDeviceMemory& outMemory, uint32_t& outWidth, uint32_t& outHeight)
 {
 	outWidth = inImageFile.GetWidth();
 	outHeight = inImageFile.GetHeight();
@@ -118,7 +118,7 @@ void CreateImage(const Device* inDevice, const ImageFile& inImageFile, VkImage& 
 	TransitionImageLayout(inDevice, outImage, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 }
 
-void CreateImageView(const VkDevice inDevice, const VkImage inImage, const VkFormat inFormat, VkImageView& outImageView)
+static void CreateImageView(const VkDevice inDevice, const VkImage inImage, const VkFormat inFormat, VkImageView& outImageView)
 {
 	VkImageViewCreateInfo imageViewCreateInfo{};
 	imageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -134,7 +134,7 @@ void CreateImageView(const VkDevice inDevice, const VkImage inImage, const VkFor
 	FT_VK_CALL(vkCreateImageView(inDevice, &imageViewCreateInfo, nullptr, &outImageView));
 }
 
-void CreateDescriptorInfo(const VkImageView inImageView, VkDescriptorImageInfo& outDescriptorInfo)
+static void CreateDescriptorInfo(const VkImageView inImageView, VkDescriptorImageInfo& outDescriptorInfo)
 {
 	outDescriptorInfo = {};
 	outDescriptorInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;

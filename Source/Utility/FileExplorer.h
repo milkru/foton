@@ -7,6 +7,8 @@ namespace NFD
 
 FT_BEGIN_NAMESPACE
 
+struct ShaderFileExtension;
+
 class FileExplorer
 {
 public:
@@ -21,6 +23,7 @@ public:
 public:
 	static bool OpenShaderDialog(std::string& outFilePath);
 	static bool SaveShaderDialog(std::string& outFilePath);
+	static bool SaveShaderDialog(std::string& outFilePath, const ShaderFileExtension& inExtension);
 
 public:
 	static bool OpenImageDialog(std::string& outFilePath);

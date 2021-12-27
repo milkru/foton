@@ -6,7 +6,7 @@
 
 FT_BEGIN_NAMESPACE
 
-const int MaxFramesInFlight = 2;
+static const int MaxFramesInFlight = 2;
 
 struct SwapChainSupportDetails
 {
@@ -15,7 +15,7 @@ struct SwapChainSupportDetails
 	std::vector<VkPresentModeKHR> presentModes;
 };
 
-SwapChainSupportDetails QuerySwapChainSupport(const VkPhysicalDevice inDevice, const VkSurfaceKHR inSurface)
+static SwapChainSupportDetails QuerySwapChainSupport(const VkPhysicalDevice inDevice, const VkSurfaceKHR inSurface)
 {
 	SwapChainSupportDetails details;
 
@@ -42,7 +42,7 @@ SwapChainSupportDetails QuerySwapChainSupport(const VkPhysicalDevice inDevice, c
 	return details;
 }
 
-VkSurfaceFormatKHR ChooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& inAvailableFormats)
+static VkSurfaceFormatKHR ChooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& inAvailableFormats)
 {
 	for (const auto& availableFormat : inAvailableFormats)
 	{
@@ -55,7 +55,7 @@ VkSurfaceFormatKHR ChooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>
 	return inAvailableFormats[0];
 }
 
-VkPresentModeKHR ChooseSwapPresentMode(const std::vector<VkPresentModeKHR>& inAvailablePresentModes)
+static VkPresentModeKHR ChooseSwapPresentMode(const std::vector<VkPresentModeKHR>& inAvailablePresentModes)
 {
 	for (const auto& availablePresentMode : inAvailablePresentModes)
 	{
@@ -68,7 +68,7 @@ VkPresentModeKHR ChooseSwapPresentMode(const std::vector<VkPresentModeKHR>& inAv
 	return VK_PRESENT_MODE_FIFO_KHR;
 }
 
-VkExtent2D ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& inCapabilities, GLFWwindow* inWindow)
+static VkExtent2D ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& inCapabilities, GLFWwindow* inWindow)
 {
 	if (inCapabilities.currentExtent.width != UINT32_MAX)
 	{
@@ -109,7 +109,7 @@ VkExtent2D ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& inCapabilities, GLFW
 	}
 }
 
-void CreateSwapChain(const Device* inDevice, GLFWwindow* inWindow, VkSwapchainKHR& outSwapchain, std::vector<VkImage>& outSwapchainImages, VkFormat& outSwapchainImageFormat, VkExtent2D& outSwapchainExtent)
+static void CreateSwapChain(const Device* inDevice, GLFWwindow* inWindow, VkSwapchainKHR& outSwapchain, std::vector<VkImage>& outSwapchainImages, VkFormat& outSwapchainImageFormat, VkExtent2D& outSwapchainExtent)
 {
 	SwapChainSupportDetails swapChainSupport = QuerySwapChainSupport(inDevice->GetPhysicalDevice(), inDevice->GetSurface());
 	VkSurfaceFormatKHR surfaceFormat = ChooseSwapSurfaceFormat(swapChainSupport.formats);
@@ -147,7 +147,7 @@ void CreateSwapChain(const Device* inDevice, GLFWwindow* inWindow, VkSwapchainKH
 	outSwapchainExtent = extent;
 }
 
-void CreateImageViews(const VkDevice inDevice, const std::vector<VkImage> inSwapchainImages, const VkFormat inSwapchainImageFormat, std::vector<VkImageView>& outSwapchainImageViews)
+static void CreateImageViews(const VkDevice inDevice, const std::vector<VkImage> inSwapchainImages, const VkFormat inSwapchainImageFormat, std::vector<VkImageView>& outSwapchainImageViews)
 {
 	outSwapchainImageViews.resize(inSwapchainImages.size());
 
@@ -168,7 +168,7 @@ void CreateImageViews(const VkDevice inDevice, const std::vector<VkImage> inSwap
 	}
 }
 
-void CreateRenderPass(const VkDevice inDevice, const VkFormat inSwapchainImageFormat, VkRenderPass& outRenderPass)
+static void CreateRenderPass(const VkDevice inDevice, const VkFormat inSwapchainImageFormat, VkRenderPass& outRenderPass)
 {
 	VkAttachmentDescription colorAttachment{};
 	colorAttachment.format = inSwapchainImageFormat;
@@ -209,7 +209,7 @@ void CreateRenderPass(const VkDevice inDevice, const VkFormat inSwapchainImageFo
 	FT_VK_CALL(vkCreateRenderPass(inDevice, &renderPassCreateInfo, nullptr, &outRenderPass));
 }
 
-void CreateFramebuffers(const VkDevice inDevice, const VkRenderPass inRenderPass, const std::vector<VkImageView> inSwapchainImageViews, const VkExtent2D inSwapchainExtent, std::vector<VkFramebuffer>& outSwapchainFramebuffers)
+static void CreateFramebuffers(const VkDevice inDevice, const VkRenderPass inRenderPass, const std::vector<VkImageView> inSwapchainImageViews, const VkExtent2D inSwapchainExtent, std::vector<VkFramebuffer>& outSwapchainFramebuffers)
 {
 	outSwapchainFramebuffers.resize(inSwapchainImageViews.size());
 
@@ -233,7 +233,7 @@ void CreateFramebuffers(const VkDevice inDevice, const VkRenderPass inRenderPass
 	}
 }
 
-void CreateSemaphores(const VkDevice inDevice, std::vector<VkSemaphore>& outImageAvailableSemaphores, std::vector<VkSemaphore>& outRenderFinishedSemaphores)
+static void CreateSemaphores(const VkDevice inDevice, std::vector<VkSemaphore>& outImageAvailableSemaphores, std::vector<VkSemaphore>& outRenderFinishedSemaphores)
 {
 	outImageAvailableSemaphores.resize(MaxFramesInFlight);
 	outRenderFinishedSemaphores.resize(MaxFramesInFlight);
@@ -248,7 +248,7 @@ void CreateSemaphores(const VkDevice inDevice, std::vector<VkSemaphore>& outImag
 	}
 }
 
-void CreateFences(const VkDevice inDevice, std::vector<VkFence>& outInFlightFences, std::vector<VkFence>& outImagesInFlight)
+static void CreateFences(const VkDevice inDevice, std::vector<VkFence>& outInFlightFences, std::vector<VkFence>& outImagesInFlight)
 {
 	outInFlightFences.resize(MaxFramesInFlight);
 

@@ -9,7 +9,7 @@
 FT_BEGIN_NAMESPACE
 
 // TODO: Make default texture something else.
-const static std::string DefaultImagePath = GetFullPath("icon");
+static const std::string DefaultImagePath = GetFullPath("icon");
 
 ResourceContainer::ResourceContainer(const Device* inDevice, const Swapchain* inSwapchain)
 	: m_Device(inDevice)
@@ -23,7 +23,7 @@ ResourceContainer::~ResourceContainer()
 	}
 }
 
-ResourceType GetResourceType(const VkDescriptorType inDescriptorType)
+static ResourceType GetResourceType(const VkDescriptorType inDescriptorType)
 {
 	switch (inDescriptorType)
 	{
@@ -68,12 +68,12 @@ void ResourceContainer::RecreateUniformBuffers()
 }
 
 // TODO: Test padded size with different array counts.
-uint32_t CalculateUniformBufferSize(const SpvReflectDescriptorBinding inReflectDescriptorBinding)
+static uint32_t CalculateUniformBufferSize(const SpvReflectDescriptorBinding inReflectDescriptorBinding)
 {
 	return inReflectDescriptorBinding.block.padded_size * inReflectDescriptorBinding.count;
 }
 
-ResourceHandle CreateResource(const Device* inDevice, const Swapchain* inSwapchain, const ResourceType inResourceType, const SpvReflectDescriptorBinding inReflectDescriptorBinding)
+static ResourceHandle CreateResource(const Device* inDevice, const Swapchain* inSwapchain, const ResourceType inResourceType, const SpvReflectDescriptorBinding inReflectDescriptorBinding)
 {
 	ResourceHandle handle;
 

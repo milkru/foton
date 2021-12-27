@@ -6,7 +6,7 @@
 
 FT_BEGIN_NAMESPACE
 
-void CreatePipelineLayout(const VkDevice inDevice, const VkDescriptorSetLayout inDescriptorSetLayout, VkPipelineLayout& outPipelineLayout)
+static void CreatePipelineLayout(const VkDevice inDevice, const VkDescriptorSetLayout inDescriptorSetLayout, VkPipelineLayout& outPipelineLayout)
 {
 	VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo{};
 	pipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -16,7 +16,7 @@ void CreatePipelineLayout(const VkDevice inDevice, const VkDescriptorSetLayout i
 	FT_VK_CALL(vkCreatePipelineLayout(inDevice, &pipelineLayoutCreateInfo, nullptr, &outPipelineLayout));
 }
 
-void CreateGraphicsPipeline(const VkDevice inDevice, const Swapchain* inSwapchain, const Shader* inVertexShader, const Shader* inFragmentShader, const VkPipelineLayout inPipelineLayout, VkPipeline& outPraphicsPipeline)
+static void CreateGraphicsPipeline(const VkDevice inDevice, const Swapchain* inSwapchain, const Shader* inVertexShader, const Shader* inFragmentShader, const VkPipelineLayout inPipelineLayout, VkPipeline& outPraphicsPipeline)
 {
 	VkPipelineShaderStageCreateInfo shaderStageCreateInfos[] = { inVertexShader->GetVkPipelineStageInfo(), inFragmentShader->GetVkPipelineStageInfo() };
 
