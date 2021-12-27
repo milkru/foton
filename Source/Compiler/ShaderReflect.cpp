@@ -44,18 +44,18 @@ std::vector<Binding> ReflectShader(const std::vector<uint32_t>& inSpvCode, const
 	FT_SPV_REFLECT_CALL(spvReflectEnumerateDescriptorBindings(&outSpvModule, &bindingCount, spvBindings.data()));
 
 	std::vector<Binding> bindings(spvBindings.size());
-	for (uint32_t i = 0; i < bindingCount; ++i)
+	for (uint32_t bindingIndex = 0; bindingIndex < bindingCount; ++bindingIndex)
 	{
-		Binding& binding = bindings[i];
+		Binding& binding = bindings[bindingIndex];
 
 		VkDescriptorSetLayoutBinding& descriptorSetLayoutBinding = binding.DescriptorSetBinding;
-		descriptorSetLayoutBinding.binding = spvBindings[i]->binding;
+		descriptorSetLayoutBinding.binding = spvBindings[bindingIndex]->binding;
 		descriptorSetLayoutBinding.descriptorCount = 1;
-		descriptorSetLayoutBinding.descriptorType = GetVkDescriptorType(spvBindings[i]->descriptor_type);
+		descriptorSetLayoutBinding.descriptorType = GetVkDescriptorType(spvBindings[bindingIndex]->descriptor_type);
 		descriptorSetLayoutBinding.stageFlags = inShaderStage;
 		descriptorSetLayoutBinding.pImmutableSamplers = nullptr;
 
-		binding.ReflectDescriptorBinding = *spvBindings[i];
+		binding.ReflectDescriptorBinding = *spvBindings[bindingIndex];
 	}
 
 	return bindings;

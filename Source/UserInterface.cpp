@@ -633,9 +633,9 @@ void UserInterface::DrawStruct(const SpvReflectBlockVariable* inReflectBlock, co
 {
 	if (ImGui::TreeNode(inName))
 	{
-		for (uint32_t i = 0; i < inReflectBlock->member_count; ++i)
+		for (uint32_t memberIndex = 0; memberIndex < inReflectBlock->member_count; ++memberIndex)
 		{
-			const SpvReflectBlockVariable* memberReflectBlock = &(inReflectBlock->members[i]);
+			const SpvReflectBlockVariable* memberReflectBlock = &(inReflectBlock->members[memberIndex]);
 			DrawUniformBufferInput(memberReflectBlock);
 		}
 

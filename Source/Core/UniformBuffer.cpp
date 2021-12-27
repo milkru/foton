@@ -9,17 +9,17 @@ UniformBuffer::UniformBuffer(const Device* inDevice, const Swapchain* inSwapchai
 	: m_Size(inSize)
 {
 	m_Buffers.resize(inSwapchain->GetImageCount());
-	for (uint32_t i = 0; i < inSwapchain->GetImageCount(); ++i)
+	for (uint32_t imageIndex = 0; imageIndex < inSwapchain->GetImageCount(); ++imageIndex)
 	{
-		m_Buffers[i] = new Buffer(inDevice, m_Size, BufferUsageFlags::Uniform);
+		m_Buffers[imageIndex] = new Buffer(inDevice, m_Size, BufferUsageFlags::Uniform);
 	}
 }
 
 UniformBuffer::~UniformBuffer()
 {
-	for (uint32_t i = 0; i < m_Buffers.size(); ++i)
+	for (uint32_t bufferIndex = 0; bufferIndex < m_Buffers.size(); ++bufferIndex)
 	{
-		delete(m_Buffers[i]);
+		delete(m_Buffers[bufferIndex]);
 	}
 
 	m_Buffers.clear();

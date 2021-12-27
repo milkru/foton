@@ -336,11 +336,11 @@ uint32_t Device::FindMemoryType(const uint32_t inTypeFilter, const VkMemoryPrope
 	VkPhysicalDeviceMemoryProperties memProperties;
 	vkGetPhysicalDeviceMemoryProperties(m_PhysicalDevice, &memProperties);
 
-	for (uint32_t i = 0; i < memProperties.memoryTypeCount; ++i)
+	for (uint32_t memoryTypeIndex = 0; memoryTypeIndex < memProperties.memoryTypeCount; ++memoryTypeIndex)
 	{
-		if ((inTypeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & inProperties) == inProperties)
+		if ((inTypeFilter & (1 << memoryTypeIndex)) && (memProperties.memoryTypes[memoryTypeIndex].propertyFlags & inProperties) == inProperties)
 		{
-			return i;
+			return memoryTypeIndex;
 		}
 	}
 

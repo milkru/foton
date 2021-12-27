@@ -13,9 +13,9 @@ static void CreateDescriptorSetLayout(const VkDevice inDevice, const std::vector
 {
 	std::vector<VkDescriptorSetLayoutBinding> descriptorSetBindings;
 	descriptorSetBindings.resize(inDescriptors.size());
-	for (uint32_t i = 0; i < inDescriptors.size(); ++i)
+	for (uint32_t descriptorIndex = 0; descriptorIndex < inDescriptors.size(); ++descriptorIndex)
 	{
-		descriptorSetBindings[i] = inDescriptors[i].Binding.DescriptorSetBinding;
+		descriptorSetBindings[descriptorIndex] = inDescriptors[descriptorIndex].Binding.DescriptorSetBinding;
 	}
 
 	VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo{};

@@ -117,18 +117,19 @@ static ResourceHandle CreateResource(const Device* inDevice, const Swapchain* in
 
 void ResourceContainer::UpdateBindings(const std::vector<Binding> inBindings)
 {
-	for (uint32_t i = 0; i < m_Descriptors.size(); ++i)
+	// TODO: Implement NullResource for all non implemented resources in order to prevent crashes.
+	for (uint32_t descriptorIndex = 0; descriptorIndex < m_Descriptors.size(); ++descriptorIndex)
 	{
-		Descriptor& descriptor = m_Descriptors[i];
+		Descriptor& descriptor = m_Descriptors[descriptorIndex];
 		Resource& resource = descriptor.Resource;
 
-		if (i >= inBindings.size())
+		if (descriptorIndex >= inBindings.size())
 		{
 			DeleteResource(resource);
 			break;
 		}
 
-		const Binding& newBinding = inBindings[i];
+		const Binding& newBinding = inBindings[descriptorIndex];
 		descriptor.Binding = newBinding;
 
 		const ResourceType newResourceType = GetResourceType(newBinding.DescriptorSetBinding.descriptorType);
@@ -146,12 +147,12 @@ void ResourceContainer::UpdateBindings(const std::vector<Binding> inBindings)
 	const size_t oldDescriptorCount = m_Descriptors.size();
 	m_Descriptors.resize(inBindings.size());
 
-	for (uint32_t i = oldDescriptorCount; i < m_Descriptors.size(); ++i)
+	for (uint32_t descriptorIndex = oldDescriptorCount; descriptorIndex < m_Descriptors.size(); ++descriptorIndex)
 	{
-		Descriptor& descriptor = m_Descriptors[i];
+		Descriptor& descriptor = m_Descriptors[descriptorIndex];
 		Resource& resource = descriptor.Resource;
 
-		const Binding& newBinding = inBindings[i];
+		const Binding& newBinding = inBindings[descriptorIndex];
 		descriptor.Binding = newBinding;
 
 		const ResourceType newResourceType = GetResourceType(newBinding.DescriptorSetBinding.descriptorType);
