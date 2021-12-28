@@ -18,7 +18,7 @@ public:
 
 public:
 	void RecreateUniformBuffers();
-	void UpdateBindings(const std::vector<Binding> inBindings);
+	void UpdateBindings(std::vector<Binding> inBindings);
 	void UpdateImage(const uint32_t inBindingIndex, const std::string& inPath);
 	void UpdateSampler(const uint32_t inBindingIndex, const SamplerInfo& inSamplerInfo);
 

@@ -30,11 +30,15 @@ static void CreateDescriptorPool(const VkDevice inDevice, const uint32_t inSwapc
 {
 	const static uint32_t MaxDescriptorCount = 128;
 
-	std::array<VkDescriptorPoolSize, 2> poolSizes{};
+	std::array<VkDescriptorPoolSize, 4> poolSizes{};
 	poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 	poolSizes[0].descriptorCount = MaxDescriptorCount * inSwapchainImageCount;
 	poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	poolSizes[1].descriptorCount = MaxDescriptorCount * inSwapchainImageCount;
+	poolSizes[2].type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+	poolSizes[2].descriptorCount = MaxDescriptorCount * inSwapchainImageCount;
+	poolSizes[3].type = VK_DESCRIPTOR_TYPE_SAMPLER;
+	poolSizes[3].descriptorCount = MaxDescriptorCount * inSwapchainImageCount;
 
 	VkDescriptorPoolCreateInfo poolInfo{};
 	poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;

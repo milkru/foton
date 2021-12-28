@@ -115,8 +115,34 @@ static ResourceHandle CreateResource(const Device* inDevice, const Swapchain* in
 	return handle;
 }
 
-void ResourceContainer::UpdateBindings(const std::vector<Binding> inBindings)
+static void MergeBindings(std::vector<Binding>& inOutBindings)
 {
+	for (auto iterator = inOutBindings.begin(); iterator != inOutBindings.end(); ++iterator)
+	{
+		const ResourceType resourceType = GetResourceType(iterator->DescriptorSetBinding.descriptorType);
+		if (resourceType != ResourceType::Image)
+		{
+			continue;
+		}
+
+		for (auto samplerIterator = inOutBindings.begin(); samplerIterator != inOutBindings.end(); ++samplerIterator)
+		{
+			const ResourceType possibleSamplerType = GetResourceType(samplerIterator->DescriptorSetBinding.descriptorType);
+			if (possibleSamplerType == ResourceType::Sampler &&
+				iterator->DescriptorSetBinding.binding == samplerIterator->DescriptorSetBinding.binding)
+			{
+				inOutBindings.erase(samplerIterator);
+				iterator->DescriptorSetBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+				break;
+			}
+		}
+	}
+}
+
+void ResourceContainer::UpdateBindings(std::vector<Binding> inBindings)
+{
+	MergeBindings(inBindings);
+
 	// TODO: Implement NullResource for all non implemented resources in order to prevent crashes.
 	for (uint32_t descriptorIndex = 0; descriptorIndex < m_Descriptors.size(); ++descriptorIndex)
 	{

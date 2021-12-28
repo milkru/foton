@@ -123,9 +123,9 @@ static bool SaveFileDialog(const std::vector<nfdfilteritem_t>& inFilterItems, st
 				outFilePath = filePath.get();
 				return true;
 			}
-
-			FT_LOG("Tried saving a file with an unsupported format.");
 		}
+
+		FT_LOG("Tried saving a file with an unsupported format.\n");
 	}
 	
 	return false;

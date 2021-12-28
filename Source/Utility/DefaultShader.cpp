@@ -59,7 +59,7 @@ static const char* DefaultFragmentShaderHLSL =
 	"cbuffer ubo : register(b0) { UBO inputUbo; };\n"
 	"\n"
 	"Texture2D textureInput : register(t1);\n"
-	"SamplerState samplerInput : register(s2);\n"
+	"SamplerState samplerInput : register(s1);\n"
 	"\n"
 	"float4 main([[vk::location(0)]] float2 inUV : TEXCOORD0) : SV_TARGET\n"
 	"{\n"
