@@ -186,21 +186,21 @@ static float TextDistanceToLineStart(const TextEditor::Coordinates& aFrom, const
 	float distance = 0.0f;
 	float spaceSize = ImGui::GetFont()->CalcTextSizeA(ImGui::GetFontSize(), FLT_MAX, -1.0f, " ", nullptr, nullptr).x;
 	int colIndex = GetCharacterIndex(aFrom, mLines, mTabSize);
-	for (size_t it = 0u; it < line.size() && it < colIndex; )
+	for (size_t lineIndex = 0u; lineIndex < line.size() && lineIndex < colIndex; )
 	{
-		if (line[it] == '\t')
+		if (line[lineIndex] == '\t')
 		{
 			distance = (1.0f + std::floor((1.0f + distance) / (float(mTabSize) * spaceSize))) * (float(mTabSize) * spaceSize);
-			++it;
+			++lineIndex;
 		}
 		else
 		{
-			auto d = UTF8CharLength(line[it]);
+			auto d = UTF8CharLength(line[lineIndex]);
 			char tempCString[7];
 			int i = 0;
-			for (; i < 6 && d-- > 0 && it < (int)line.size(); i++, it++)
+			for (; i < 6 && d-- > 0 && lineIndex < (int)line.size(); i++, lineIndex++)
 			{
-				tempCString[i] = line[it];
+				tempCString[i] = line[lineIndex];
 			}
 
 			tempCString[i] = '\0';
@@ -220,19 +220,19 @@ static int GetLineMaxColumn(int aLine, const std::vector<std::string>& mLines, c
 
 	auto& line = mLines[aLine];
 	int col = 0;
-	for (unsigned i = 0; i < line.size(); )
+	for (uint32_t lineIndex = 0; lineIndex < line.size(); )
 	{
-		auto c = line[i];
+		auto c = line[lineIndex];
 		if (c == '\t')
 		{
 			col = (col / mTabSize) * mTabSize + mTabSize;
 		}
 		else
 		{
-			col++;
+			++col;
 		}
 
-		i += UTF8CharLength(c);
+		lineIndex += UTF8CharLength(c);
 	}
 
 	return col;
@@ -261,13 +261,13 @@ void UserInterface::DrawTextBackground()
 	const float textStart = ImGui::GetFont()->CalcTextSizeA(ImGui::GetFontSize(), FLT_MAX, -1.0f, lineMaxBuf, nullptr, nullptr).x + leftMargin;
 	const ImVec2 contentSize = ImGui::GetWindowContentRegionMax();
 
-	int lineNo = (int)floor(scrollY / charAdvance.y);
-	const int lineMax = std::max(0, std::min((int)mLines.size() - 1, lineNo + (int)floor((scrollY + contentSize.y) / charAdvance.y)));
-	while (lineNo <= lineMax)
+	int lineNumber = static_cast<int>(floor(scrollY / charAdvance.y));
+	const int lineMax = std::max(0, std::min((int)mLines.size() - 1, lineNumber + static_cast<int>(floor((scrollY + contentSize.y) / charAdvance.y))));
+	while (lineNumber <= lineMax)
 	{
-		const ImVec2 lineStartScreenPos = ImVec2(cursorScreenPos.x, cursorScreenPos.y + lineNo * charAdvance.y);
+		const ImVec2 lineStartScreenPos = ImVec2(cursorScreenPos.x, cursorScreenPos.y + lineNumber * charAdvance.y);
 		const ImVec2 textScreenPos = ImVec2(lineStartScreenPos.x + textStart, lineStartScreenPos.y);
-		TextEditor::Coordinates lineEndCoord(lineNo, GetLineMaxColumn(lineNo, mLines, tabSize));
+		TextEditor::Coordinates lineEndCoord(lineNumber, GetLineMaxColumn(lineNumber, mLines, tabSize));
 
 		const ImVec2 start(lineStartScreenPos.x + textStart, lineStartScreenPos.y);
 		const ImVec2 end(lineStartScreenPos.x + textStart + TextDistanceToLineStart(lineEndCoord, mLines, tabSize), lineStartScreenPos.y + charAdvance.y);
@@ -276,7 +276,7 @@ void UserInterface::DrawTextBackground()
 		const ImU32 textBackgroundColor = 0x80000000;
 		drawList->AddRectFilled(start, end, textBackgroundColor);
 
-		++lineNo;
+		++lineNumber;
 	}
 
 	ImGui::PopStyleVar();
@@ -344,10 +344,17 @@ static const TextEditor::LanguageDefinition& GetLanguageDefinitionVkGLSL()
 
 	if (!initialized)
 	{
-		static const char* const keywords[] = {
+		static const char* const keywords[] =
+		{
 			"auto", "break", "case", "char", "const", "continue", "default", "do", "double", "else", "enum", "extern", "float", "for", "goto", "if", "inline", "int", "long", "register", "restrict", "return", "short",
 			"signed", "sizeof", "static", "struct", "switch", "typedef", "union", "unsigned", "void", "volatile", "while", "_Alignas", "_Alignof", "_Atomic", "_Bool", "_Complex", "_Generic", "_Imaginary",
-			"_Noreturn", "_Static_assert", "_Thread_local"
+			"_Noreturn", "_Static_assert", "_Thread_local", "attribute", "uniform", "varying", "layout", "centroid", "flat", "smooth", "noperspective", "patch", "sample", "subroutine", "in", "out", "inout",
+			"bool", "true", "false", "invariant", "mat2", "mat3", "mat4", "dmat2", "dmat3", "dmat4", "mat2x2", "mat2x3", "mat2x4", "dmat2x2", "dmat2x3", "dmat2x4", "mat3x2", "mat3x3", "mat3x4", "dmat3x2", "dmat3x3", "dmat3x4",
+			"mat4x2", "mat4x3", "mat4x4", "dmat4x2", "dmat4x3", "dmat4x4", "vec2", "vec3", "vec4", "ivec2", "ivec3", "ivec4", "bvec2", "bvec3", "bvec4", "dvec2", "dvec3", "dvec4", "uint", "uvec2", "uvec3", "uvec4",
+			"lowp", "mediump", "highp", "precision", "sampler1D", "sampler2D", "sampler3D", "samplerCube", "sampler1DShadow", "sampler2DShadow", "samplerCubeShadow", "sampler1DArray", "sampler2DArray", "sampler1DArrayShadow",
+			"sampler2DArrayShadow", "isampler1D", "isampler2D", "isampler3D", "isamplerCube", "isampler1DArray", "isampler2DArray", "usampler1D", "usampler2D", "usampler3D", "usamplerCube", "usampler1DArray", "usampler2DArray",
+			"sampler2DRect", "sampler2DRectShadow", "isampler2DRect", "usampler2DRect", "samplerBuffer", "isamplerBuffer", "usamplerBuffer", "sampler2DMS", "isampler2DMS", "usampler2DMS", "sampler2DMSArray", "isampler2DMSArray",
+			"usampler2DMSArray", "samplerCubeArray", "samplerCubeArrayShadow", "isamplerCubeArray", "usamplerCubeArray", "shared", "writeonly", "readonly", "image2D", "image1D", "image3D"
 		};
 
 		for (const auto& keyword : keywords)
@@ -355,7 +362,8 @@ static const TextEditor::LanguageDefinition& GetLanguageDefinitionVkGLSL()
 			languageDefinition.mKeywords.insert(keyword);
 		}
 
-		static const char* const identifiers[] = {
+		static const char* const identifiers[] =
+		{
 			"abort", "abs", "acos", "asin", "atan", "atexit", "atof", "atoi", "atol", "ceil", "clock", "cosh", "ctime", "div", "exit", "fabs", "floor", "fmod", "getchar", "getenv", "isalnum", "isalpha", "isdigit", "isgraph",
 			"ispunct", "isspace", "isupper", "kbhit", "log10", "log2", "log", "memcmp", "modf", "pow", "putchar", "putenv", "puts", "rand", "remove", "rename", "sinh", "sqrt", "srand", "strcat", "strcmp", "strerror", "time", "tolower", "toupper"
 		};
@@ -392,7 +400,7 @@ static const TextEditor::LanguageDefinition& GetLanguageDefinitionVkGLSL()
 	return languageDefinition;
 }
 
-// TODO: Find HLSL Specification and update this function.
+// TODO: Find VK HLSL Specification and update this function.
 static const TextEditor::LanguageDefinition& GetLanguageDefinitionVkHLSL()
 {
 	static bool initialized = false;
@@ -400,7 +408,8 @@ static const TextEditor::LanguageDefinition& GetLanguageDefinitionVkHLSL()
 
 	if (!initialized)
 	{
-		static const char* const keywords[] = {
+		static const char* const keywords[] =
+		{
 			"AppendStructuredBuffer", "asm", "asm_fragment", "BlendState", "bool", "break", "Buffer", "ByteAddressBuffer", "case", "cbuffer", "centroid", "class", "column_major", "compile", "compile_fragment",
 			"CompileShader", "const", "continue", "ComputeShader", "ConsumeStructuredBuffer", "default", "DepthStencilState", "DepthStencilView", "discard", "do", "double", "DomainShader", "dword", "else",
 			"export", "extern", "false", "float", "for", "fxgroup", "GeometryShader", "groupshared", "half", "Hullshader", "if", "in", "inline", "inout", "InputPatch", "int", "interface", "line", "lineadj",
@@ -423,7 +432,8 @@ static const TextEditor::LanguageDefinition& GetLanguageDefinitionVkHLSL()
 			languageDefinition.mKeywords.insert(keyword);
 		}
 
-		static const char* const identifiers[] = {
+		static const char* const identifiers[] =
+		{
 			"abort", "abs", "acos", "all", "AllMemoryBarrier", "AllMemoryBarrierWithGroupSync", "any", "asdouble", "asfloat", "asin", "asint", "asint", "asuint",
 			"asuint", "atan", "atan2", "ceil", "CheckAccessFullyMapped", "clamp", "clip", "cos", "cosh", "countbits", "cross", "D3DCOLORtoUBYTE4", "ddx",
 			"ddx_coarse", "ddx_fine", "ddy", "ddy_coarse", "ddy_fine", "degrees", "determinant", "DeviceMemoryBarrier", "DeviceMemoryBarrierWithGroupSync",
@@ -892,6 +902,9 @@ void UserInterface::DrawSampler(const SamplerInfo& inSamplerInfo, const Binding&
 		const static int samplerAddressesSize = IM_ARRAYSIZE(samplerAddresses);
 		static_assert(samplerAddressesSize == static_cast<int>(SamplerAddressMode::Count), "Update SamplerAddressMode names array.");
 
+		const SpvDim imageDimension = inBinding.ReflectDescriptorBinding.image.dim;
+
+		if (imageDimension == SpvDim1D || imageDimension == SpvDim2D || imageDimension == SpvDim3D)
 		{
 			const int previousAddressMode = static_cast<int>(inSamplerInfo.AddressModeU);
 			int currentAddressMode = previousAddressMode;
@@ -899,14 +912,16 @@ void UserInterface::DrawSampler(const SamplerInfo& inSamplerInfo, const Binding&
 			newSamplerInfo.AddressModeU = static_cast<SamplerAddressMode>(currentAddressMode);
 		}
 
-		{ // TODO: Don't show for 1D images.
+		if (imageDimension == SpvDim2D || imageDimension == SpvDim3D)
+		{
 			const int previousAddressMode = static_cast<int>(inSamplerInfo.AddressModeV);
 			int currentAddressMode = previousAddressMode;
 			ImGui::Combo("Addressing Mode V", &currentAddressMode, samplerAddresses, samplerAddressesSize);
 			newSamplerInfo.AddressModeV = static_cast<SamplerAddressMode>(currentAddressMode);
 		}
 
-		{ // TODO: Don't show for 1D and 2D images.
+		if (imageDimension == SpvDim3D)
+		{
 			const int previousAddressMode = static_cast<int>(inSamplerInfo.AddressModeW);
 			int currentAddressMode = previousAddressMode;
 			ImGui::Combo("Addressing Mode W", &currentAddressMode, samplerAddresses, samplerAddressesSize);
@@ -1043,7 +1058,6 @@ void UserInterface::ImguiBindingsWindow()
 {
 	static const ImVec2 DefaultWindowSize = ImVec2(400, 400);
 
-	// TODO: Rename it to Shader Input? Or something more general? In that case we can change the shader entry point function name as well.
 	ImGui::Begin("Bindings");
 
 	// TODO: Generalize and use for each window.
@@ -1056,7 +1070,7 @@ void UserInterface::ImguiBindingsWindow()
 		auto& descriptor = descriptors[descriptorIndex];
 		SpvReflectDescriptorBinding& reflectDescriptorBinding = descriptor.Binding.ReflectDescriptorBinding;
 
-		// HLSL wraps uniform buffers additionally. TODO: Check if this is always the case.
+		// HLSL wraps uniform buffers additionally.
 		if (descriptor.Resource.Type == ResourceType::UniformBuffer &&
 			m_Renderer->GetFragmentShaderFile()->GetLanguage() == ShaderLanguage::HLSL &&
 			reflectDescriptorBinding.block.member_count > 0)

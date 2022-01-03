@@ -13,7 +13,6 @@
 
 // TODO: Lightweight light fast tool (foton is small and fast :))
 // TODO: Find out if we can make background for all text.
-// TODO: Separate Runtime and Editor?
 // TODO: Use more high resolution font file for code editor.
 // TODO: Allow user to change shader entry in settings.
 // TODO: Parallel file loading system.

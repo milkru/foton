@@ -17,7 +17,8 @@
 #include <chrono>
 #include <vector>
 
-#define FT_BEGIN_NAMESPACE namespace FT {
+#define FT_BEGIN_NAMESPACE namespace FT \
+	{
 #define FT_END_NAMESPACE }
 #define FT_DEBUG !NDEBUG
 
