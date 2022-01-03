@@ -7,6 +7,7 @@ FT_BEGIN_NAMESPACE
 
 UniformBuffer::UniformBuffer(const Device* inDevice, const Swapchain* inSwapchain, const size_t inSize)
 	: m_Size(inSize)
+	, m_ProxyMemory(new unsigned char[inSize]())
 {
 	m_Buffers.resize(inSwapchain->GetImageCount());
 	for (uint32_t imageIndex = 0; imageIndex < inSwapchain->GetImageCount(); ++imageIndex)
@@ -23,6 +24,7 @@ UniformBuffer::~UniformBuffer()
 	}
 
 	m_Buffers.clear();
+	delete[](m_ProxyMemory);
 }
 
 void* UniformBuffer::Map(const uint32_t inCurrentSwapchainImageIndex)
@@ -33,6 +35,13 @@ void* UniformBuffer::Map(const uint32_t inCurrentSwapchainImageIndex)
 void UniformBuffer::Unmap(const uint32_t inCurrentSwapchainImageIndex)
 {
 	m_Buffers[inCurrentSwapchainImageIndex]->Unmap();
+}
+
+void UniformBuffer::UpdateDeviceMemory(uint32_t inCurrentImage)
+{
+	void* deviceMappedMemory = m_Buffers[inCurrentImage]->Map();
+	memcpy(deviceMappedMemory, m_ProxyMemory, m_Size);
+	m_Buffers[inCurrentImage]->Unmap();
 }
 
 FT_END_NAMESPACE

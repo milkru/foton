@@ -11,16 +11,12 @@
 #include "Utility/ShaderFile.h"
 #include "Utility/DefaultShader.h"
 
-// TODO: Next to do ImageResource and BufferResource.
 // TODO: Lightweight light fast tool (foton is small and fast :))
 // TODO: Find out if we can make background for all text.
 // TODO: Separate Runtime and Editor?
-// TODO: When starting application sometimes new row is added at the end on current file.
-// TODO: Shader printf?
-// TODO: How resource loading with paths is going to work if we only run exe files? It's relative to project root, not the exe.
 // TODO: Use more high resolution font file for code editor.
-// TODO: Smart pointers for transient objects (pipeline, shader, shader file...)
 // TODO: Allow user to change shader entry in settings.
+// TODO: Parallel file loading system.
 
 FT_BEGIN_NAMESPACE
 
@@ -29,17 +25,24 @@ void Application::Run()
 	FileExplorer::Initialize();
 
 	m_Window = new Window(this);
-	m_Renderer = new Renderer();
+	m_Renderer = nullptr;
+	m_UserInterface = nullptr;
 	
-	bool rendererInitialized = m_Renderer->Initialize(m_Window);
-	if (rendererInitialized)
+	std::string fragmentShaderPath;
+	if (FileExplorer::SaveShaderDialog(fragmentShaderPath))
 	{
+		ShaderFile* fragmentShaderFile = new ShaderFile(fragmentShaderPath);
+
+		const char* defaultFragmentShaderCode = GetDefaultFragmentShader(fragmentShaderFile->GetLanguage());
+		fragmentShaderFile->UpdateSourceCode(defaultFragmentShaderCode);
+
+		m_Renderer = new Renderer(m_Window, fragmentShaderFile);
+		
 		m_UserInterface = new UserInterface(this);
+		m_UserInterface->SetEditorText(defaultFragmentShaderCode);
+		m_UserInterface->SetEditorLanguage(fragmentShaderFile->GetLanguage());
+
 		MainLoop();
-	}
-	else
-	{
-		m_UserInterface = nullptr;
 	}
 
 	Cleanup();
@@ -59,11 +62,11 @@ bool Application::RecompileFragmentShader()
 	ShaderFile* fragmentShaderFile = m_Renderer->GetFragmentShaderFile();
 	const std::string& fragmentShaderSourceCode = m_UserInterface->GetEditorText();
 
-	const ShaderCompileResult compileResult = CompileShader(fragmentShaderFile->GetLanguage(), ShaderStage::Fragment, fragmentShaderSourceCode);
+	const ShaderCompileResult compileResult = ShaderCompiler::Compile(fragmentShaderFile->GetLanguage(), ShaderStage::Fragment, fragmentShaderSourceCode);
 
 	if (compileResult.Status != ShaderCompileStatus::Success)
 	{
-		FT_LOG("Failed %s shader %s.\n", ConvertCompilationStatusToText(compileResult.Status), fragmentShaderFile->GetName().c_str());
+		FT_LOG("Failed %s shader %s.\n", ShaderCompiler::GetStatusText(compileResult.Status), fragmentShaderFile->GetName().c_str());
 		if (!compileResult.InfoLog.empty())
 		{
 			FT_LOG(compileResult.InfoLog.c_str());
@@ -89,6 +92,7 @@ void Application::NewShader(const std::string& inPath, const std::string& inCode
 
 	m_Renderer->UpdateFragmentShaderFile(newShaderFile);
 	m_UserInterface->SetEditorText(newShaderFile->GetSourceCode());
+	m_UserInterface->SetEditorLanguage(newShaderFile->GetLanguage());
 
 	RecompileFragmentShader();
 
@@ -98,16 +102,17 @@ void Application::NewShader(const std::string& inPath, const std::string& inCode
 void Application::LoadShader(const std::string& inPath)
 {
 	ShaderFile* loadedShaderFile = new ShaderFile(inPath);
-	const ShaderCompileResult compileResult = CompileShader(loadedShaderFile->GetLanguage(), ShaderStage::Fragment, loadedShaderFile->GetSourceCode());
+	const ShaderCompileResult compileResult = ShaderCompiler::Compile(loadedShaderFile->GetLanguage(), ShaderStage::Fragment, loadedShaderFile->GetSourceCode());
 
 	if (compileResult.Status != ShaderCompileStatus::Success)
 	{
-		FT_LOG("Failed %s for loaded shader %s.\n", ConvertCompilationStatusToText(compileResult.Status), loadedShaderFile->GetName().c_str());
+		FT_LOG("Failed %s for loaded shader %s.\n", ShaderCompiler::GetStatusText(compileResult.Status), loadedShaderFile->GetName().c_str());
 		return;
 	}
 
 	m_Renderer->UpdateFragmentShaderFile(loadedShaderFile);
 	m_UserInterface->SetEditorText(loadedShaderFile->GetSourceCode());
+	m_UserInterface->SetEditorLanguage(loadedShaderFile->GetLanguage());
 
 	RecompileFragmentShader();
 
@@ -201,7 +206,6 @@ void Application::Cleanup()
 {
 	FileExplorer::Terminate();
 	delete(m_UserInterface);
-	m_Renderer->Terminate();
 	delete(m_Renderer);
 	delete(m_Window);
 }

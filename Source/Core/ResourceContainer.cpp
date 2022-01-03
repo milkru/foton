@@ -4,6 +4,7 @@
 #include "Image.h"
 #include "Sampler.h"
 #include "UniformBuffer.h"
+#include "Descriptor.hpp"
 #include "Utility/ImageFile.h"
 
 FT_BEGIN_NAMESPACE
@@ -67,8 +68,7 @@ void ResourceContainer::RecreateUniformBuffers()
 	}
 }
 
-// TODO: Test padded size with different array counts.
-static uint32_t CalculateUniformBufferSize(const SpvReflectDescriptorBinding inReflectDescriptorBinding)
+static uint32_t GetUniformBufferSize(const SpvReflectDescriptorBinding inReflectDescriptorBinding)
 {
 	return inReflectDescriptorBinding.block.padded_size * inReflectDescriptorBinding.count;
 }
@@ -82,7 +82,7 @@ static ResourceHandle CreateResource(const Device* inDevice, const Swapchain* in
 	case ResourceType::CombinedImageSampler:
 	{
 		const ImageFile imageFile(DefaultImagePath);
-		const SamplerInfo samplerInfo{}; // TOOD: Will default values work if we add {}?.
+		const SamplerInfo samplerInfo{};
 		handle.CombinedImageSampler = new CombinedImageSampler(inDevice, imageFile, samplerInfo);
 		break;
 	}
@@ -96,14 +96,14 @@ static ResourceHandle CreateResource(const Device* inDevice, const Swapchain* in
 
 	case ResourceType::Sampler:
 	{
-		const SamplerInfo samplerInfo{}; // TOOD: Will default values work if we add {}?.
+		const SamplerInfo samplerInfo{};
 		handle.Sampler = new Sampler(inDevice, samplerInfo);
 		break;
 	}
 
 	case ResourceType::UniformBuffer:
 	{
-		const uint32_t bufferSize = CalculateUniformBufferSize(inReflectDescriptorBinding);
+		const uint32_t bufferSize = GetUniformBufferSize(inReflectDescriptorBinding);
 		handle.UniformBuffer = new UniformBuffer(inDevice, inSwapchain, bufferSize);
 		break;
 	}
@@ -156,18 +156,18 @@ void ResourceContainer::UpdateBindings(std::vector<Binding> inBindings)
 		}
 
 		const Binding& newBinding = inBindings[descriptorIndex];
-		descriptor.Binding = newBinding;
-
 		const ResourceType newResourceType = GetResourceType(newBinding.DescriptorSetBinding.descriptorType);
 
 		if (newResourceType != resource.Type ||
 			(resource.Type == ResourceType::UniformBuffer &&
-				resource.Handle.UniformBuffer->GetSize() != CalculateUniformBufferSize(newBinding.ReflectDescriptorBinding)))
+				resource.Handle.UniformBuffer->GetSize() != GetUniformBufferSize(newBinding.ReflectDescriptorBinding)))
 		{
 			DeleteResource(resource);
 			resource.Handle = CreateResource(m_Device, m_Swapchain, newResourceType, newBinding.ReflectDescriptorBinding);
 			resource.Type = newResourceType;
 		}
+
+		descriptor.Binding = newBinding;
 	}
 
 	const size_t oldDescriptorCount = m_Descriptors.size();

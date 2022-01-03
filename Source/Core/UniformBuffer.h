@@ -16,14 +16,17 @@ public:
 public:
 	void* Map(const uint32_t inCurrentSwapchainImageIndex);
 	void Unmap(const uint32_t inCurrentSwapchainImageIndex);
+	void UpdateDeviceMemory(uint32_t inCurrentImage);
 
 public:
 	Buffer* GetBuffer(const uint32_t inBufferIndex) const { return m_Buffers[inBufferIndex]; }
 	size_t GetBufferCount() const { return m_Buffers.size(); }
 	size_t GetSize() const { return m_Size; }
+	unsigned char* GetProxyMemory() const {	return m_ProxyMemory; }
 
 private:
 	std::vector<Buffer*> m_Buffers;
+	unsigned char* m_ProxyMemory;
 	size_t m_Size;
 };
 

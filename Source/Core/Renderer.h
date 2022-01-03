@@ -19,12 +19,9 @@ struct SamplerInfo;
 class Renderer
 {
 public:
-	Renderer() = default;
+	Renderer(Window* inWindow, ShaderFile* inFragmentShaderFile);
+	~Renderer();
 	FT_DELETE_COPY_AND_MOVE(Renderer)
-
-public:
-	bool Initialize(Window* inWindow);
-	void Terminate();
 
 public:
 	void DrawFrame();
@@ -34,6 +31,7 @@ public:
 	void OnFragmentShaderRecompiled(const std::vector<uint32_t>& inSpvCode);
 	void UpdateImageDescriptor(const uint32_t inBindingIndex, const std::string& inPath);
 	void UpdateSamplerDescriptor(const uint32_t inBindingIndex, const SamplerInfo& inSamplerInfo);
+	void UpdateUniformBuffersDeviceMemory(uint32_t inCurrentImage);
 	void RecreateDescriptorSet();
 
 public:

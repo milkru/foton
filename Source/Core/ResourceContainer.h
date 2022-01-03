@@ -1,13 +1,13 @@
 #pragma once
 
-// TODO: How?
-#include "Descriptor.hpp"
-
 FT_BEGIN_NAMESPACE
 
 class Device;
 class Swapchain;
 struct SamplerInfo;
+struct Binding;
+struct Resource;
+struct Descriptor;
 
 class ResourceContainer
 {
@@ -23,7 +23,7 @@ public:
 	void UpdateSampler(const uint32_t inBindingIndex, const SamplerInfo& inSamplerInfo);
 
 public:
-	std::vector<Descriptor> GetDescriptors() const { return m_Descriptors; }
+	const std::vector<Descriptor>& GetDescriptors() const { return m_Descriptors; }
 
 private:
 	void DeleteResource(const Resource& inResource);

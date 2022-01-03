@@ -22,9 +22,12 @@ struct ShaderCompileResult
 	std::string InfoLog;
 };
 
-extern void InitializeShaderCompiler();
-extern void FinalizeShaderCompiler();
-extern ShaderCompileResult CompileShader(const ShaderLanguage inLanguage, const ShaderStage inStage, const std::string& inSourceCode, const std::string inCodeEntry = "main");
-extern const char* ConvertCompilationStatusToText(const ShaderCompileStatus inStatus);
+namespace ShaderCompiler
+{
+	extern void Initialize();
+	extern void Finalize();
+	extern ShaderCompileResult Compile(const ShaderLanguage inLanguage, const ShaderStage inStage, const std::string& inSourceCode, const std::string inCodeEntry = "main");
+	extern const char* GetStatusText(const ShaderCompileStatus inStatus);
+}
 
 FT_END_NAMESPACE

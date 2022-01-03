@@ -24,7 +24,10 @@
 #define FT_DEFAULT_WINDOW_WIDTH 1280
 #define FT_DEFAULT_WINDOW_HEIGHT 720
 
+// TODO: Append Foton version to name as well. You can get the version from CMake define.
 #define FT_APPLICATION_NAME "Foton"
+
+#define FT_CLAMP(val, min, max) ((val) < (min) ? (min) : (val) > (max) ? (max) : (val))
 
 #define FT_DELETE_COPY_AND_MOVE(type) \
 	type(type const&) = delete; \
@@ -53,3 +56,10 @@
 #include "Utility/Assert.hpp"
 #include "Utility/Log.h"
 #include "Utility/FilePath.h"
+
+#define FT_VK_CALL(call) \
+	do { \
+		VkResult result = call; \
+		FT_CHECK(result == VK_SUCCESS, "Vulkan API call %s failed.", #call); \
+	} \
+	while (0)

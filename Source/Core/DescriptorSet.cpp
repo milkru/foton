@@ -6,6 +6,7 @@
 #include "Image.h"
 #include "Sampler.h"
 #include "UniformBuffer.h"
+#include "Descriptor.hpp"
 
 FT_BEGIN_NAMESPACE
 

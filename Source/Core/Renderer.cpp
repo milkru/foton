@@ -15,75 +15,10 @@
 #include "Compiler/ShaderCompiler.h"
 #include "Utility/ShaderFile.h"
 #include "Utility/DefaultShader.h"
-#include "Utility/FileExplorer.h"
+
+// TODO: double type pops validation warning when used in a shader. Probably need some extension. Test if some other things require it as well.
 
 FT_BEGIN_NAMESPACE
-
-bool Renderer::Initialize(Window* inWindow)
-{
-	m_Window = inWindow;
-
-	InitializeShaderCompiler();
-
-	m_Device = new Device(m_Window);
-	m_Swapchain = new Swapchain(m_Device, m_Window);
-
-	{
-		const char* defaultVertexShader = GetDefaultVertexShader(ShaderLanguage::GLSL);
-		const ShaderCompileResult compileResult = CompileShader(ShaderLanguage::GLSL, ShaderStage::Vertex, defaultVertexShader);
-		const char* status = ConvertCompilationStatusToText(compileResult.Status);
-		FT_CHECK(compileResult.Status == ShaderCompileStatus::Success, "Failed %s default vertex shader.", status);
-
-		m_VertexShader = new Shader(m_Device, ShaderStage::Vertex, compileResult.SpvCode);
-	}
-
-	{
-		// TODO: Get cached fragment shader file first and if that doesn't exist, use this one.
-		std::string fragmentShaderPath;
-		if (FileExplorer::SaveShaderDialog(fragmentShaderPath))
-		{
-			m_FragmentShaderFile = new ShaderFile(fragmentShaderPath);
-
-			const char* defaultFragmentShader = GetDefaultFragmentShader(m_FragmentShaderFile->GetLanguage());
-			m_FragmentShaderFile->UpdateSourceCode(defaultFragmentShader);
-		}
-		else
-		{
-			return false;
-		}
-
-		const ShaderCompileResult compileResult = CompileShader(m_FragmentShaderFile->GetLanguage(), ShaderStage::Fragment, m_FragmentShaderFile->GetSourceCode());
-		const char* status = ConvertCompilationStatusToText(compileResult.Status);
-
-		FT_CHECK(compileResult.Status == ShaderCompileStatus::Success, "Failed %s fragment shader %s.", status, m_FragmentShaderFile->GetName().c_str());
-
-		m_FragmentShader = new Shader(m_Device, ShaderStage::Fragment, compileResult.SpvCode);
-	}
-
-	m_ResourceContainer = new ResourceContainer(m_Device, m_Swapchain);
-	m_ResourceContainer->UpdateBindings(m_FragmentShader->GetBindings());
-
-	m_DescriptorSet = new DescriptorSet(m_Device, m_Swapchain, m_ResourceContainer->GetDescriptors());
-	m_Pipeline = new Pipeline(m_Device, m_Swapchain, m_DescriptorSet, m_VertexShader, m_FragmentShader);
-	m_CommandBuffer = new CommandBuffer(m_Device, m_Swapchain);
-
-	return true;
-}
-
-void Renderer::Terminate()
-{
-	delete(m_FragmentShaderFile);
-	delete(m_FragmentShader);
-	delete(m_VertexShader);
-
-	CleanupSwapchain();
-
-	delete(m_ResourceContainer);
-	delete(m_Swapchain);
-	delete(m_Device);
-
-	FinalizeShaderCompiler();
-}
 
 void Renderer::DrawFrame()
 {
@@ -98,7 +33,7 @@ void Renderer::DrawFrame()
 
 	const uint32_t imageIndex = imageAcquireResult.ImageIndex;
 
-	// UpdateUniformBuffer(imageIndex); // TODO:
+	UpdateUniformBuffersDeviceMemory(imageIndex);
 	FillCommandBuffers(imageIndex);
 
 	const SwapchainStatus presentStatus = m_Swapchain->Present(imageIndex, m_CommandBuffer);
@@ -110,6 +45,56 @@ void Renderer::DrawFrame()
 	{
 		FT_CHECK(presentStatus == SwapchainStatus::Success, "Swapchain present failed.");
 	}
+}
+
+Renderer::Renderer(Window* inWindow, ShaderFile* inFragmentShaderFile)
+	: m_Window (inWindow)
+	, m_FragmentShaderFile (inFragmentShaderFile)
+{
+	ShaderCompiler::Initialize();
+
+	m_Device = new Device(m_Window);
+	m_Swapchain = new Swapchain(m_Device, m_Window);
+
+	{
+		const char* defaultVertexShader = GetDefaultVertexShader(ShaderLanguage::GLSL);
+		const ShaderCompileResult compileResult = ShaderCompiler::Compile(ShaderLanguage::GLSL, ShaderStage::Vertex, defaultVertexShader);
+		const char* status = ShaderCompiler::GetStatusText(compileResult.Status);
+		FT_CHECK(compileResult.Status == ShaderCompileStatus::Success, "Failed %s default vertex shader.", status);
+
+		m_VertexShader = new Shader(m_Device, ShaderStage::Vertex, compileResult.SpvCode);
+	}
+
+	{
+		const ShaderCompileResult compileResult = ShaderCompiler::Compile(m_FragmentShaderFile->GetLanguage(), ShaderStage::Fragment, m_FragmentShaderFile->GetSourceCode());
+		const char* status = ShaderCompiler::GetStatusText(compileResult.Status);
+
+		FT_CHECK(compileResult.Status == ShaderCompileStatus::Success, "Failed %s fragment shader %s.", status, m_FragmentShaderFile->GetName().c_str());
+
+		m_FragmentShader = new Shader(m_Device, ShaderStage::Fragment, compileResult.SpvCode);
+	}
+
+	m_ResourceContainer = new ResourceContainer(m_Device, m_Swapchain);
+	m_ResourceContainer->UpdateBindings(m_FragmentShader->GetBindings());
+
+	m_DescriptorSet = new DescriptorSet(m_Device, m_Swapchain, m_ResourceContainer->GetDescriptors());
+	m_Pipeline = new Pipeline(m_Device, m_Swapchain, m_DescriptorSet, m_VertexShader, m_FragmentShader);
+	m_CommandBuffer = new CommandBuffer(m_Device, m_Swapchain);
+}
+
+Renderer::~Renderer()
+{
+	delete(m_FragmentShaderFile);
+	delete(m_FragmentShader);
+	delete(m_VertexShader);
+
+	CleanupSwapchain();
+
+	delete(m_ResourceContainer);
+	delete(m_Swapchain);
+	delete(m_Device);
+
+	ShaderCompiler::Finalize();
 }
 
 void Renderer::WaitDeviceToFinish()
@@ -162,6 +147,17 @@ void Renderer::RecreateDescriptorSet()
 std::vector<Descriptor> Renderer::GetDescriptors() const
 {
 	return m_ResourceContainer->GetDescriptors();
+}
+
+void Renderer::UpdateUniformBuffersDeviceMemory(uint32_t inCurrentImage)
+{
+	for (const auto& descriptor : m_ResourceContainer->GetDescriptors())
+	{
+		if (descriptor.Resource.Type == ResourceType::UniformBuffer)
+		{
+			descriptor.Resource.Handle.UniformBuffer->UpdateDeviceMemory(inCurrentImage);
+		}
+	}
 }
 
 void Renderer::CleanupSwapchain()

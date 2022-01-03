@@ -1,12 +1,10 @@
 #pragma once
 
-// TODO: How?
-#include "Descriptor.hpp"
-
 FT_BEGIN_NAMESPACE
 
 class Device;
 class Swapchain;
+struct Descriptor;
 
 class DescriptorSet
 {
