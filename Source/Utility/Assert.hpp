@@ -1,6 +1,16 @@
 #pragma once
 
-#ifdef FT_DEBUG
+#ifdef NDEBUG
+#	define FT_CHECK(condition, fmt, ...) \
+		do \
+		{ \
+			if (!(condition)) \
+			{ \
+				FT_LOG(fmt, __VA_ARGS__); \
+			} \
+		} \
+		while (0)
+#else
 #	define FT_CHECK(condition, fmt, ...) \
 		do \
 		{ \
@@ -11,17 +21,7 @@
 			} \
 		} \
 		while (0)
-#else
-#	define FT_CHECK(condition, fmt, ...) \
-		do \
-		{ \
-			if (!(condition)) \
-			{ \
-				FT_LOG(fmt, __VA_ARGS__); \
-			} \
-		} \
-		while (0)
-#endif // FT_DEBUG
+#endif // NDEBUG
 
 #define FT_FAIL(msg) \
 	do \

@@ -3,11 +3,11 @@
 
 FT_BEGIN_NAMESPACE
 
-#ifdef FT_DEBUG
-	static const bool enableValidationLayers = true;
-#else
+#ifdef NDEBUG
 	static const bool enableValidationLayers = false;
-#endif // FT_DEBUG
+#else
+	static const bool enableValidationLayers = true;
+#endif // NDEBUG
 
 static const std::vector<const char*> deviceExtensions =
 {
@@ -112,12 +112,12 @@ static void CreateInstance(VkInstance& outInstance)
 	instanceCreateInfo.enabledExtensionCount = static_cast<uint32_t>(requiredExtensions.size());
 	instanceCreateInfo.ppEnabledExtensionNames = requiredExtensions.data();
 
+	VkDebugUtilsMessengerCreateInfoEXT debugMessangerCreateInfo{};
 	if (enableValidationLayers)
 	{
 		instanceCreateInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
 		instanceCreateInfo.ppEnabledLayerNames = validationLayers.data();
 
-		VkDebugUtilsMessengerCreateInfoEXT debugMessangerCreateInfo{};
 		PopulateDebugMessengerCreateInfo(debugMessangerCreateInfo);
 		instanceCreateInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*)&debugMessangerCreateInfo;
 	}
