@@ -1,6 +1,4 @@
 Build/*
-!Build/imgui.ini
-
 External/*
 !External/bootstrap.py
 !External/bootstrap.json

@@ -11,6 +11,7 @@
 #include "Utility/ShaderFile.h"
 #include "Utility/FileExplorer.h"
 #include "Utility/FilePath.h"
+#include <imgui_internal.h>
 
 FT_BEGIN_NAMESPACE
 
@@ -117,14 +118,7 @@ void UserInterface::ImguiNewFrame()
 
 	if (m_Enable)
 	{
-		ImGui::ShowDemoWindow();
-
-		const static uint32_t maxShaderFileName = 128;
-		char buf[maxShaderFileName];
-		ShaderFile* fragmentShaderFile = m_Renderer->GetFragmentShaderFile();
-		sprintf(buf, "%s###ShaderTitle", fragmentShaderFile->GetName().c_str());
-
-		ImGui::Begin(buf, nullptr, ImGuiWindowFlags_HorizontalScrollbar);
+		ImGui::Begin("Editor", nullptr, ImGuiWindowFlags_HorizontalScrollbar);
 
 		ImGui::SetWindowSize(ImVec2(FT_DEFAULT_WINDOW_WIDTH, FT_DEFAULT_WINDOW_HEIGHT), ImGuiCond_FirstUseEver);
 
@@ -365,8 +359,7 @@ void UserInterface::ImguiMenuBar()
 
 void UserInterface::ImguiDockSpace()
 {
-	const static int public_ImGuiDockNodeFlags_NoTabBar = (1 << 12);
-	static ImGuiDockNodeFlags dockspaceFlags = ImGuiDockNodeFlags_PassthruCentralNode | public_ImGuiDockNodeFlags_NoTabBar;
+	static ImGuiDockNodeFlags dockspaceFlags = ImGuiDockNodeFlags_PassthruCentralNode | ImGuiDockNodeFlags_NoTabBar;
 
 	ImGuiWindowFlags windowFlags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking;
 	const ImGuiViewport* viewport = ImGui::GetMainViewport();
@@ -389,6 +382,24 @@ void UserInterface::ImguiDockSpace()
 	ImGuiIO& io = ImGui::GetIO();
 	{
 		ImGuiID dockspaceId = ImGui::GetID("MyDockSpace");
+
+		if (!ImGui::DockBuilderGetNode(dockspaceId))
+		{
+			ImGui::DockBuilderRemoveNode(dockspaceId);
+			ImGui::DockBuilderAddNode(dockspaceId, ImGuiDockNodeFlags_None);
+
+			ImGuiID dockMainId = dockspaceId;
+			ImGuiID dockLeftId = ImGui::DockBuilderSplitNode(dockMainId, ImGuiDir_Left, 0.175f, nullptr, &dockMainId);
+			ImGuiID dockUpId = ImGui::DockBuilderSplitNode(dockMainId, ImGuiDir_Up, 0.75f, nullptr, &dockMainId);
+			ImGuiID dockDownId = ImGui::DockBuilderSplitNode(dockMainId, ImGuiDir_Down, 1.0f, nullptr, &dockMainId);
+
+			ImGui::DockBuilderDockWindow("BindingsMenu", dockLeftId);
+			ImGui::DockBuilderDockWindow("Editor", dockUpId);
+			ImGui::DockBuilderDockWindow("Log", dockDownId);
+
+			ImGui::DockBuilderFinish(dockMainId);
+		}
+
 		ImGui::DockSpace(dockspaceId, ImVec2(0.0f, 0.0f), dockspaceFlags);
 	}
 
