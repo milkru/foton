@@ -10,41 +10,9 @@
 #include "Core/UniformBuffer.h"
 #include "Utility/ShaderFile.h"
 #include "Utility/FileExplorer.h"
+#include "Utility/FilePath.h"
 
 FT_BEGIN_NAMESPACE
-
-// TODO: Customize.
-static const TextEditor::Palette& GetEditorColorPalette()
-{
-	const static TextEditor::Palette pallete =
-	{
-		{
-			0xff7f7f7f,	// Default
-			0xffd69c56,	// Keyword	
-			0xff00ff00,	// Number
-			0xff7070e0,	// String
-			0xff70a0e0, // Char literal
-			0xffffffff, // Punctuation
-			0xff408080,	// Preprocessor
-			0xffaaaaaa, // Identifier
-			0xff9bc64d, // Known identifier
-			0xffc040a0, // Preproc identifier
-			0xff206020, // Comment (single line)
-			0xff406020, // Comment (multi line)
-			0xff101010, // Background
-			0xffe0e0e0, // Cursor
-			0x80a06020, // Selection
-			0x800020ff, // ErrorMarker
-			0x40f08000, // Breakpoint
-			0xff707000, // Line number
-			0x40000000, // Current line fill
-			0x40808080, // Current line fill (inactive)
-			0x40a0a0a0, // Current line edge
-		}
-	};
-
-	return pallete;
-}
 
 UserInterface::UserInterface(Application* inApplication)
 	: m_Application(inApplication)
@@ -103,6 +71,10 @@ UserInterface::UserInterface(Application* inApplication)
 
 	ImGui_ImplVulkan_Init(&vulkanImplementationInitInfo, swapchain->GetRenderPass());
 
+	const static float defaultFontSize = 20.0f;
+	const static std::string fontFileFullPath = GetFullPath("/External/src/imgui/misc/fonts/Cousine-Regular.ttf");
+	io.Fonts->AddFontFromFileTTF(fontFileFullPath.c_str(), defaultFontSize);
+
 	VkCommandBuffer commandBuffer = device->BeginSingleTimeCommands();
 	ImGui_ImplVulkan_CreateFontsTexture(commandBuffer);
 	device->EndSingleTimeCommands(commandBuffer);
@@ -111,7 +83,18 @@ UserInterface::UserInterface(Application* inApplication)
 
 	ApplyImGuiStyle();
 
-	m_Editor.SetPalette(GetEditorColorPalette());
+	m_Editor.SetPalette(TextEditor::GetColorPalette());
+	// TODO: Settings.
+	m_Editor.SetShowWhitespaces(false);
+
+	ImGuiStyle& style = ImGui::GetStyle();
+	style.FrameRounding = 10.0f;
+	style.FramePadding = ImVec2(4.0f, 5.0f);
+	style.ItemSpacing = ImVec2(9.0f, 6.0f);
+	style.ItemInnerSpacing = ImVec2(5.0f, 4.0f);
+	style.WindowMenuButtonPosition = ImGuiDir_None;
+	style.ScrollbarSize = 20.0f;
+	style.ScrollbarRounding = 12.0f;
 }
 
 UserInterface::~UserInterface()
@@ -122,164 +105,6 @@ UserInterface::~UserInterface()
 
 	Device* device = m_Renderer->GetDevice();
 	vkDestroyDescriptorPool(device->GetDevice(), imguiDescPool, nullptr);
-}
-
-// https://en.wikipedia.org/wiki/UTF-8
-static int UTF8CharLength(const TextEditor::Char c)
-{
-	if ((c & 0xFE) == 0xFC)
-	{
-		return 6;
-	}
-
-	if ((c & 0xFC) == 0xF8)
-	{
-		return 5;
-	}
-
-	if ((c & 0xF8) == 0xF0)
-	{
-		return 4;
-	}
-	else if ((c & 0xF0) == 0xE0)
-	{
-		return 3;
-	}
-	else if ((c & 0xE0) == 0xC0)
-	{
-		return 2;
-	}
-
-	return 1;
-}
-
-static int GetCharacterIndex(const TextEditor::Coordinates& aCoordinates, const std::vector<std::string>& mLines, const int mTabSize)
-{
-	if (aCoordinates.mLine >= mLines.size())
-	{
-		return -1;
-	}
-
-	auto& line = mLines[aCoordinates.mLine];
-	int c = 0;
-	int i = 0;
-	for (; i < line.size() && c < aCoordinates.mColumn;)
-	{
-		if (line[i] == '\t')
-		{
-			c = (c / mTabSize) * mTabSize + mTabSize;
-		}
-		else
-		{
-			++c;
-		}
-
-		i += UTF8CharLength(line[i]);
-	}
-
-	return i;
-}
-
-static float TextDistanceToLineStart(const TextEditor::Coordinates& aFrom, const std::vector<std::string>& mLines, const int mTabSize)
-{
-	auto& line = mLines[aFrom.mLine];
-	float distance = 0.0f;
-	float spaceSize = ImGui::GetFont()->CalcTextSizeA(ImGui::GetFontSize(), FLT_MAX, -1.0f, " ", nullptr, nullptr).x;
-	int colIndex = GetCharacterIndex(aFrom, mLines, mTabSize);
-	for (size_t lineIndex = 0u; lineIndex < line.size() && lineIndex < colIndex; )
-	{
-		if (line[lineIndex] == '\t')
-		{
-			distance = (1.0f + std::floor((1.0f + distance) / (float(mTabSize) * spaceSize))) * (float(mTabSize) * spaceSize);
-			++lineIndex;
-		}
-		else
-		{
-			auto d = UTF8CharLength(line[lineIndex]);
-			char tempCString[7];
-			int i = 0;
-			for (; i < 6 && d-- > 0 && lineIndex < (int)line.size(); i++, lineIndex++)
-			{
-				tempCString[i] = line[lineIndex];
-			}
-
-			tempCString[i] = '\0';
-			distance += ImGui::GetFont()->CalcTextSizeA(ImGui::GetFontSize(), FLT_MAX, -1.0f, tempCString, nullptr, nullptr).x;
-		}
-	}
-
-	return distance;
-}
-
-static int GetLineMaxColumn(int aLine, const std::vector<std::string>& mLines, const int mTabSize)
-{
-	if (aLine >= mLines.size())
-	{
-		return 0;
-	}
-
-	auto& line = mLines[aLine];
-	int col = 0;
-	for (uint32_t lineIndex = 0; lineIndex < line.size(); )
-	{
-		auto c = line[lineIndex];
-		if (c == '\t')
-		{
-			col = (col / mTabSize) * mTabSize + mTabSize;
-		}
-		else
-		{
-			++col;
-		}
-
-		lineIndex += UTF8CharLength(c);
-	}
-
-	return col;
-}
-
-void UserInterface::DrawTextBackground()
-{
-	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, 0.0f));
-
-	const std::vector<std::string> mLines = m_Editor.GetTextLines();
-	const int tabSize = m_Editor.GetTabSize();
-
-	// TODO: This value doesn't get offset if the main editor text is scrolled.
-	ImVec2 cursorScreenPos = ImGui::GetCursorScreenPos();
-	const float scrollY = ImGui::GetScrollY();
-
-	const float lineSpacing = 1.0f;
-	const int leftMargin = 10;
-
-	const float fontSize = ImGui::GetFont()->CalcTextSizeA(ImGui::GetFontSize(), FLT_MAX, -1.0f, "#", nullptr, nullptr).x;
-	const ImVec2 charAdvance = ImVec2(fontSize, ImGui::GetTextLineHeightWithSpacing() * lineSpacing);
-
-	char lineMaxBuf[16];
-	const size_t globalLineMax = (int)mLines.size();
-	snprintf(lineMaxBuf, 16, " %zd ", globalLineMax);
-	const float textStart = ImGui::GetFont()->CalcTextSizeA(ImGui::GetFontSize(), FLT_MAX, -1.0f, lineMaxBuf, nullptr, nullptr).x + leftMargin;
-	const ImVec2 contentSize = ImGui::GetWindowContentRegionMax();
-
-	int lineNumber = static_cast<int>(floor(scrollY / charAdvance.y));
-	const int lineMax = std::max(0, std::min((int)mLines.size() - 1, lineNumber + static_cast<int>(floor((scrollY + contentSize.y) / charAdvance.y))));
-	while (lineNumber <= lineMax)
-	{
-		const ImVec2 lineStartScreenPos = ImVec2(cursorScreenPos.x, cursorScreenPos.y + lineNumber * charAdvance.y);
-		const ImVec2 textScreenPos = ImVec2(lineStartScreenPos.x + textStart, lineStartScreenPos.y);
-		TextEditor::Coordinates lineEndCoord(lineNumber, GetLineMaxColumn(lineNumber, mLines, tabSize));
-
-		const ImVec2 start(lineStartScreenPos.x + textStart, lineStartScreenPos.y);
-		const ImVec2 end(lineStartScreenPos.x + textStart + TextDistanceToLineStart(lineEndCoord, mLines, tabSize), lineStartScreenPos.y + charAdvance.y);
-		ImDrawList* drawList = ImGui::GetWindowDrawList();
-
-		const ImU32 textBackgroundColor = 0x80000000;
-		drawList->AddRectFilled(start, end, textBackgroundColor);
-
-		++lineNumber;
-	}
-
-	ImGui::PopStyleVar();
 }
 
 void UserInterface::ImguiNewFrame()
@@ -303,12 +128,11 @@ void UserInterface::ImguiNewFrame()
 
 		ImGui::SetWindowSize(ImVec2(FT_DEFAULT_WINDOW_WIDTH, FT_DEFAULT_WINDOW_HEIGHT), ImGuiCond_FirstUseEver);
 
-		DrawTextBackground();
+		//DrawTextBackground();
 
 		ImGui::SetNextWindowBgAlpha(0.f);
 		ImGui::SetWindowFontScale(m_CodeFontSize);
 
-		m_Editor.SetShowWhitespaces(true);
 		m_Editor.Render("TextEditor");
 
 		ImGui::End();
@@ -323,7 +147,7 @@ void UserInterface::ImguiNewFrame()
 
 void UserInterface::UpdateCodeFontSize(float offset)
 {
-	const static float MinCodeFontSize = 1.0f;
+	const static float MinCodeFontSize = 0.5f;
 	const static float MaxCodeFontSize = 3.0f;
 	const static float CodeFontSizeMul = 0.1f;
 
@@ -336,161 +160,16 @@ void UserInterface::SetEditorText(const std::string& inText)
 	return m_Editor.SetText(inText);
 }
 
-// TODO: Update using https://www.khronos.org/registry/OpenGL/specs/gl/GLSLangSpec.4.60.pdf
-static const TextEditor::LanguageDefinition& GetLanguageDefinitionVkGLSL()
-{
-	static bool initialized = false;
-	static TextEditor::LanguageDefinition languageDefinition;
-
-	if (!initialized)
-	{
-		static const char* const keywords[] =
-		{
-			"auto", "break", "case", "char", "const", "continue", "default", "do", "double", "else", "enum", "extern", "float", "for", "goto", "if", "inline", "int", "long", "register", "restrict", "return", "short",
-			"signed", "sizeof", "static", "struct", "switch", "typedef", "union", "unsigned", "void", "volatile", "while", "_Alignas", "_Alignof", "_Atomic", "_Bool", "_Complex", "_Generic", "_Imaginary",
-			"_Noreturn", "_Static_assert", "_Thread_local", "attribute", "uniform", "varying", "layout", "centroid", "flat", "smooth", "noperspective", "patch", "sample", "subroutine", "in", "out", "inout",
-			"bool", "true", "false", "invariant", "mat2", "mat3", "mat4", "dmat2", "dmat3", "dmat4", "mat2x2", "mat2x3", "mat2x4", "dmat2x2", "dmat2x3", "dmat2x4", "mat3x2", "mat3x3", "mat3x4", "dmat3x2", "dmat3x3", "dmat3x4",
-			"mat4x2", "mat4x3", "mat4x4", "dmat4x2", "dmat4x3", "dmat4x4", "vec2", "vec3", "vec4", "ivec2", "ivec3", "ivec4", "bvec2", "bvec3", "bvec4", "dvec2", "dvec3", "dvec4", "uint", "uvec2", "uvec3", "uvec4",
-			"lowp", "mediump", "highp", "precision", "sampler1D", "sampler2D", "sampler3D", "samplerCube", "sampler1DShadow", "sampler2DShadow", "samplerCubeShadow", "sampler1DArray", "sampler2DArray", "sampler1DArrayShadow",
-			"sampler2DArrayShadow", "isampler1D", "isampler2D", "isampler3D", "isamplerCube", "isampler1DArray", "isampler2DArray", "usampler1D", "usampler2D", "usampler3D", "usamplerCube", "usampler1DArray", "usampler2DArray",
-			"sampler2DRect", "sampler2DRectShadow", "isampler2DRect", "usampler2DRect", "samplerBuffer", "isamplerBuffer", "usamplerBuffer", "sampler2DMS", "isampler2DMS", "usampler2DMS", "sampler2DMSArray", "isampler2DMSArray",
-			"usampler2DMSArray", "samplerCubeArray", "samplerCubeArrayShadow", "isamplerCubeArray", "usamplerCubeArray", "shared", "writeonly", "readonly", "image2D", "image1D", "image3D"
-		};
-
-		for (const auto& keyword : keywords)
-		{
-			languageDefinition.mKeywords.insert(keyword);
-		}
-
-		static const char* const identifiers[] =
-		{
-			"abort", "abs", "acos", "asin", "atan", "atexit", "atof", "atoi", "atol", "ceil", "clock", "cosh", "ctime", "div", "exit", "fabs", "floor", "fmod", "getchar", "getenv", "isalnum", "isalpha", "isdigit", "isgraph",
-			"ispunct", "isspace", "isupper", "kbhit", "log10", "log2", "log", "memcmp", "modf", "pow", "putchar", "putenv", "puts", "rand", "remove", "rename", "sinh", "sqrt", "srand", "strcat", "strcmp", "strerror", "time", "tolower", "toupper"
-		};
-
-		for (const auto& identifier : identifiers)
-		{
-			TextEditor::Identifier id;
-			id.mDeclaration = "Built-in function";
-			languageDefinition.mIdentifiers.insert(std::make_pair(std::string(identifier), id));
-		}
-
-		languageDefinition.mTokenRegexStrings.push_back(std::make_pair<std::string, TextEditor::PaletteIndex>("[ \\t]*#[ \\t]*[a-zA-Z_]+", TextEditor::PaletteIndex::Preprocessor));
-		languageDefinition.mTokenRegexStrings.push_back(std::make_pair<std::string, TextEditor::PaletteIndex>("L?\\\"(\\\\.|[^\\\"])*\\\"", TextEditor::PaletteIndex::String));
-		languageDefinition.mTokenRegexStrings.push_back(std::make_pair<std::string, TextEditor::PaletteIndex>("\\'\\\\?[^\\']\\'", TextEditor::PaletteIndex::CharLiteral));
-		languageDefinition.mTokenRegexStrings.push_back(std::make_pair<std::string, TextEditor::PaletteIndex>("[+-]?([0-9]+([.][0-9]*)?|[.][0-9]+)([eE][+-]?[0-9]+)?[fF]?", TextEditor::PaletteIndex::Number));
-		languageDefinition.mTokenRegexStrings.push_back(std::make_pair<std::string, TextEditor::PaletteIndex>("[+-]?[0-9]+[Uu]?[lL]?[lL]?", TextEditor::PaletteIndex::Number));
-		languageDefinition.mTokenRegexStrings.push_back(std::make_pair<std::string, TextEditor::PaletteIndex>("0[0-7]+[Uu]?[lL]?[lL]?", TextEditor::PaletteIndex::Number));
-		languageDefinition.mTokenRegexStrings.push_back(std::make_pair<std::string, TextEditor::PaletteIndex>("0[xX][0-9a-fA-F]+[uU]?[lL]?[lL]?", TextEditor::PaletteIndex::Number));
-		languageDefinition.mTokenRegexStrings.push_back(std::make_pair<std::string, TextEditor::PaletteIndex>("[a-zA-Z_][a-zA-Z0-9_]*", TextEditor::PaletteIndex::Identifier));
-		languageDefinition.mTokenRegexStrings.push_back(std::make_pair<std::string, TextEditor::PaletteIndex>("[\\[\\]\\{\\}\\!\\%\\^\\&\\*\\(\\)\\-\\+\\=\\~\\|\\<\\>\\?\\/\\;\\,\\.]", TextEditor::PaletteIndex::Punctuation));
-
-		languageDefinition.mCommentStart = "/*";
-		languageDefinition.mCommentEnd = "*/";
-		languageDefinition.mSingleLineComment = "//";
-
-		languageDefinition.mCaseSensitive = true;
-		languageDefinition.mAutoIndentation = true;
-
-		languageDefinition.mName = "GLSL";
-
-		initialized = true;
-	}
-
-	return languageDefinition;
-}
-
-// TODO: Find VK HLSL Specification and update this function.
-static const TextEditor::LanguageDefinition& GetLanguageDefinitionVkHLSL()
-{
-	static bool initialized = false;
-	static TextEditor::LanguageDefinition languageDefinition;
-
-	if (!initialized)
-	{
-		static const char* const keywords[] =
-		{
-			"AppendStructuredBuffer", "asm", "asm_fragment", "BlendState", "bool", "break", "Buffer", "ByteAddressBuffer", "case", "cbuffer", "centroid", "class", "column_major", "compile", "compile_fragment",
-			"CompileShader", "const", "continue", "ComputeShader", "ConsumeStructuredBuffer", "default", "DepthStencilState", "DepthStencilView", "discard", "do", "double", "DomainShader", "dword", "else",
-			"export", "extern", "false", "float", "for", "fxgroup", "GeometryShader", "groupshared", "half", "Hullshader", "if", "in", "inline", "inout", "InputPatch", "int", "interface", "line", "lineadj",
-			"linear", "LineStream", "matrix", "min16float", "min10float", "min16int", "min12int", "min16uint", "namespace", "nointerpolation", "noperspective", "NULL", "out", "OutputPatch", "packoffset",
-			"pass", "pixelfragment", "PixelShader", "point", "PointStream", "precise", "RasterizerState", "RenderTargetView", "return", "register", "row_major", "RWBuffer", "RWByteAddressBuffer", "RWStructuredBuffer",
-			"RWTexture1D", "RWTexture1DArray", "RWTexture2D", "RWTexture2DArray", "RWTexture3D", "sample", "sampler", "SamplerState", "SamplerComparisonState", "shared", "snorm", "stateblock", "stateblock_state",
-			"static", "string", "struct", "switch", "StructuredBuffer", "tbuffer", "technique", "technique10", "technique11", "texture", "Texture1D", "Texture1DArray", "Texture2D", "Texture2DArray", "Texture2DMS",
-			"Texture2DMSArray", "Texture3D", "TextureCube", "TextureCubeArray", "true", "typedef", "triangle", "triangleadj", "TriangleStream", "uint", "uniform", "unorm", "unsigned", "vector", "vertexfragment",
-			"VertexShader", "void", "volatile", "while",
-			"bool1","bool2","bool3","bool4","double1","double2","double3","double4", "float1", "float2", "float3", "float4", "int1", "int2", "int3", "int4", "in", "out", "inout",
-			"uint1", "uint2", "uint3", "uint4", "dword1", "dword2", "dword3", "dword4", "half1", "half2", "half3", "half4",
-			"float1x1","float2x1","float3x1","float4x1","float1x2","float2x2","float3x2","float4x2",
-			"float1x3","float2x3","float3x3","float4x3","float1x4","float2x4","float3x4","float4x4",
-			"half1x1","half2x1","half3x1","half4x1","half1x2","half2x2","half3x2","half4x2",
-			"half1x3","half2x3","half3x3","half4x3","half1x4","half2x4","half3x4","half4x4",
-		};
-
-		for (const auto& keyword : keywords)
-		{
-			languageDefinition.mKeywords.insert(keyword);
-		}
-
-		static const char* const identifiers[] =
-		{
-			"abort", "abs", "acos", "all", "AllMemoryBarrier", "AllMemoryBarrierWithGroupSync", "any", "asdouble", "asfloat", "asin", "asint", "asint", "asuint",
-			"asuint", "atan", "atan2", "ceil", "CheckAccessFullyMapped", "clamp", "clip", "cos", "cosh", "countbits", "cross", "D3DCOLORtoUBYTE4", "ddx",
-			"ddx_coarse", "ddx_fine", "ddy", "ddy_coarse", "ddy_fine", "degrees", "determinant", "DeviceMemoryBarrier", "DeviceMemoryBarrierWithGroupSync",
-			"distance", "dot", "dst", "errorf", "EvaluateAttributeAtCentroid", "EvaluateAttributeAtSample", "EvaluateAttributeSnapped", "exp", "exp2",
-			"f16tof32", "f32tof16", "faceforward", "firstbithigh", "firstbitlow", "floor", "fma", "fmod", "frac", "frexp", "fwidth", "GetRenderTargetSampleCount",
-			"GetRenderTargetSamplePosition", "GroupMemoryBarrier", "GroupMemoryBarrierWithGroupSync", "InterlockedAdd", "InterlockedAnd", "InterlockedCompareExchange",
-			"InterlockedCompareStore", "InterlockedExchange", "InterlockedMax", "InterlockedMin", "InterlockedOr", "InterlockedXor", "isfinite", "isinf", "isnan",
-			"ldexp", "length", "lerp", "lit", "log", "log10", "log2", "mad", "max", "min", "modf", "msad4", "mul", "noise", "normalize", "pow", "printf",
-			"Process2DQuadTessFactorsAvg", "Process2DQuadTessFactorsMax", "Process2DQuadTessFactorsMin", "ProcessIsolineTessFactors", "ProcessQuadTessFactorsAvg",
-			"ProcessQuadTessFactorsMax", "ProcessQuadTessFactorsMin", "ProcessTriTessFactorsAvg", "ProcessTriTessFactorsMax", "ProcessTriTessFactorsMin",
-			"radians", "rcp", "reflect", "refract", "reversebits", "round", "rsqrt", "saturate", "sign", "sin", "sincos", "sinh", "smoothstep", "sqrt", "step",
-			"tan", "tanh", "tex1D", "tex1D", "tex1Dbias", "tex1Dgrad", "tex1Dlod", "tex1Dproj", "tex2D", "tex2D", "tex2Dbias", "tex2Dgrad", "tex2Dlod", "tex2Dproj",
-			"tex3D", "tex3D", "tex3Dbias", "tex3Dgrad", "tex3Dlod", "tex3Dproj", "texCUBE", "texCUBE", "texCUBEbias", "texCUBEgrad", "texCUBElod", "texCUBEproj", "transpose", "trunc"
-		};
-
-		for (const auto& identifier : identifiers)
-		{
-			TextEditor::Identifier id;
-			id.mDeclaration = "Built-in function";
-			languageDefinition.mIdentifiers.insert(std::make_pair(std::string(identifier), id));
-		}
-
-		languageDefinition.mTokenRegexStrings.push_back(std::make_pair<std::string, TextEditor::PaletteIndex>("[ \\t]*#[ \\t]*[a-zA-Z_]+", TextEditor::PaletteIndex::Preprocessor));
-		languageDefinition.mTokenRegexStrings.push_back(std::make_pair<std::string, TextEditor::PaletteIndex>("L?\\\"(\\\\.|[^\\\"])*\\\"", TextEditor::PaletteIndex::String));
-		languageDefinition.mTokenRegexStrings.push_back(std::make_pair<std::string, TextEditor::PaletteIndex>("\\'\\\\?[^\\']\\'", TextEditor::PaletteIndex::CharLiteral));
-		languageDefinition.mTokenRegexStrings.push_back(std::make_pair<std::string, TextEditor::PaletteIndex>("[+-]?([0-9]+([.][0-9]*)?|[.][0-9]+)([eE][+-]?[0-9]+)?[fF]?", TextEditor::PaletteIndex::Number));
-		languageDefinition.mTokenRegexStrings.push_back(std::make_pair<std::string, TextEditor::PaletteIndex>("[+-]?[0-9]+[Uu]?[lL]?[lL]?", TextEditor::PaletteIndex::Number));
-		languageDefinition.mTokenRegexStrings.push_back(std::make_pair<std::string, TextEditor::PaletteIndex>("0[0-7]+[Uu]?[lL]?[lL]?", TextEditor::PaletteIndex::Number));
-		languageDefinition.mTokenRegexStrings.push_back(std::make_pair<std::string, TextEditor::PaletteIndex>("0[xX][0-9a-fA-F]+[uU]?[lL]?[lL]?", TextEditor::PaletteIndex::Number));
-		languageDefinition.mTokenRegexStrings.push_back(std::make_pair<std::string, TextEditor::PaletteIndex>("[a-zA-Z_][a-zA-Z0-9_]*", TextEditor::PaletteIndex::Identifier));
-		languageDefinition.mTokenRegexStrings.push_back(std::make_pair<std::string, TextEditor::PaletteIndex>("[\\[\\]\\{\\}\\!\\%\\^\\&\\*\\(\\)\\-\\+\\=\\~\\|\\<\\>\\?\\/\\;\\,\\.]", TextEditor::PaletteIndex::Punctuation));
-
-		languageDefinition.mCommentStart = "/*";
-		languageDefinition.mCommentEnd = "*/";
-		languageDefinition.mSingleLineComment = "//";
-
-		languageDefinition.mCaseSensitive = true;
-		languageDefinition.mAutoIndentation = true;
-
-		languageDefinition.mName = "HLSL";
-
-		initialized = true;
-	}
-
-	return languageDefinition;
-}
-
 void UserInterface::SetEditorLanguage(const ShaderLanguage inLanguage)
 {
 	switch (inLanguage)
 	{
 	case ShaderLanguage::GLSL:
-		m_Editor.SetLanguageDefinition(GetLanguageDefinitionVkGLSL());
+		m_Editor.SetLanguageDefinition(TextEditor::LanguageDefinition::GLSL());
 		return;
 
 	case ShaderLanguage::HLSL:
-		m_Editor.SetLanguageDefinition(GetLanguageDefinitionVkHLSL());
+		m_Editor.SetLanguageDefinition(TextEditor::LanguageDefinition::HLSL());
 		return;
 
 	default:
@@ -540,19 +219,19 @@ void UserInterface::ApplyImGuiStyle()
 	colors[ImGuiCol_FrameBgActive] = ImVec4(0.41f, 0.41f, 0.41f, 0.69f);
 	colors[ImGuiCol_TitleBg] = ImVec4(0.27f, 0.27f, 0.27f, 0.3f);
 	colors[ImGuiCol_TitleBgActive] = ImVec4(0.32f, 0.32f, 0.32f, 0.2f);
-	colors[ImGuiCol_TitleBgCollapsed] = ImVec4(0.40f, 0.40f, 0.40f, 0.20f);
-	colors[ImGuiCol_MenuBarBg] = ImVec4(0.40f, 0.40f, 0.40f, 0.5f);
+	colors[ImGuiCol_TitleBgCollapsed] = ImVec4(0.10f, 0.10f, 0.10f, 0.20f);
+	colors[ImGuiCol_MenuBarBg] = ImVec4(0.10f, 0.10f, 0.10f, 0.5f);
 	colors[ImGuiCol_ScrollbarBg] = ImVec4(0.20f, 0.20f, 0.20f, 0.1f);
-	colors[ImGuiCol_ScrollbarGrab] = ImVec4(0.40f, 0.40f, 0.40f, 0.2f);
-	colors[ImGuiCol_ScrollbarGrabHovered] = ImVec4(0.40f, 0.40f, 0.40f, 0.3f);
+	colors[ImGuiCol_ScrollbarGrab] = ImVec4(0.10f, 0.10f, 0.10f, 0.2f);
+	colors[ImGuiCol_ScrollbarGrabHovered] = ImVec4(0.10f, 0.10f, 0.10f, 0.3f);
 	colors[ImGuiCol_ScrollbarGrabActive] = ImVec4(0.39f, 0.39f, 0.39f, 0.4f);
 	colors[ImGuiCol_CheckMark] = ImVec4(0.90f, 0.90f, 0.90f, 0.50f);
 	colors[ImGuiCol_SliderGrab] = ImVec4(1.00f, 1.00f, 1.00f, 0.30f);
 	colors[ImGuiCol_SliderGrabActive] = ImVec4(0.39f, 0.39f, 0.39f, 0.60f);
-	colors[ImGuiCol_Button] = ImVec4(0.35f, 0.35f, 0.35f, 0.62f);
-	colors[ImGuiCol_ButtonHovered] = ImVec4(0.40f, 0.40f, 0.40f, 0.79f);
+	colors[ImGuiCol_Button] = ImVec4(0.1f, 0.1f, 0.1f, 0.5f);
+	colors[ImGuiCol_ButtonHovered] = ImVec4(0.10f, 0.10f, 0.10f, 0.79f);
 	colors[ImGuiCol_ButtonActive] = ImVec4(0.46f, 0.46f, 0.46f, 1.00f);
-	colors[ImGuiCol_Header] = ImVec4(0.40f, 0.40f, 0.40f, 0.45f);
+	colors[ImGuiCol_Header] = ImVec4(0.10f, 0.10f, 0.10f, 0.55f);
 	colors[ImGuiCol_HeaderHovered] = ImVec4(0.45f, 0.45f, 0.45f, 0.80f);
 	colors[ImGuiCol_HeaderActive] = ImVec4(0.53f, 0.53f, 0.53f, 0.80f);
 	colors[ImGuiCol_Separator] = ImVec4(0.50f, 0.50f, 0.50f, 0.60f);
@@ -566,7 +245,7 @@ void UserInterface::ApplyImGuiStyle()
 	colors[ImGuiCol_TabActive] = ImVec4(0.3f, 0.3f, 0.3f, 0.2f);
 	colors[ImGuiCol_TabUnfocused] = ImVec4(0.3f, 0.3f, 0.3f, 0.2f);
 	colors[ImGuiCol_TabUnfocusedActive] = ImVec4(0.3f, 0.3f, 0.3f, 0.4f);
-	colors[ImGuiCol_DockingPreview] = ImVec4(0.40f, 0.40f, 0.40f, 0.3f);
+	colors[ImGuiCol_DockingPreview] = ImVec4(0.10f, 0.10f, 0.10f, 0.3f);
 	colors[ImGuiCol_DockingEmptyBg] = ImVec4(0.20f, 0.20f, 0.20f, 1.00f);
 	colors[ImGuiCol_PlotLines] = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
 	colors[ImGuiCol_PlotLinesHovered] = ImVec4(0.90f, 0.70f, 0.00f, 1.00f);
@@ -686,7 +365,8 @@ void UserInterface::ImguiMenuBar()
 
 void UserInterface::ImguiDockSpace()
 {
-	static ImGuiDockNodeFlags dockspaceFlags = ImGuiDockNodeFlags_PassthruCentralNode;
+	const static int public_ImGuiDockNodeFlags_NoTabBar = (1 << 12);
+	static ImGuiDockNodeFlags dockspaceFlags = ImGuiDockNodeFlags_PassthruCentralNode | public_ImGuiDockNodeFlags_NoTabBar;
 
 	ImGuiWindowFlags windowFlags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking;
 	const ImGuiViewport* viewport = ImGui::GetMainViewport();
@@ -697,11 +377,6 @@ void UserInterface::ImguiDockSpace()
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
 	windowFlags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
 	windowFlags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
-
-	if (dockspaceFlags & ImGuiDockNodeFlags_PassthruCentralNode)
-	{
-		windowFlags |= ImGuiWindowFlags_NoBackground;
-	}
 
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
 
@@ -855,7 +530,7 @@ void UserInterface::DrawImage(const Binding& inBinding)
 {
 	ImGui::PushID(inBinding.DescriptorSetBinding.binding);
 
-	if (ImGui::Button("Load Image"))
+	if (ImGui::Button(" Load Image "))
 	{
 		std::string imagePath;
 		if (FileExplorer::OpenImageDialog(imagePath))
@@ -883,14 +558,14 @@ void UserInterface::DrawSampler(const SamplerInfo& inSamplerInfo, const Binding&
 		{
 			const int previousFilterMode = static_cast<int>(inSamplerInfo.MagFilter);
 			int currentFilterMode = previousFilterMode;
-			ImGui::Combo("Magnification Filter Mode", &currentFilterMode, samplerFilters, samplerFilterSize);
+			ImGui::Combo("Mag Filter", &currentFilterMode, samplerFilters, samplerFilterSize);
 			newSamplerInfo.MagFilter = static_cast<SamplerFilter>(currentFilterMode);
 		}
 
 		{
 			const int previousFilterMode = static_cast<int>(inSamplerInfo.MinFilter);
 			int currentFilterMode = previousFilterMode;
-			ImGui::Combo("Minification Filter Mode", &currentFilterMode, samplerFilters, samplerFilterSize);
+			ImGui::Combo("Min Filter", &currentFilterMode, samplerFilters, samplerFilterSize);
 			newSamplerInfo.MinFilter = static_cast<SamplerFilter>(currentFilterMode);
 		}
 	}
@@ -908,7 +583,7 @@ void UserInterface::DrawSampler(const SamplerInfo& inSamplerInfo, const Binding&
 		{
 			const int previousAddressMode = static_cast<int>(inSamplerInfo.AddressModeU);
 			int currentAddressMode = previousAddressMode;
-			ImGui::Combo("Addressing Mode U", &currentAddressMode, samplerAddresses, samplerAddressesSize);
+			ImGui::Combo("Address U", &currentAddressMode, samplerAddresses, samplerAddressesSize);
 			newSamplerInfo.AddressModeU = static_cast<SamplerAddressMode>(currentAddressMode);
 		}
 
@@ -916,7 +591,7 @@ void UserInterface::DrawSampler(const SamplerInfo& inSamplerInfo, const Binding&
 		{
 			const int previousAddressMode = static_cast<int>(inSamplerInfo.AddressModeV);
 			int currentAddressMode = previousAddressMode;
-			ImGui::Combo("Addressing Mode V", &currentAddressMode, samplerAddresses, samplerAddressesSize);
+			ImGui::Combo("Address V", &currentAddressMode, samplerAddresses, samplerAddressesSize);
 			newSamplerInfo.AddressModeV = static_cast<SamplerAddressMode>(currentAddressMode);
 		}
 
@@ -924,7 +599,7 @@ void UserInterface::DrawSampler(const SamplerInfo& inSamplerInfo, const Binding&
 		{
 			const int previousAddressMode = static_cast<int>(inSamplerInfo.AddressModeW);
 			int currentAddressMode = previousAddressMode;
-			ImGui::Combo("Addressing Mode W", &currentAddressMode, samplerAddresses, samplerAddressesSize);
+			ImGui::Combo("Address W", &currentAddressMode, samplerAddresses, samplerAddressesSize);
 			newSamplerInfo.AddressModeW = static_cast<SamplerAddressMode>(currentAddressMode);
 		}
 	}
@@ -1058,10 +733,15 @@ void UserInterface::ImguiBindingsWindow()
 {
 	static const ImVec2 DefaultWindowSize = ImVec2(400, 400);
 
-	ImGui::Begin("Bindings");
+	ImGui::Begin("BindingsMenu");
 
-	// TODO: Generalize and use for each window.
-	ImGui::SetWindowFontScale(1.25f);
+	{
+		ImGui::SetWindowFontScale(2.0f);
+		ImGui::Text("Bindings");
+		ImGui::SetWindowFontScale(1.0f);
+		ImGui::Separator();
+		ImGui::NewLine();
+	}
 
 	auto& descriptors = m_Renderer->GetDescriptors();
 

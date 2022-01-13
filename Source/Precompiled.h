@@ -1,9 +1,8 @@
 #pragma once
 
-#include <imgui.h>
+#include <TextEditor.h>
 #include <backends/imgui_impl_glfw.h>
 #include <backends/imgui_impl_vulkan.h>
-#include <TextEditor.h>
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
@@ -13,9 +12,6 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 #include <spirv_reflect.h>
-
-#include <chrono>
-#include <vector>
 
 #define FT_BEGIN_NAMESPACE namespace FT \
 	{

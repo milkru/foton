@@ -38,11 +38,17 @@ void ImGuiLogger::Draw(const char* title)
 		return;
 	}
 
-	ImGui::SameLine();
-	const bool clear = ImGui::Button("Clear");
 
 	ImGui::SameLine();
-	const bool copy = ImGui::Button("Copy");
+	ImGui::SetWindowFontScale(1.5f);
+	ImGui::Text("Log");
+	ImGui::SetWindowFontScale(1.0f);
+
+	ImGui::SameLine();
+	const bool clear = ImGui::Button(" Clear ");
+
+	ImGui::SameLine();
+	const bool copy = ImGui::Button(" Copy ");
 
 	ImGui::Separator();
 	ImGui::BeginChild("scrolling", ImVec2(0, 0), false, ImGuiWindowFlags_HorizontalScrollbar);

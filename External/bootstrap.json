@@ -51,8 +51,8 @@
 		"name": "ImGuiColorTextEdit",
 		"source": {
 			"type": "git",
-			"url": "https://github.com/BalazsJako/ImGuiColorTextEdit.git",
-			"revision": "0a88824f7de8d0bd11d8419066caa7d3469395c4"
+			"url": "https://github.com/milkru/ImGuiColorTextEdit.git",
+			"revision": "95ca04f947b8f483bbc1f3d79b4f27986ab0c0e9"
 		}
 	},
 	{
