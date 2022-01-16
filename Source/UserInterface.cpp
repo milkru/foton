@@ -12,6 +12,7 @@
 #include "Utility/FileExplorer.h"
 #include "Utility/FilePath.h"
 #include <imgui_internal.h>
+#include <chrono>
 
 FT_BEGIN_NAMESPACE
 
@@ -20,6 +21,9 @@ UserInterface::UserInterface(Application* inApplication)
 	, m_Renderer(inApplication->GetRenderer())
 	, m_CodeFontSize(1.5f)
 	, m_Enable(true)
+	, m_ShowBindings(true)
+	, m_ShowOutput(true)
+	, m_ShowWhiteSpaces(false)
 {
 	const static uint32_t resourceCount = 512;
 	VkDescriptorPoolSize descriptorPoolSIzes[] =
@@ -85,8 +89,7 @@ UserInterface::UserInterface(Application* inApplication)
 	ApplyImGuiStyle();
 
 	m_Editor.SetPalette(TextEditor::GetColorPalette());
-	// TODO: Settings.
-	m_Editor.SetShowWhitespaces(false);
+	m_Editor.SetShowWhitespaces(m_ShowWhiteSpaces);
 
 	ImGuiStyle& style = ImGui::GetStyle();
 	style.FrameRounding = 10.0f;
@@ -120,10 +123,6 @@ void UserInterface::ImguiNewFrame()
 	{
 		ImGui::Begin("Editor", nullptr, ImGuiWindowFlags_HorizontalScrollbar);
 
-		ImGui::SetWindowSize(ImVec2(FT_DEFAULT_WINDOW_WIDTH, FT_DEFAULT_WINDOW_HEIGHT), ImGuiCond_FirstUseEver);
-
-		//DrawTextBackground();
-
 		ImGui::SetNextWindowBgAlpha(0.f);
 		ImGui::SetWindowFontScale(m_CodeFontSize);
 
@@ -131,21 +130,27 @@ void UserInterface::ImguiNewFrame()
 
 		ImGui::End();
 
-		ImGuiLogger::Draw("Log");
+		if (m_ShowOutput)
+		{
+			ImGuiLogger::Draw("Log");
+		}
 
-		ImguiBindingsWindow();
+		if (m_ShowBindings)
+		{
+			ImguiBindingsWindow();
+		}
 	}
 
 	ImGui::Render();
 }
 
-void UserInterface::UpdateCodeFontSize(float offset)
+void UserInterface::UpdateCodeFontSize(float inOffset)
 {
 	const static float MinCodeFontSize = 0.5f;
 	const static float MaxCodeFontSize = 3.0f;
 	const static float CodeFontSizeMul = 0.1f;
 
-	m_CodeFontSize += offset * CodeFontSizeMul;
+	m_CodeFontSize += inOffset * CodeFontSizeMul;
 	m_CodeFontSize = FT_CLAMP(m_CodeFontSize, MinCodeFontSize, MaxCodeFontSize);
 }
 
@@ -258,6 +263,53 @@ void UserInterface::ApplyImGuiStyle()
 	colors[ImGuiCol_ModalWindowDimBg] = ImVec4(0.20f, 0.20f, 0.20f, 0.35f);
 }
 
+void UserInterface::ImguiShowInfo()
+{
+	const static std::chrono::steady_clock::time_point startTime = std::chrono::high_resolution_clock::now();
+	static std::chrono::steady_clock::time_point previousTime;
+	const std::chrono::steady_clock::time_point currentTime = std::chrono::high_resolution_clock::now();
+	const float deltaTime = std::chrono::duration<float, std::chrono::milliseconds::period>(currentTime - previousTime).count();
+	const float elapsedTime = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
+	previousTime = currentTime;
+
+	static float deltaTimeDisplay = 0.0f;
+	static float displayElapsedDeltaTime = FLT_MAX;
+	displayElapsedDeltaTime += deltaTime;
+
+	const static float displayPeriodMilliseconds = 500.0f;
+	if (displayElapsedDeltaTime > displayPeriodMilliseconds)
+	{
+		deltaTimeDisplay = deltaTime;
+		displayElapsedDeltaTime = 0.0f;
+	}
+
+	const ShaderFile* fragmentShaderFile = m_Renderer->GetFragmentShaderFile();
+	const float frameRate = 1000.0f / deltaTimeDisplay;
+
+	const char* shaderFileName = fragmentShaderFile->GetName().c_str();
+	float indent = ImGui::GetFont()->CalcTextSizeA(ImGui::GetFontSize(), FLT_MAX, -1.0f, shaderFileName, nullptr, nullptr).x;
+
+	char elapsedTimeText[32];
+	sprintf(elapsedTimeText, "  %.2f s", elapsedTime);
+	indent += ImGui::GetFont()->CalcTextSizeA(ImGui::GetFontSize(), FLT_MAX, -1.0f, elapsedTimeText, nullptr, nullptr).x;
+
+	char frameRateText[32];
+	sprintf(frameRateText, "  %.2f fps", frameRate);
+	indent += ImGui::GetFont()->CalcTextSizeA(ImGui::GetFontSize(), FLT_MAX, -1.0f, frameRateText, nullptr, nullptr).x;
+
+	char deltaTimeText[32];
+	sprintf(deltaTimeText, "  %.4f ms", deltaTimeDisplay);
+	indent += ImGui::GetFont()->CalcTextSizeA(ImGui::GetFontSize(), FLT_MAX, -1.0f, deltaTimeText, nullptr, nullptr).x;
+
+	const static float additionalIndentOffset = 50;
+	ImGui::SameLine(ImGui::GetWindowWidth() - indent - additionalIndentOffset);
+
+	ImGui::Text("%s", shaderFileName);
+	ImGui::Text("%s", elapsedTimeText);
+	ImGui::Text("%s", frameRateText);
+	ImGui::Text("%s", deltaTimeText);
+}
+
 void UserInterface::ImguiMenuBar()
 {
 	if (ImGui::BeginMenuBar())
@@ -345,13 +397,32 @@ void UserInterface::ImguiMenuBar()
 
 		if (ImGui::BeginMenu("View"))
 		{
-			if (ImGui::MenuItem("Show Editor", "Ctrl-F"))
+			ImGui::MenuItem("Show Interface", "Ctrl-F", &m_Enable);
+
+			if (!m_Enable)
 			{
-				ToggleEnabled();
+				ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+				ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
+			}
+
+			ImGui::MenuItem("Show Bindings", NULL, &m_ShowBindings);
+			ImGui::MenuItem("Show Output", NULL, &m_ShowOutput);
+
+			if (!m_Enable)
+			{
+				ImGui::PopItemFlag();
+				ImGui::PopStyleVar();
+			}
+
+			if (ImGui::MenuItem("Show Whitespaces", NULL, &m_ShowWhiteSpaces))
+			{
+				m_Editor.SetShowWhitespaces(m_ShowWhiteSpaces);
 			}
 
 			ImGui::EndMenu();
 		}
+
+		ImguiShowInfo();
 
 		ImGui::EndMenuBar();
 	}
@@ -389,13 +460,13 @@ void UserInterface::ImguiDockSpace()
 			ImGui::DockBuilderAddNode(dockspaceId, ImGuiDockNodeFlags_None);
 
 			ImGuiID dockMainId = dockspaceId;
-			ImGuiID dockLeftId = ImGui::DockBuilderSplitNode(dockMainId, ImGuiDir_Left, 0.175f, nullptr, &dockMainId);
-			ImGuiID dockUpId = ImGui::DockBuilderSplitNode(dockMainId, ImGuiDir_Up, 0.75f, nullptr, &dockMainId);
-			ImGuiID dockDownId = ImGui::DockBuilderSplitNode(dockMainId, ImGuiDir_Down, 1.0f, nullptr, &dockMainId);
+			ImGuiID bindingsId = ImGui::DockBuilderSplitNode(dockMainId, ImGuiDir_Left, 0.175f, nullptr, &dockMainId);
+			ImGuiID editorId = ImGui::DockBuilderSplitNode(dockMainId, ImGuiDir_Up, 0.75f, nullptr, &dockMainId);
+			ImGuiID logId = ImGui::DockBuilderSplitNode(dockMainId, ImGuiDir_Down, 1.0f, nullptr, &dockMainId);
 
-			ImGui::DockBuilderDockWindow("BindingsMenu", dockLeftId);
-			ImGui::DockBuilderDockWindow("Editor", dockUpId);
-			ImGui::DockBuilderDockWindow("Log", dockDownId);
+			ImGui::DockBuilderDockWindow("BindingsMenu", bindingsId);
+			ImGui::DockBuilderDockWindow("Editor", editorId);
+			ImGui::DockBuilderDockWindow("Log", logId);
 
 			ImGui::DockBuilderFinish(dockMainId);
 		}
@@ -479,10 +550,137 @@ float GetInputDragSpeed(const ImGuiDataType inDataType)
 	}
 }
 
+void ComboWithoutPreview(int* currentItemIndex, const char** data, int items_count)
+{
+	if (ImGui::BeginCombo("##label", "", ImGuiComboFlags_NoPreview | ImGuiComboFlags_PopupAlignLeft))
+	{
+		for (int itemIndex = 0; itemIndex < items_count; ++itemIndex)
+		{
+			const bool isSelected = (*currentItemIndex == itemIndex);
+			if (ImGui::Selectable(data[itemIndex], isSelected))
+			{
+				*currentItemIndex = itemIndex;
+			}
+
+			if (isSelected)
+			{
+				ImGui::SetItemDefaultFocus();
+			}
+		}
+
+		ImGui::EndCombo();
+	}
+}
+
 void UserInterface::DrawVectorInput(const SpvReflectTypeDescription* inReflectTypeDescription, unsigned char* inProxyMemory, const char* inName)
 {
 	const VectorDataType vectorDataType = GetVectorDataType(inReflectTypeDescription);
-	ImGui::DragScalarN(inName, vectorDataType.ComponentDataType, inProxyMemory, vectorDataType.ComponentCount, GetInputDragSpeed(vectorDataType.ComponentDataType));
+	const float dragSpeed = GetInputDragSpeed(vectorDataType.ComponentDataType);
+
+	if (vectorDataType.ComponentCount == 1 && vectorDataType.ComponentDataType == ImGuiDataType_Float)
+	{
+		// TODO: Custom input data: time, keyboard. (Keyboard and mouse inputs would allow making shader only games.)
+		const char* items[] = { "Constant", "Time in Seconds", "Keyboard Input"};
+		static int currentItemIndex = 0;
+		if (currentItemIndex == 0)
+		{
+			ImGui::DragScalarN(inName, vectorDataType.ComponentDataType, inProxyMemory, vectorDataType.ComponentCount, dragSpeed);
+		}
+		else if (currentItemIndex == 1)
+		{
+			ImGui::Text("Time in Seconds");
+			// TODO: Map inProxyMemory.
+		}
+		else if (currentItemIndex == 2)
+		{
+			const char* keys[] = { "q", "w", "e", "r", "t", "y"};
+			static int currentKeyIndex = 0;
+			ImGui::Combo("##label2", &currentKeyIndex, keys, IM_ARRAYSIZE(keys));
+			ImGui::SameLine();
+			ImGui::Text("Keyboard Input");
+			// TODO: Map inProxyMemory.
+		}
+		else
+		{
+			// TODO: Handle error.
+		}
+
+		// TODO: ImGui::Text("Mouse clicked:"); // TOOD: Mouse scroll etc.
+
+		ImGui::SameLine();
+		ComboWithoutPreview(&currentItemIndex, items, IM_ARRAYSIZE(items));
+	}
+	else if (vectorDataType.ComponentCount == 2 && vectorDataType.ComponentDataType == ImGuiDataType_Float)
+	{
+		// TODO: Resolution input data.
+		const char* items[] = { "Constant", "Mouse Input", "Mouse Delta"};
+		static int currentItemIndex = 0;
+		if (currentItemIndex == 0)
+		{
+			ImGui::DragScalarN(inName, vectorDataType.ComponentDataType, inProxyMemory, vectorDataType.ComponentCount, dragSpeed);
+		}
+		else if (currentItemIndex == 1)
+		{
+			ImGui::Text("Mouse Input");
+			//ImGui::Text("Mouse pos: (%g, %g)", io.MousePos.x, io.MousePos.y); // TODO: Same with everythig else (for example for keyboard input "Pressed").
+			// TODO: Map inProxyMemory.
+		}
+		else if (currentItemIndex == 1)
+		{
+			ImGui::Text("Mouse Delta");
+			//ImGui::Text("Mouse delta: (%g, %g)", io.MouseDelta.x, io.MouseDelta.y);
+			// TODO: Map inProxyMemory.
+		}
+		else
+		{
+			// TODO: Handle error.
+		}
+
+		ImGui::SameLine();
+		ComboWithoutPreview(&currentItemIndex, items, IM_ARRAYSIZE(items));
+	}
+	else if (vectorDataType.ComponentCount == 3 && vectorDataType.ComponentDataType == ImGuiDataType_Float && inReflectTypeDescription->op == SpvOpTypeVector)
+	{
+		ImGui::ColorEdit3(inName, (float*)inProxyMemory,
+			ImGuiColorEditFlags_Float |
+			ImGuiColorEditFlags_HDR |
+			ImGuiColorEditFlags_DisplayRGB |
+			ImGuiColorEditFlags_AlphaPreview);
+	}
+	else if (vectorDataType.ComponentCount == 4 && vectorDataType.ComponentDataType == ImGuiDataType_Float && inReflectTypeDescription->op == SpvOpTypeVector)
+	{
+		ImGui::ColorEdit4(inName, (float*)inProxyMemory,
+			ImGuiColorEditFlags_Float |
+			ImGuiColorEditFlags_HDR |
+			ImGuiColorEditFlags_DisplayRGB |
+			ImGuiColorEditFlags_AlphaPreview);
+	}
+	else if (vectorDataType.ComponentCount == 2 && (vectorDataType.ComponentDataType == ImGuiDataType_S32 || vectorDataType.ComponentDataType == ImGuiDataType_U32))
+	{
+		// TODO: Resolution input data.
+		const char* items[] = { "Constant", "Screen Resolution" };
+		static int currentItemIndex = 0;
+		if (currentItemIndex == 0)
+		{
+			ImGui::DragScalarN(inName, vectorDataType.ComponentDataType, inProxyMemory, vectorDataType.ComponentCount, dragSpeed);
+		}
+		else if (currentItemIndex == 1)
+		{
+			ImGui::Text("Screen Resolution");
+			// TODO: Map inProxyMemory.
+		}
+		else
+		{
+			// TODO: Handle error.
+		}
+
+		ImGui::SameLine();
+		ComboWithoutPreview(&currentItemIndex, items, IM_ARRAYSIZE(items));
+	}
+	else
+	{
+		ImGui::DragScalarN(inName, vectorDataType.ComponentDataType, inProxyMemory, vectorDataType.ComponentCount, dragSpeed);
+	}
 }
 
 void UserInterface::DrawStruct(const SpvReflectBlockVariable* inReflectBlock, unsigned char* inProxyMemory, const char* inName)
@@ -746,13 +944,10 @@ void UserInterface::ImguiBindingsWindow()
 
 	ImGui::Begin("BindingsMenu");
 
-	{
-		ImGui::SetWindowFontScale(2.0f);
-		ImGui::Text("Bindings");
-		ImGui::SetWindowFontScale(1.0f);
-		ImGui::Separator();
-		ImGui::NewLine();
-	}
+	ImGui::SetWindowFontScale(1.25f);
+	ImGui::Text("Bindings");
+	ImGui::SetWindowFontScale(1.0f);
+	ImGui::Separator();
 
 	auto& descriptors = m_Renderer->GetDescriptors();
 

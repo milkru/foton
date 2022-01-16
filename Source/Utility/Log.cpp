@@ -40,28 +40,12 @@ void ImGuiLogger::Draw(const char* title)
 
 
 	ImGui::SameLine();
-	ImGui::SetWindowFontScale(1.5f);
-	ImGui::Text("Log");
+	ImGui::SetWindowFontScale(1.25f);
+	ImGui::Text("Output");
 	ImGui::SetWindowFontScale(1.0f);
-
-	ImGui::SameLine();
-	const bool clear = ImGui::Button(" Clear ");
-
-	ImGui::SameLine();
-	const bool copy = ImGui::Button(" Copy ");
 
 	ImGui::Separator();
 	ImGui::BeginChild("scrolling", ImVec2(0, 0), false, ImGuiWindowFlags_HorizontalScrollbar);
-
-	if (clear)
-	{
-		Clear();
-	}
-
-	if (copy)
-	{
-		ImGui::LogToClipboard();
-	}
 
 	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
 	const char* buffer = s_TextBuffer.begin();

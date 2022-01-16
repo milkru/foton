@@ -56,11 +56,8 @@ Window::Window(Application* inApplication)
 	glfwInit();
 
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-	glfwWindowHint(GLFW_MAXIMIZED, GLFW_TRUE);
+	glfwWindowHint(GLFW_MAXIMIZED, true);
 	glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
-
-	// TODO: Controversial.
-	//glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);
 
 	m_Window = glfwCreateWindow(FT_DEFAULT_WINDOW_WIDTH, FT_DEFAULT_WINDOW_HEIGHT, FT_APPLICATION_NAME, nullptr, nullptr);
 	glfwSetWindowUserPointer(m_Window, inApplication);

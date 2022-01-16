@@ -30,10 +30,10 @@ public:
 
 private:
 	void ApplyImGuiStyle();
+	void ImguiShowInfo();
 	void ImguiMenuBar();
 	void ImguiDockSpace();
 	void ImguiBindingsWindow();
-	void DrawTextBackground();
 	void DrawVectorInput(const SpvReflectTypeDescription* inReflectTypeDescription, unsigned char* inProxyMemory, const char* inName);
 	void DrawStruct(const SpvReflectBlockVariable* inReflectBlock, unsigned char* inProxyMemory, const char* inName);
 	void DrawMatrix(const SpvReflectBlockVariable* inReflectBlock, unsigned char* inProxyMemory, const char* inName);
@@ -49,6 +49,9 @@ private:
 	// TODO: Move this to config. Make foton.ini
 	float m_CodeFontSize;
 	bool m_Enable;
+	bool m_ShowBindings;
+	bool m_ShowOutput;
+	bool m_ShowWhiteSpaces;
 };
 
 FT_END_NAMESPACE
