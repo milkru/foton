@@ -13,9 +13,12 @@
 
 // TODO: Lightweight light fast tool (foton is small and fast :))
 // TODO: Find out if we can make background for all text.
-// TODO: Use more high resolution font file for code editor.
 // TODO: Allow user to change shader entry in settings.
-// TODO: Parallel file loading system.
+// TODO: Async file loading system.
+// 
+// TODO: What about vertex shader output/fragment shader input? We only have UVs. Is that enough for generalization? Tell this or allow vertex (and maybe even geometry) shader modification as well.
+// Or don't. Just use reflection on fragment shader, so you can link vertex_out with fragment_in (Interpolants). Vertex shader can have #ifdefs for different outs (or just pass a macro with binding index), which you can easily control (in order to prevent OutputNotonsumed validation error (which is also maybeok to leave)).
+// TODO: Printf
 
 FT_BEGIN_NAMESPACE
 

@@ -12,7 +12,6 @@
 #include "Utility/FileExplorer.h"
 #include "Utility/FilePath.h"
 #include <imgui_internal.h>
-#include <chrono>
 
 FT_BEGIN_NAMESPACE
 
@@ -99,6 +98,8 @@ UserInterface::UserInterface(Application* inApplication)
 	style.WindowMenuButtonPosition = ImGuiDir_None;
 	style.ScrollbarSize = 20.0f;
 	style.ScrollbarRounding = 12.0f;
+
+	m_StartTime = std::chrono::high_resolution_clock::now();
 }
 
 UserInterface::~UserInterface()
@@ -118,6 +119,8 @@ void UserInterface::ImguiNewFrame()
 	ImGui::NewFrame();
 
 	ImguiDockSpace();
+
+	ImGui::ShowDemoWindow();
 
 	if (m_Enable)
 	{
@@ -265,11 +268,10 @@ void UserInterface::ApplyImGuiStyle()
 
 void UserInterface::ImguiShowInfo()
 {
-	const static std::chrono::steady_clock::time_point startTime = std::chrono::high_resolution_clock::now();
 	static std::chrono::steady_clock::time_point previousTime;
 	const std::chrono::steady_clock::time_point currentTime = std::chrono::high_resolution_clock::now();
 	const float deltaTime = std::chrono::duration<float, std::chrono::milliseconds::period>(currentTime - previousTime).count();
-	const float elapsedTime = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
+	const float elapsedTime = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - m_StartTime).count();
 	previousTime = currentTime;
 
 	static float deltaTimeDisplay = 0.0f;
@@ -572,72 +574,186 @@ void ComboWithoutPreview(int* currentItemIndex, const char** data, int items_cou
 	}
 }
 
-void UserInterface::DrawVectorInput(const SpvReflectTypeDescription* inReflectTypeDescription, unsigned char* inProxyMemory, const char* inName)
+void UserInterface::DrawVectorInput(const SpvReflectTypeDescription* inReflectTypeDescription, unsigned char* inProxyMemory, unsigned char* inVectorState, const char* inName)
 {
+	ImGui::PushID(inName);
+
 	const VectorDataType vectorDataType = GetVectorDataType(inReflectTypeDescription);
 	const float dragSpeed = GetInputDragSpeed(vectorDataType.ComponentDataType);
 
+	int* currentItemIndex = (int*)inVectorState;
+
 	if (vectorDataType.ComponentCount == 1 && vectorDataType.ComponentDataType == ImGuiDataType_Float)
 	{
-		// TODO: Custom input data: time, keyboard. (Keyboard and mouse inputs would allow making shader only games.)
-		const char* items[] = { "Constant", "Time in Seconds", "Keyboard Input"};
-		static int currentItemIndex = 0;
-		if (currentItemIndex == 0)
+		static const char* items[] = { "Constant", "Time in Seconds" };
+		if (*currentItemIndex == 0)
 		{
 			ImGui::DragScalarN(inName, vectorDataType.ComponentDataType, inProxyMemory, vectorDataType.ComponentCount, dragSpeed);
 		}
-		else if (currentItemIndex == 1)
+		else if (*currentItemIndex == 1)
 		{
-			ImGui::Text("Time in Seconds");
-			// TODO: Map inProxyMemory.
-		}
-		else if (currentItemIndex == 2)
-		{
-			const char* keys[] = { "q", "w", "e", "r", "t", "y"};
-			static int currentKeyIndex = 0;
-			ImGui::Combo("##label2", &currentKeyIndex, keys, IM_ARRAYSIZE(keys));
-			ImGui::SameLine();
-			ImGui::Text("Keyboard Input");
-			// TODO: Map inProxyMemory.
+			const std::chrono::steady_clock::time_point currentTime = std::chrono::high_resolution_clock::now();
+			const float elapsedTime = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - m_StartTime).count();
+			float* elapsedTimeMemory = (float*) inProxyMemory;
+			*elapsedTimeMemory = elapsedTime;
+
+			ImGui::Text("Time in Seconds (%.2f s)", elapsedTime);
 		}
 		else
 		{
-			// TODO: Handle error.
+			*currentItemIndex = 0;
 		}
 
-		// TODO: ImGui::Text("Mouse clicked:"); // TOOD: Mouse scroll etc.
+		ImGui::SameLine();
+		ComboWithoutPreview(currentItemIndex, items, IM_ARRAYSIZE(items));
+	}
+	else if (vectorDataType.ComponentCount == 1 && (vectorDataType.ComponentDataType == ImGuiDataType_S32 || vectorDataType.ComponentDataType == ImGuiDataType_U32))
+	{
+		static const char* items[] =
+		{
+			"Constant",
+			"Ctrl Key",
+			"Shift Key",
+			"Alt Key",
+			"Left Mouse Button",
+			"Right Mouse Button",
+			"A Key",
+			"B Key",
+			"C Key",
+			"D Key",
+			"E Key",
+			"F Key",
+			"G Key",
+			"H Key",
+			"I Key",
+			"J Key",
+			"K Key",
+			"L Key",
+			"M Key",
+			"N Key",
+			"O Key",
+			"P Key",
+			"Q Key",
+			"R Key",
+			"S Key",
+			"T Key",
+			"U Key",
+			"V Key",
+			"W Key",
+			"X Key",
+			"Y Key",
+			"Z Key"
+		};
+
+		if (*currentItemIndex == 0)
+		{
+			ImGui::DragScalarN(inName, vectorDataType.ComponentDataType, inProxyMemory, vectorDataType.ComponentCount, dragSpeed);
+		}
+		else
+		{
+			ImGui::Text(items[*currentItemIndex]);
+			uint32_t* keyMemory = (uint32_t*)inProxyMemory;
+
+			ImGuiIO& io = ImGui::GetIO();
+			// Modifier keys.
+			if (*currentItemIndex == 1)
+			{
+				*keyMemory = io.KeyCtrl;
+			}
+			else if (*currentItemIndex == 2)
+			{
+				*keyMemory = io.KeyShift;
+			}
+			else if (*currentItemIndex == 3)
+			{
+				*keyMemory = io.KeyAlt;
+			}
+			// Mouse buttons.
+			else if (*currentItemIndex == 4)
+			{
+				*keyMemory = io.MouseDown[0];
+			}
+			else if (*currentItemIndex == 5)
+			{
+				*keyMemory = io.MouseDown[1];
+			}
+			// Keyboard buttons.
+			else if (*currentItemIndex >= 6 && *currentItemIndex <= 31)
+			{
+				*keyMemory = io.KeysDown[*currentItemIndex - 6 + 'A'];
+			}
+			else
+			{
+				*currentItemIndex = 0;
+			}
+		}
 
 		ImGui::SameLine();
-		ComboWithoutPreview(&currentItemIndex, items, IM_ARRAYSIZE(items));
+
+		ComboWithoutPreview(currentItemIndex, items, IM_ARRAYSIZE(items));
 	}
 	else if (vectorDataType.ComponentCount == 2 && vectorDataType.ComponentDataType == ImGuiDataType_Float)
 	{
-		// TODO: Resolution input data.
-		const char* items[] = { "Constant", "Mouse Input", "Mouse Delta"};
-		static int currentItemIndex = 0;
-		if (currentItemIndex == 0)
+		static const char* items[] = { "Constant", "Mouse Position", "Mouse Delta"};
+
+		if (*currentItemIndex == 0)
 		{
 			ImGui::DragScalarN(inName, vectorDataType.ComponentDataType, inProxyMemory, vectorDataType.ComponentCount, dragSpeed);
 		}
-		else if (currentItemIndex == 1)
+		else if (*currentItemIndex == 1)
 		{
-			ImGui::Text("Mouse Input");
-			//ImGui::Text("Mouse pos: (%g, %g)", io.MousePos.x, io.MousePos.y); // TODO: Same with everythig else (for example for keyboard input "Pressed").
-			// TODO: Map inProxyMemory.
+			const ImVec2 mousePosition = ImGui::GetIO().MousePos;
+			ImVec2* mousePositionMemory = (ImVec2*)inProxyMemory;
+			*mousePositionMemory = mousePosition;
+
+			ImGui::Text("Mouse Position (%.1f, %.1f)", mousePosition.x, mousePosition.y);
 		}
-		else if (currentItemIndex == 1)
+		else if (*currentItemIndex == 2)
 		{
-			ImGui::Text("Mouse Delta");
-			//ImGui::Text("Mouse delta: (%g, %g)", io.MouseDelta.x, io.MouseDelta.y);
-			// TODO: Map inProxyMemory.
+			const ImVec2 mouseDelta = ImGui::GetIO().MouseDelta;
+			ImVec2* mouseDeltaMemory = (ImVec2*)inProxyMemory;
+			*mouseDeltaMemory = mouseDelta;
+
+			ImGui::Text("Mouse Delta (%.4f, %.4f)", mouseDelta.x, mouseDelta.y);
 		}
 		else
 		{
-			// TODO: Handle error.
+			*currentItemIndex = 0;
 		}
 
 		ImGui::SameLine();
-		ComboWithoutPreview(&currentItemIndex, items, IM_ARRAYSIZE(items));
+		ComboWithoutPreview(currentItemIndex, items, IM_ARRAYSIZE(items));
+	}
+	else if (vectorDataType.ComponentCount == 2 && (vectorDataType.ComponentDataType == ImGuiDataType_S32 || vectorDataType.ComponentDataType == ImGuiDataType_U32))
+	{
+		static const char* items[] = { "Constant", "Screen Resolution" };
+
+		if (*currentItemIndex == 0)
+		{
+			ImGui::DragScalarN(inName, vectorDataType.ComponentDataType, inProxyMemory, vectorDataType.ComponentCount, dragSpeed);
+		}
+		else if (*currentItemIndex == 1)
+		{
+			int width;
+			int height;
+
+			glfwGetWindowSize(m_Application->GetWindow()->GetWindow(), &width, &height);
+
+			uint32_t* widthMemory = (uint32_t*)inProxyMemory;
+			uint32_t* heightMemory = (uint32_t*)(inProxyMemory + sizeof(uint32_t));
+
+			*widthMemory = width;
+			*heightMemory = height;
+
+			ImGui::Text("Screen Resolution (%d, %d)", width, height);
+		}
+		else
+		{
+			*currentItemIndex = 0;
+		}
+
+		ImGui::SameLine();
+		ComboWithoutPreview(currentItemIndex, items, IM_ARRAYSIZE(items));
 	}
 	else if (vectorDataType.ComponentCount == 3 && vectorDataType.ComponentDataType == ImGuiDataType_Float && inReflectTypeDescription->op == SpvOpTypeVector)
 	{
@@ -655,50 +771,31 @@ void UserInterface::DrawVectorInput(const SpvReflectTypeDescription* inReflectTy
 			ImGuiColorEditFlags_DisplayRGB |
 			ImGuiColorEditFlags_AlphaPreview);
 	}
-	else if (vectorDataType.ComponentCount == 2 && (vectorDataType.ComponentDataType == ImGuiDataType_S32 || vectorDataType.ComponentDataType == ImGuiDataType_U32))
-	{
-		// TODO: Resolution input data.
-		const char* items[] = { "Constant", "Screen Resolution" };
-		static int currentItemIndex = 0;
-		if (currentItemIndex == 0)
-		{
-			ImGui::DragScalarN(inName, vectorDataType.ComponentDataType, inProxyMemory, vectorDataType.ComponentCount, dragSpeed);
-		}
-		else if (currentItemIndex == 1)
-		{
-			ImGui::Text("Screen Resolution");
-			// TODO: Map inProxyMemory.
-		}
-		else
-		{
-			// TODO: Handle error.
-		}
-
-		ImGui::SameLine();
-		ComboWithoutPreview(&currentItemIndex, items, IM_ARRAYSIZE(items));
-	}
 	else
 	{
 		ImGui::DragScalarN(inName, vectorDataType.ComponentDataType, inProxyMemory, vectorDataType.ComponentCount, dragSpeed);
 	}
+
+	ImGui::PopID();
 }
 
-void UserInterface::DrawStruct(const SpvReflectBlockVariable* inReflectBlock, unsigned char* inProxyMemory, const char* inName)
+void UserInterface::DrawStruct(const SpvReflectBlockVariable* inReflectBlock, unsigned char* inProxyMemory, unsigned char* inVectorState, const char* inName)
 {
 	if (ImGui::TreeNode(inName))
 	{
 		for (uint32_t memberIndex = 0; memberIndex < inReflectBlock->member_count; ++memberIndex)
 		{
 			const SpvReflectBlockVariable* memberReflectBlock = &(inReflectBlock->members[memberIndex]);
-			DrawUniformBufferInput(memberReflectBlock, inProxyMemory);
+			DrawUniformBufferInput(memberReflectBlock, inProxyMemory, inVectorState);
 			inProxyMemory += memberReflectBlock->padded_size;
+			inVectorState += memberReflectBlock->padded_size;
 		}
 
 		ImGui::TreePop();
 	}
 }
 
-void UserInterface::DrawMatrix(const SpvReflectBlockVariable* inReflectBlock, unsigned char* inProxyMemory, const char* inName)
+void UserInterface::DrawMatrix(const SpvReflectBlockVariable* inReflectBlock, unsigned char* inProxyMemory, unsigned char* inVectorState, const char* inName)
 {
 	if (ImGui::TreeNode(inName))
 	{
@@ -726,9 +823,10 @@ void UserInterface::DrawMatrix(const SpvReflectBlockVariable* inReflectBlock, un
 			rowName += std::to_string(matrixRowIndex);;
 			rowName += "]";
 
-			DrawVectorInput(inReflectBlock->type_description, inProxyMemory, rowName.c_str());
+			DrawVectorInput(inReflectBlock->type_description, inProxyMemory, inVectorState, rowName.c_str());
 
 			inProxyMemory += stride / numericTraits.matrix.row_count;
+			inVectorState += stride / numericTraits.matrix.row_count;
 		}
 
 		ImGui::TreePop();
@@ -782,6 +880,9 @@ void UserInterface::DrawSampler(const SamplerInfo& inSamplerInfo, const Binding&
 	ImGui::Spacing();
 
 	{
+		// TODO: This wont work for Cube maps. How does Cube map and image arrays addressing even works? Test it.
+		// TODO: Also handle arrays of images (not image arrays).
+
 		const char* samplerAddresses[] = { "Repeat", "Mirrored Repeat", "Clamp to Edge", "Clamp to Border", "Mirror Clamp to Edge" };
 		const static int samplerAddressesSize = IM_ARRAYSIZE(samplerAddresses);
 		static_assert(samplerAddressesSize == static_cast<int>(SamplerAddressMode::Count), "Update SamplerAddressMode names array.");
@@ -841,7 +942,7 @@ void UserInterface::DrawSampler(const SamplerInfo& inSamplerInfo, const Binding&
 	}
 }
 
-void UserInterface::DrawUniformBufferInput(const SpvReflectBlockVariable* inReflectBlock, unsigned char* inProxyMemory, const uint32_t inArrayDimension, const char* inArrayNameSuffix)
+void UserInterface::DrawUniformBufferInput(const SpvReflectBlockVariable* inReflectBlock, unsigned char* inProxyMemory, unsigned char* inVectorState, const uint32_t inArrayDimension, const char* inArrayNameSuffix)
 {
 	if (inReflectBlock == nullptr)
 	{
@@ -854,7 +955,7 @@ void UserInterface::DrawUniformBufferInput(const SpvReflectBlockVariable* inRefl
 	{
 		std::string structTreeName = inReflectBlock->name;
 		structTreeName += inArrayNameSuffix;
-		DrawStruct(inReflectBlock, inProxyMemory, structTreeName.c_str());
+		DrawStruct(inReflectBlock, inProxyMemory, inVectorState, structTreeName.c_str());
 
 		break;
 	}
@@ -879,19 +980,22 @@ void UserInterface::DrawUniformBufferInput(const SpvReflectBlockVariable* inRefl
 
 					if (inReflectBlock->type_description->type_flags & SPV_REFLECT_TYPE_FLAG_STRUCT)
 					{
-						DrawStruct(inReflectBlock, inProxyMemory, arrayElementName.c_str());
+						DrawStruct(inReflectBlock, inProxyMemory, inVectorState, arrayElementName.c_str());
 						// If the outer struct which is directly bound as a uniform buffer, is an array, it's stride is 0 on GLSL for some reason.
 						inProxyMemory += arrayTraits.stride == 0 ? inReflectBlock->padded_size : arrayTraits.stride;
+						inVectorState += arrayTraits.stride == 0 ? inReflectBlock->padded_size : arrayTraits.stride;
 					}
 					else if (inReflectBlock->type_description->type_flags & SPV_REFLECT_TYPE_FLAG_MATRIX)
 					{
-						DrawMatrix(inReflectBlock, inProxyMemory, arrayElementName.c_str());
+						DrawMatrix(inReflectBlock, inProxyMemory, inVectorState, arrayElementName.c_str());
 						inProxyMemory += arrayTraits.stride;
+						inVectorState += arrayTraits.stride;
 					}
 					else
 					{
-						DrawVectorInput(inReflectBlock->type_description, inProxyMemory, arrayElementName.c_str());
+						DrawVectorInput(inReflectBlock->type_description, inProxyMemory, inVectorState, arrayElementName.c_str());
 						inProxyMemory += arrayTraits.stride;
+						inVectorState += arrayTraits.stride;
 					}
 				}
 			}
@@ -909,10 +1013,11 @@ void UserInterface::DrawUniformBufferInput(const SpvReflectBlockVariable* inRefl
 					nameSuffix += "[";
 					nameSuffix += std::to_string(arrayElementIndex);;
 					nameSuffix += "]";
-					DrawUniformBufferInput(inReflectBlock, inProxyMemory, inArrayDimension + 1, nameSuffix.c_str());
+					DrawUniformBufferInput(inReflectBlock, inProxyMemory, inVectorState, inArrayDimension + 1, nameSuffix.c_str());
 
 					// If the outer struct which is directly bound as a uniform buffer, is an array, it's stride is 0 on GLSL for some reason.
 					inProxyMemory += elementCount * (arrayTraits.stride == 0 ? inReflectBlock->padded_size : arrayTraits.stride);
+					inVectorState += elementCount * (arrayTraits.stride == 0 ? inReflectBlock->padded_size : arrayTraits.stride);
 				}
 			}
 
@@ -924,13 +1029,13 @@ void UserInterface::DrawUniformBufferInput(const SpvReflectBlockVariable* inRefl
 
 	case SpvOpTypeMatrix:
 	{
-		DrawMatrix(inReflectBlock, inProxyMemory, inReflectBlock->name);
+		DrawMatrix(inReflectBlock, inProxyMemory, inVectorState, inReflectBlock->name);
 		break;
 	}
 
 	default:
 	{
-		DrawVectorInput(inReflectBlock->type_description, inProxyMemory, inReflectBlock->name);
+		DrawVectorInput(inReflectBlock->type_description, inProxyMemory, inVectorState, inReflectBlock->name);
 		break;
 	}
 	}
@@ -993,9 +1098,6 @@ void UserInterface::ImguiBindingsWindow()
 
 			case ResourceType::UniformBuffer:
 			{
-				// TODO: Window options: No move and No close flags should be enabled for all docked windows. see demo.
-				// TODO: Implement different types of data passed to uniform buffer elements: time, keyboard inputs etc. So you can make a game in this as well.
-
 				SpvReflectBlockVariable* reflectBlockVariable = &reflectDescriptorBinding.block;
 				if (m_Renderer->GetFragmentShaderFile()->GetLanguage() == ShaderLanguage::HLSL)
 				{
@@ -1003,8 +1105,10 @@ void UserInterface::ImguiBindingsWindow()
 				}
 
 				ImGui::PushID(descriptor.Binding.DescriptorSetBinding.binding);
-				unsigned char* proxyMemory = descriptor.Resource.Handle.UniformBuffer->GetProxyMemory();
-				DrawUniformBufferInput(reflectBlockVariable, proxyMemory);
+				const UniformBuffer* uniformBuffer = descriptor.Resource.Handle.UniformBuffer;
+				unsigned char* proxyMemory = uniformBuffer->GetProxyMemory();
+				unsigned char* vectorState = uniformBuffer->GetVectorState();
+				DrawUniformBufferInput(reflectBlockVariable, proxyMemory, vectorState);
 				ImGui::PopID();
 
 				break;

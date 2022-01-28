@@ -8,6 +8,7 @@ FT_BEGIN_NAMESPACE
 UniformBuffer::UniformBuffer(const Device* inDevice, const Swapchain* inSwapchain, const size_t inSize)
 	: m_Size(inSize)
 	, m_ProxyMemory(new unsigned char[inSize]())
+	, m_VectorState(new unsigned char[inSize]())
 {
 	m_Buffers.resize(inSwapchain->GetImageCount());
 	for (uint32_t imageIndex = 0; imageIndex < inSwapchain->GetImageCount(); ++imageIndex)
@@ -24,6 +25,7 @@ UniformBuffer::~UniformBuffer()
 	}
 
 	m_Buffers.clear();
+	delete[](m_VectorState);
 	delete[](m_ProxyMemory);
 }
 

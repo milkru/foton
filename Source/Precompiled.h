@@ -12,6 +12,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 #include <spirv_reflect.h>
+#include <chrono>
 
 #define FT_BEGIN_NAMESPACE namespace FT \
 	{

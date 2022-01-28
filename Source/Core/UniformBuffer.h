@@ -23,10 +23,12 @@ public:
 	size_t GetBufferCount() const { return m_Buffers.size(); }
 	size_t GetSize() const { return m_Size; }
 	unsigned char* GetProxyMemory() const {	return m_ProxyMemory; }
+	unsigned char* GetVectorState() const {	return m_VectorState; }
 
 private:
 	std::vector<Buffer*> m_Buffers;
 	unsigned char* m_ProxyMemory;
+	unsigned char* m_VectorState;
 	size_t m_Size;
 };
 
