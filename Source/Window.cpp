@@ -66,7 +66,7 @@ Window::Window(Application* inApplication)
 	glfwSetKeyCallback(m_Window, KeyCallback);
 	glfwSetScrollCallback(m_Window, ScrollCallback);
 
-	const ImageFile iconImage(GetFullPath("icon"));
+	const ImageFile iconImage(GetAbsolutePath("icon"));
 
 	GLFWimage icon;
 	icon.width = iconImage.GetWidth();

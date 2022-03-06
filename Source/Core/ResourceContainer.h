@@ -17,10 +17,16 @@ public:
 	FT_DELETE_COPY_AND_MOVE(ResourceContainer)
 
 public:
+	rapidjson::Value Serialize(rapidjson::Document::AllocatorType& inAllocator);
+	bool Deserialize();
+
+public:
 	void RecreateUniformBuffers();
 	void UpdateBindings(std::vector<Binding> inBindings);
 	void UpdateImage(const uint32_t inBindingIndex, const std::string& inPath);
 	void UpdateSampler(const uint32_t inBindingIndex, const SamplerInfo& inSamplerInfo);
+	void UpdateUniformBuffer(const uint32_t inBindingIndex, const size_t inSize,
+		unsigned char* inProxyMemory, unsigned char* inVectorState);
 
 public:
 	const std::vector<Descriptor>& GetDescriptors() const { return m_Descriptors; }

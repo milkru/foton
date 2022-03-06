@@ -8,6 +8,9 @@ class Image;
 class Sampler;
 struct SamplerInfo;
 
+rapidjson::Value SerializeCombinedImageSampler(const std::string& inImagePath, const SamplerInfo& inSamplerInfo, rapidjson::Document::AllocatorType& inAllocator);
+bool DeserializeCombinedImageSampler(const rapidjson::Value& inCombinedImageSamplerJson, std::string& outImagePath, SamplerInfo& outSamplerInfo);
+
 class CombinedImageSampler
 {
 public:

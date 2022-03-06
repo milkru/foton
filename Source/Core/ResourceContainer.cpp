@@ -1,8 +1,8 @@
 #include "ResourceContainer.h"
 #include "Swapchain.h"
-#include "CombinedImageSampler.h"
 #include "Image.h"
 #include "Sampler.h"
+#include "CombinedImageSampler.h"
 #include "UniformBuffer.h"
 #include "Descriptor.hpp"
 #include "Utility/ImageFile.h"
@@ -10,7 +10,7 @@
 FT_BEGIN_NAMESPACE
 
 // TODO: Make default texture something else.
-static const std::string DefaultImagePath = GetFullPath("icon");
+static const std::string DefaultImagePath = GetAbsolutePath("icon");
 
 ResourceContainer::ResourceContainer(const Device* inDevice, const Swapchain* inSwapchain)
 	: m_Device(inDevice)
@@ -22,6 +22,66 @@ ResourceContainer::~ResourceContainer()
 	{
 		DeleteResource(descriptor.Resource);
 	}
+}
+
+rapidjson::Value ResourceContainer::Serialize(rapidjson::Document::AllocatorType& inAllocator)
+{
+	rapidjson::Value json(rapidjson::kArrayType);
+
+	for (const auto& descriptor : m_Descriptors)
+	{
+		const ResourceType resourceType = descriptor.Resource.Type;
+		const ResourceHandle resourceHandle = descriptor.Resource.Handle;
+
+		rapidjson::Value resourceJson;
+
+		switch (resourceType)
+		{
+		case ResourceType::CombinedImageSampler:
+		{
+			const CombinedImageSampler* combinedImageSampler = resourceHandle.CombinedImageSampler;
+			resourceJson = SerializeCombinedImageSampler(combinedImageSampler->GetImage()->GetPath(),
+				combinedImageSampler->GetSampler()->GetInfo(), inAllocator);
+			break;
+		}
+
+		case ResourceType::Image:
+		{
+			resourceJson = SerializeImage(resourceHandle.Image->GetPath(), inAllocator);
+			break;
+		}
+
+		case ResourceType::Sampler:
+		{
+			resourceJson = SerializeSampler(resourceHandle.Sampler->GetInfo(), inAllocator);
+			break;
+		}
+
+		case ResourceType::UniformBuffer:
+		{
+			const UniformBuffer* uniformBuffer = resourceHandle.UniformBuffer;
+			resourceJson = SerializeUniformBuffer(uniformBuffer->GetSize(), uniformBuffer->GetProxyMemory(),
+				uniformBuffer->GetVectorState(), inAllocator);
+			break;
+		}
+
+		default:
+			FT_FAIL("Unsupported ResourceType.");
+		}
+
+		rapidjson::Value descriptorJson(rapidjson::kObjectType);
+		descriptorJson.AddMember("Type", int(resourceType), inAllocator);
+		descriptorJson.AddMember("Resource", resourceJson, inAllocator);
+
+		json.PushBack(descriptorJson, inAllocator);
+	}
+
+	return json;
+}
+
+bool ResourceContainer::Deserialize()
+{
+	return false;
 }
 
 static ResourceType GetResourceType(const VkDescriptorType inDescriptorType)
@@ -241,6 +301,18 @@ void ResourceContainer::UpdateSampler(const uint32_t inBindingIndex, const Sampl
 	default:
 		FT_FAIL("Unsupported ResourceType.");
 	}
+}
+
+void ResourceContainer::UpdateUniformBuffer(const uint32_t inBindingIndex, const size_t inSize,
+	unsigned char* inProxyMemory, unsigned char* inVectorState)
+{
+	FT_CHECK(inBindingIndex < m_Descriptors.size(), "BindingIndex is out of bounds.");
+
+	Resource& resource = m_Descriptors[inBindingIndex].Resource;
+	FT_CHECK(resource.Type == ResourceType::UniformBuffer, "Tried updating non UniformBuffer resource.");
+
+	DeleteResource(resource);
+	resource.Handle.UniformBuffer = new UniformBuffer(m_Device, m_Swapchain, inSize, inProxyMemory, inVectorState);
 }
 
 void ResourceContainer::DeleteResource(const Resource& inResource)

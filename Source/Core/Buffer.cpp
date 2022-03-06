@@ -60,6 +60,7 @@ Buffer::Buffer(const Device* inDevice, const size_t inSize, const BufferUsageFla
 	, m_Size(inSize)
 	, m_HostVisibleData(nullptr)
 {
+	// VK_MEMORY_PROPERTY_HOST_COHERENT_BIT means that if we update this memory on the CPU, in the next command we use it on the GPU it will be guarantied that this memory is updated (so it's coherent).
 	CreateBuffer(inDevice, inSize, GetVkBufferUsageFlags(inUsageFlags), VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, m_Buffer, m_Memory);
 	CreateDescriptorInfo(m_Buffer, m_Size, m_DescriptorInfo);
 }

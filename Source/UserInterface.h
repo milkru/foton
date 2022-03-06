@@ -21,12 +21,14 @@ public:
 	void UpdateCodeFontSize(float offset);
 	void SetEditorText(const std::string& inText);
 	void SetEditorLanguage(const ShaderLanguage inLanguage);
+	void SetCodeFontSize(const float inCodeFontSize);
 	void DisplayErrorMarkers(const std::string& message);
 	void ClearErrorMarkers();
 	void ToggleEnabled();
 
 public:
 	std::string GetEditorText() const;
+	float GetCodeFontSize() const { return m_CodeFontSize; }
 
 private:
 	void ApplyImGuiStyle();

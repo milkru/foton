@@ -76,7 +76,7 @@ UserInterface::UserInterface(Application* inApplication)
 	ImGui_ImplVulkan_Init(&vulkanImplementationInitInfo, swapchain->GetRenderPass());
 
 	const static float defaultFontSize = 20.0f;
-	const static std::string fontFileFullPath = GetFullPath("/External/src/imgui/misc/fonts/Cousine-Regular.ttf");
+	const static std::string fontFileFullPath = GetAbsolutePath("/External/src/imgui/misc/fonts/Cousine-Regular.ttf");
 	io.Fonts->AddFontFromFileTTF(fontFileFullPath.c_str(), defaultFontSize);
 
 	VkCommandBuffer commandBuffer = device->BeginSingleTimeCommands();
@@ -119,8 +119,6 @@ void UserInterface::ImguiNewFrame()
 	ImGui::NewFrame();
 
 	ImguiDockSpace();
-
-	ImGui::ShowDemoWindow();
 
 	if (m_Enable)
 	{
@@ -178,6 +176,11 @@ void UserInterface::SetEditorLanguage(const ShaderLanguage inLanguage)
 		FT_FAIL("Unsupported ShaderLanguage.");
 	}
 
+}
+
+void UserInterface::SetCodeFontSize(const float inCodeFontSize)
+{
+	m_CodeFontSize = inCodeFontSize;
 }
 
 void UserInterface::ClearErrorMarkers()
@@ -286,7 +289,7 @@ void UserInterface::ImguiShowInfo()
 	}
 
 	const ShaderFile* fragmentShaderFile = m_Renderer->GetFragmentShaderFile();
-	const float frameRate = 1000.0f / deltaTimeDisplay;
+	const float frameRate = 1000.0f / deltaTimeDisplay; // TODO: Do weighted average.
 
 	const char* shaderFileName = fragmentShaderFile->GetName().c_str();
 	float indent = ImGui::GetFont()->CalcTextSizeA(ImGui::GetFontSize(), FLT_MAX, -1.0f, shaderFileName, nullptr, nullptr).x;
@@ -883,7 +886,11 @@ void UserInterface::DrawSampler(const SamplerInfo& inSamplerInfo, const Binding&
 		// TODO: This wont work for Cube maps. How does Cube map and image arrays addressing even works? Test it.
 		// TODO: Also handle arrays of images (not image arrays).
 
-		const char* samplerAddresses[] = { "Repeat", "Mirrored Repeat", "Clamp to Edge", "Clamp to Border", "Mirror Clamp to Edge" };
+		const char* samplerAddresses[] = { "Repeat", "Mirrored Repeat", "Clamp to Edge", "Clamp to Border"
+#if 0 // Currently disabled since it requires VK_KHR_sampler_mirror_clamp_to_edge which is not supported on some devices.
+			, "Mirror Clamp to Edge"
+#endif
+		};
 		const static int samplerAddressesSize = IM_ARRAYSIZE(samplerAddresses);
 		static_assert(samplerAddressesSize == static_cast<int>(SamplerAddressMode::Count), "Update SamplerAddressMode names array.");
 

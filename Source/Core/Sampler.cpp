@@ -3,6 +3,67 @@
 
 FT_BEGIN_NAMESPACE
 
+rapidjson::Value SerializeSampler(const SamplerInfo& inSamplerInfo, rapidjson::Document::AllocatorType& inAllocator)
+{
+	rapidjson::Value json(rapidjson::kObjectType);
+
+	json.AddMember("MagFilter", int(inSamplerInfo.MagFilter), inAllocator);
+	json.AddMember("MinFilter", int(inSamplerInfo.MinFilter), inAllocator);
+	json.AddMember("AddressModeU", int(inSamplerInfo.AddressModeU), inAllocator);
+	json.AddMember("AddressModeV", int(inSamplerInfo.AddressModeV), inAllocator);
+	json.AddMember("AddressModeW", int(inSamplerInfo.AddressModeW), inAllocator);
+	json.AddMember("BorderColor", int(inSamplerInfo.BorderColor), inAllocator);
+
+	return json;
+}
+
+bool DeserializeSampler(const rapidjson::Value& inSamplerJson, SamplerInfo& outSamplerInfo)
+{
+	if (!inSamplerJson["MagFilter"].IsInt())
+	{
+		FT_LOG("Failed Sampler MagFilter deserialization.\n");
+		return false;
+	}
+	outSamplerInfo.MagFilter = SamplerFilter(inSamplerJson["MagFilter"].GetInt());
+
+	if (!inSamplerJson["MinFilter"].IsInt())
+	{
+		FT_LOG("Failed Sampler MinFilter deserialization.\n");
+		return false;
+	}
+	outSamplerInfo.MinFilter = SamplerFilter(inSamplerJson["MinFilter"].GetInt());
+
+	if (!inSamplerJson["AddressModeU"].IsInt())
+	{
+		FT_LOG("Failed Sampler AddressModeU deserialization.\n");
+		return false;
+	}
+	outSamplerInfo.AddressModeU = SamplerAddressMode(inSamplerJson["AddressModeU"].GetInt());
+
+	if (!inSamplerJson["AddressModeV"].IsInt())
+	{
+		FT_LOG("Failed Sampler AddressModeV deserialization.\n");
+		return false;
+	}
+	outSamplerInfo.AddressModeV = SamplerAddressMode(inSamplerJson["AddressModeV"].GetInt());
+
+	if (!inSamplerJson["AddressModeW"].IsInt())
+	{
+		FT_LOG("Failed Sampler AddressModeW deserialization.\n");
+		return false;
+	}
+	outSamplerInfo.AddressModeW = SamplerAddressMode(inSamplerJson["AddressModeW"].GetInt());
+
+	if (!inSamplerJson["BorderColor"].IsInt())
+	{
+		FT_LOG("Failed Sampler BorderColor deserialization.\n");
+		return false;
+	}
+	outSamplerInfo.BorderColor = SamplerBorderColor(inSamplerJson["BorderColor"].GetInt());
+
+	return true;
+}
+
 static VkFilter GetFilter(const SamplerFilter inSamplerFilter)
 {
 	switch (inSamplerFilter)
@@ -34,8 +95,10 @@ static VkSamplerAddressMode GetSamplerAddressMode(const SamplerAddressMode inSam
 	case SamplerAddressMode::ClampToBorder:
 		return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
 
+#if 0 // Currently disabled since it requires VK_KHR_sampler_mirror_clamp_to_edge which is not supported on some devices.
 	case SamplerAddressMode::MirrorClampToEdge:
 		return VK_SAMPLER_ADDRESS_MODE_MIRROR_CLAMP_TO_EDGE;
+#endif
 
 	default:
 		FT_FAIL("Unsupported SamplerAddressMode.");

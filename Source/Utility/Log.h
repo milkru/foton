@@ -13,8 +13,6 @@ public:
 
 private:
 	static ImGuiTextBuffer s_TextBuffer;
-	static ImVector<int> s_LineOffsets;
-	static bool s_AutoScroll;
 };
 
 FT_END_NAMESPACE

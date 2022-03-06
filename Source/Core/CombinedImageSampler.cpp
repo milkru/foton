@@ -1,10 +1,42 @@
+#include "Image.h"
+#include "Sampler.h"
 #include "CombinedImageSampler.h"
 #include "Device.h"
 #include "Utility/ImageFile.h"
-#include "Image.h"
-#include "Sampler.h"
 
 FT_BEGIN_NAMESPACE
+
+rapidjson::Value SerializeCombinedImageSampler(const std::string& inImagePath, const SamplerInfo& inSamplerInfo, rapidjson::Document::AllocatorType& inAllocator)
+{
+	rapidjson::Value json(rapidjson::kObjectType);
+
+	rapidjson::Value imageJson = SerializeImage(inImagePath, inAllocator);
+	rapidjson::Value samplerJson = SerializeSampler(inSamplerInfo, inAllocator);
+
+	json.AddMember("Image", imageJson, inAllocator);
+	json.AddMember("Sampler", samplerJson, inAllocator);
+
+	return json;
+}
+
+bool DeserializeCombinedImageSampler(const rapidjson::Value& inCombinedImageSamplerJson, std::string& outImagePath, SamplerInfo& outSamplerInfo)
+{
+	if (!inCombinedImageSamplerJson["Image"].IsObject() ||
+		!DeserializeImage(inCombinedImageSamplerJson["Image"], outImagePath))
+	{
+		FT_LOG("Failed Image deserialization.\n");
+		return false;
+	}
+
+	if (!inCombinedImageSamplerJson["Sampler"].IsObject() ||
+		!DeserializeSampler(inCombinedImageSamplerJson["Sampler"], outSamplerInfo))
+	{
+		FT_LOG("Failed Sampler deserialization.\n");
+		return false;
+	}
+
+	return true;
+}
 
 static void CreateDescriptorInfo(const VkImageView inImageView, const VkSampler inSampler, VkDescriptorImageInfo& outDescriptorInfo)
 {

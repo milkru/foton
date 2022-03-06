@@ -19,7 +19,7 @@ public:
 public:
 	void SaveFragmentShader();
 	bool RecompileFragmentShader();
-	void NewShader(const std::string& inPath, const std::string& inCode);
+	void NewShader(const std::string& inPath);
 	void LoadShader(const std::string& inPath);
 	void UpdateCodeFontSize(float inOffset) const;
 	void ToggleUserInterface() const;

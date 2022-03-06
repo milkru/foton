@@ -5,6 +5,28 @@
 
 FT_BEGIN_NAMESPACE
 
+rapidjson::Value SerializeImage(const std::string& inImagePath, rapidjson::Document::AllocatorType& inAllocator)
+{
+	rapidjson::Value json(rapidjson::kObjectType);
+
+	rapidjson::Value filePathJson(GetRelativePath(inImagePath).c_str(), inAllocator);
+	json.AddMember("Path", filePathJson, inAllocator);
+
+	return json;
+}
+
+bool DeserializeImage(const rapidjson::Value& inImageJson, std::string& outImagePath)
+{
+	if (!inImageJson["Path"].IsString())
+	{
+		FT_LOG("Failed Image Path deserialization.\n");
+		return false;
+	}
+	outImagePath = GetAbsolutePath(inImageJson["Path"].GetString());
+
+	return true;
+}
+
 static void TransitionImageLayout(const Device* inDevice, const VkImage inImage, const VkFormat inFormat, const VkImageLayout inOldLayout, const VkImageLayout inNewLayout)
 {
 	VkCommandBuffer commandBuffer = inDevice->BeginSingleTimeCommands();
@@ -143,6 +165,7 @@ static void CreateDescriptorInfo(const VkImageView inImageView, VkDescriptorImag
 
 Image::Image(const Device* inDevice, const ImageFile& inFile)
 	: m_Device(inDevice)
+	, m_Path(inFile.GetPath())
 {
 	CreateImage(m_Device, inFile, m_Image, m_Memory, m_Width, m_Height);
 	CreateImageView(inDevice->GetDevice(), m_Image, VK_FORMAT_R8G8B8A8_UNORM, m_ImageView);

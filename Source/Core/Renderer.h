@@ -8,7 +8,6 @@ class Window;
 class Device;
 class Swapchain;
 class Shader;
-class Shader;
 class ShaderFile;
 class Pipeline;
 class DescriptorSet;
@@ -29,6 +28,8 @@ public:
 	void WaitQueueToFinish();
 	void UpdateFragmentShaderFile(ShaderFile* inFragmentShaderFile);
 	void OnFragmentShaderRecompiled(const std::vector<uint32_t>& inSpvCode);
+	bool TryApplyMetaData();
+	void SaveMetaData();
 	void UpdateImageDescriptor(const uint32_t inBindingIndex, const std::string& inPath);
 	void UpdateSamplerDescriptor(const uint32_t inBindingIndex, const SamplerInfo& inSamplerInfo);
 	void UpdateUniformBuffersDeviceMemory(uint32_t inCurrentImage);

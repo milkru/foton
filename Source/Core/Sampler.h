@@ -16,7 +16,9 @@ enum class SamplerAddressMode
 	MirroredRepeat,
 	ClampToEdge,
 	ClampToBorder,
+#if 0 // Currently disabled since it requires VK_KHR_sampler_mirror_clamp_to_edge which is not supported on some devices.
 	MirrorClampToEdge,
+#endif
 
 	Count
 };
@@ -51,6 +53,9 @@ inline bool operator==(const SamplerInfo& inLeft, const SamplerInfo& inRight) {
 }
 
 inline bool operator!=(const SamplerInfo& inLeft, const SamplerInfo& inRight) { return !(inLeft == inRight); }
+
+rapidjson::Value SerializeSampler(const SamplerInfo& inSamplerInfo, rapidjson::Document::AllocatorType& inAllocator);
+bool DeserializeSampler(const rapidjson::Value& inSamplerJson, SamplerInfo& outSamplerInfo);
 
 class Device;
 

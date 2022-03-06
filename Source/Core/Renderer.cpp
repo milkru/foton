@@ -4,6 +4,8 @@
 #include "Swapchain.h"
 #include "Buffer.h"
 #include "Image.h"
+#include "Sampler.h"
+#include "CombinedImageSampler.h"
 #include "UniformBuffer.h"
 #include "Binding.hpp"
 #include "Resource.hpp"
@@ -16,9 +18,62 @@
 #include "Utility/ShaderFile.h"
 #include "Utility/DefaultShader.h"
 
-// TODO: double type pops validation warning when used in a shader. Probably need some extension. Test if some other things require it as well.
-
 FT_BEGIN_NAMESPACE
+
+Renderer::Renderer(Window* inWindow, ShaderFile* inFragmentShaderFile)
+	: m_Window(inWindow)
+	, m_FragmentShaderFile(inFragmentShaderFile)
+{
+	m_Device = new Device(m_Window);
+	m_Swapchain = new Swapchain(m_Device, m_Window);
+
+	{
+		const char* defaultVertexShader = GetDefaultVertexShader(ShaderLanguage::GLSL);
+		const ShaderCompileResult compileResult = ShaderCompiler::Compile(ShaderLanguage::GLSL, ShaderStage::Vertex, defaultVertexShader);
+		const char* status = ShaderCompiler::GetStatusText(compileResult.Status);
+		FT_CHECK(compileResult.Status == ShaderCompileStatus::Success, "Failed %s default vertex shader.", status);
+
+		m_VertexShader = new Shader(m_Device, ShaderStage::Vertex, compileResult.SpvCode);
+	}
+
+	{
+		ShaderCompileResult compileResult = ShaderCompiler::Compile(m_FragmentShaderFile->GetLanguage(), ShaderStage::Fragment, m_FragmentShaderFile->GetSourceCode());
+		const char* status = ShaderCompiler::GetStatusText(compileResult.Status);
+		if (!compileResult.InfoLog.empty())
+		{
+			FT_LOG(compileResult.InfoLog.c_str());
+		}
+
+		if (compileResult.Status != ShaderCompileStatus::Success)
+		{
+			compileResult = ShaderCompiler::Compile(m_FragmentShaderFile->GetLanguage(), ShaderStage::Fragment, GetDefaultFragmentShader(m_FragmentShaderFile->GetLanguage()));
+			FT_LOG("Failed %s fragment shader %s, default shader will be used instead.\n", status, m_FragmentShaderFile->GetName().c_str());
+
+		}
+
+		m_FragmentShader = new Shader(m_Device, ShaderStage::Fragment, compileResult.SpvCode);
+	}
+
+	m_ResourceContainer = new ResourceContainer(m_Device, m_Swapchain);
+	m_ResourceContainer->UpdateBindings(m_FragmentShader->GetBindings());
+
+	m_DescriptorSet = new DescriptorSet(m_Device, m_Swapchain, m_ResourceContainer->GetDescriptors());
+	m_Pipeline = new Pipeline(m_Device, m_Swapchain, m_DescriptorSet, m_VertexShader, m_FragmentShader);
+	m_CommandBuffer = new CommandBuffer(m_Device, m_Swapchain);
+}
+
+Renderer::~Renderer()
+{
+	delete(m_FragmentShaderFile);
+	delete(m_FragmentShader);
+	delete(m_VertexShader);
+
+	CleanupSwapchain();
+
+	delete(m_ResourceContainer);
+	delete(m_Swapchain);
+	delete(m_Device);
+}
 
 void Renderer::DrawFrame()
 {
@@ -45,56 +100,6 @@ void Renderer::DrawFrame()
 	{
 		FT_CHECK(presentStatus == SwapchainStatus::Success, "Swapchain present failed.");
 	}
-}
-
-Renderer::Renderer(Window* inWindow, ShaderFile* inFragmentShaderFile)
-	: m_Window (inWindow)
-	, m_FragmentShaderFile (inFragmentShaderFile)
-{
-	ShaderCompiler::Initialize();
-
-	m_Device = new Device(m_Window);
-	m_Swapchain = new Swapchain(m_Device, m_Window);
-
-	{
-		const char* defaultVertexShader = GetDefaultVertexShader(ShaderLanguage::GLSL);
-		const ShaderCompileResult compileResult = ShaderCompiler::Compile(ShaderLanguage::GLSL, ShaderStage::Vertex, defaultVertexShader);
-		const char* status = ShaderCompiler::GetStatusText(compileResult.Status);
-		FT_CHECK(compileResult.Status == ShaderCompileStatus::Success, "Failed %s default vertex shader.", status);
-
-		m_VertexShader = new Shader(m_Device, ShaderStage::Vertex, compileResult.SpvCode);
-	}
-
-	{
-		const ShaderCompileResult compileResult = ShaderCompiler::Compile(m_FragmentShaderFile->GetLanguage(), ShaderStage::Fragment, m_FragmentShaderFile->GetSourceCode());
-		const char* status = ShaderCompiler::GetStatusText(compileResult.Status);
-
-		FT_CHECK(compileResult.Status == ShaderCompileStatus::Success, "Failed %s fragment shader %s.", status, m_FragmentShaderFile->GetName().c_str());
-
-		m_FragmentShader = new Shader(m_Device, ShaderStage::Fragment, compileResult.SpvCode);
-	}
-
-	m_ResourceContainer = new ResourceContainer(m_Device, m_Swapchain);
-	m_ResourceContainer->UpdateBindings(m_FragmentShader->GetBindings());
-
-	m_DescriptorSet = new DescriptorSet(m_Device, m_Swapchain, m_ResourceContainer->GetDescriptors());
-	m_Pipeline = new Pipeline(m_Device, m_Swapchain, m_DescriptorSet, m_VertexShader, m_FragmentShader);
-	m_CommandBuffer = new CommandBuffer(m_Device, m_Swapchain);
-}
-
-Renderer::~Renderer()
-{
-	delete(m_FragmentShaderFile);
-	delete(m_FragmentShader);
-	delete(m_VertexShader);
-
-	CleanupSwapchain();
-
-	delete(m_ResourceContainer);
-	delete(m_Swapchain);
-	delete(m_Device);
-
-	ShaderCompiler::Finalize();
 }
 
 void Renderer::WaitDeviceToFinish()
@@ -126,6 +131,149 @@ void Renderer::OnFragmentShaderRecompiled(const std::vector<uint32_t>& inSpvCode
 
 	delete(m_Pipeline);
 	m_Pipeline = new Pipeline(m_Device, m_Swapchain, m_DescriptorSet, m_VertexShader, m_FragmentShader);
+}
+
+bool Renderer::TryApplyMetaData()
+{
+	std::string metaDataFilePath = m_FragmentShaderFile->GetPath() + ".meta";
+	std::string metaDataJson = ReadFile(metaDataFilePath);
+	
+	if (metaDataJson.length() == 0)
+	{
+		FT_LOG("Meta data json file doesn't exist, new one will be created %s.\n", metaDataFilePath.c_str());
+		return false;
+	}
+
+	rapidjson::Document documentJson;
+	documentJson.Parse(metaDataJson.c_str());
+	if (!documentJson.IsObject())
+	{
+		FT_LOG("Failed parsing a json document from json file %s.\n", metaDataFilePath.c_str());
+		return false;
+	}
+
+	const rapidjson::Value& descriptorsJson = documentJson["Descriptors"];
+	if (!descriptorsJson.IsArray())
+	{
+		FT_LOG("Failed parsing descriptors from json file %s.\n", metaDataFilePath.c_str());
+		return false;
+	}
+
+	WaitQueueToFinish();
+
+	uint32_t binding = 0;
+	for (const auto& descriptorJson : descriptorsJson.GetArray())
+	{
+		if (binding >= m_ResourceContainer->GetDescriptors().size())
+		{
+			FT_LOG("Failed parsing binding indices from json file %s.\n", metaDataFilePath.c_str());
+			return false;
+		}
+
+		const rapidjson::Value& resourceTypeJson = descriptorJson["Type"];
+		if (!resourceTypeJson.IsInt())
+		{
+			FT_LOG("Failed parsing resource type from a json file %s.\n", metaDataFilePath.c_str());
+			return false;
+		}
+
+		const rapidjson::Value& resourceJson = descriptorJson["Resource"];
+		if (!resourceJson.IsObject())
+		{
+			FT_LOG("Failed parsing resource from a json file %s.\n", metaDataFilePath.c_str());
+			return false;
+		}
+
+		const ResourceType resourceType = ResourceType(resourceTypeJson.GetInt());
+		switch (resourceType)
+		{
+		case ResourceType::CombinedImageSampler:
+		{
+			std::string imagePath;
+			SamplerInfo samplerInfo;
+			if (!DeserializeCombinedImageSampler(resourceJson, imagePath, samplerInfo))
+			{
+				FT_LOG("Failed deserializing CombinedImageSampler from a json file %s.\n", metaDataFilePath.c_str());
+				return false;
+			}
+
+			// TODO: Validate ImagePath and Sampler.
+			m_ResourceContainer->UpdateImage(binding, imagePath);
+			m_ResourceContainer->UpdateSampler(binding, samplerInfo);
+			break;
+		}
+
+		case ResourceType::Image:
+		{
+			std::string imagePath;
+			if (!DeserializeImage(resourceJson, imagePath))
+			{
+				FT_LOG("Failed deserializing Image from a json file %s.\n", metaDataFilePath.c_str());
+				return false;
+			}
+
+			// TODO: Validate ImagePath.
+			m_ResourceContainer->UpdateImage(binding, imagePath);
+			break;
+		}
+
+		case ResourceType::Sampler:
+		{
+			SamplerInfo samplerInfo;
+			if (!DeserializeSampler(resourceJson, samplerInfo))
+			{
+				FT_LOG("Failed deserializing Sampler from a json file %s.\n", metaDataFilePath.c_str());
+				return false;
+			}
+
+			// TODO: Validate Sampler.
+			m_ResourceContainer->UpdateSampler(binding, samplerInfo);
+			break;
+		}
+
+		case ResourceType::UniformBuffer:
+		{
+			size_t size;
+			unsigned char* proxyMemory;
+			unsigned char* vectorState;
+			if (!DeserializeUniformBuffer(resourceJson, size, proxyMemory, vectorState))
+			{
+				FT_LOG("Failed deserializing UniformBuffer from a json file %s.\n", metaDataFilePath.c_str());
+				return false;
+			}
+
+			m_ResourceContainer->UpdateUniformBuffer(binding, size, proxyMemory, vectorState);
+			break;
+		}
+
+		default:
+			FT_LOG("Failed parsing ResourceType from a json file %s.\n", metaDataFilePath.c_str());
+			return false;
+		}
+
+		++binding;
+	}
+
+	RecreateDescriptorSet();
+
+	return true;
+}
+
+void Renderer::SaveMetaData()
+{
+	rapidjson::Document documentJson(rapidjson::kObjectType);
+
+	rapidjson::Value descriptorsJson = m_ResourceContainer->Serialize(documentJson.GetAllocator());
+	documentJson.AddMember("Descriptors", descriptorsJson, documentJson.GetAllocator());
+
+	rapidjson::StringBuffer buffer;
+	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+	documentJson.Accept(writer);
+
+	std::string metaDataFilePath = m_FragmentShaderFile->GetPath() + ".meta";
+	std::string metaDataJson = buffer.GetString();
+
+	WriteFile(metaDataFilePath, metaDataJson);
 }
 
 void Renderer::UpdateImageDescriptor(const uint32_t inBindingIndex, const std::string& inPath)

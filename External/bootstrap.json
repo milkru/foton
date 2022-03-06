@@ -52,7 +52,7 @@
 		"source": {
 			"type": "git",
 			"url": "https://github.com/milkru/ImGuiColorTextEdit.git",
-			"revision": "95ca04f947b8f483bbc1f3d79b4f27986ab0c0e9"
+			"revision": "8dd184b703c35247902f40cf08e669d9c1429d1b"
 		}
 	},
 	{
@@ -61,6 +61,14 @@
 			"type": "git",
 			"url": "https://github.com/btzy/nativefiledialog-extended.git",
 			"revision": "800e880d335bc5af1fef757eac835161c7b93102"
+		}
+	},
+	{
+		"name": "rapidjson",
+		"source": {
+			"type": "git",
+			"url": "https://github.com/Tencent/rapidjson.git",
+			"revision": "e4bde977440d4a00f820b6586899e48a972d2493"
 		}
 	}
 ]

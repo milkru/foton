@@ -142,3 +142,7 @@ add_subdirectory(${NFD_DIR})
 target_include_directories(${PROJECT_NAME} PRIVATE ${NFD_DIR}/src/include)
 target_link_libraries(${PROJECT_NAME} PRIVATE nfd)
 set_property(TARGET nfd PROPERTY FOLDER "External")
+
+# rapidjson
+set(RJ_DIR External/src/rapidjson/include)
+target_include_directories(${PROJECT_NAME} PRIVATE ${RJ_DIR})

@@ -6,16 +6,20 @@ class Device;
 class Swapchain;
 class Buffer;
 
+rapidjson::Value SerializeUniformBuffer(const size_t inSize, const unsigned char* inProxyMemory,
+	const unsigned char* inVectorState, rapidjson::Document::AllocatorType& inAllocator);
+bool DeserializeUniformBuffer(const rapidjson::Value& inImageJson, size_t& outSize,
+	unsigned char*& outProxyMemory, unsigned char*& outVectorState);
+
 class UniformBuffer
 {
 public:
-	UniformBuffer(const Device* inDevice, const Swapchain* inSwapchain, const size_t inSize);
+	UniformBuffer(const Device* inDevice, const Swapchain* inSwapchain, const size_t inSize,
+		unsigned char* inProxyMemory = nullptr, unsigned char* inVectorState = nullptr);
 	~UniformBuffer();
 	FT_DELETE_COPY_AND_MOVE(UniformBuffer)
 
 public:
-	void* Map(const uint32_t inCurrentSwapchainImageIndex);
-	void Unmap(const uint32_t inCurrentSwapchainImageIndex);
 	void UpdateDeviceMemory(uint32_t inCurrentImage);
 
 public:

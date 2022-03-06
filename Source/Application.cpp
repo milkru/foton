@@ -11,40 +11,127 @@
 #include "Utility/ShaderFile.h"
 #include "Utility/DefaultShader.h"
 
-// TODO: Lightweight light fast tool (foton is small and fast :))
+// TODO: Lightweight Light-fast tool
 // TODO: Find out if we can make background for all text.
 // TODO: Allow user to change shader entry in settings.
 // TODO: Async file loading system.
-// 
 // TODO: What about vertex shader output/fragment shader input? We only have UVs. Is that enough for generalization? Tell this or allow vertex (and maybe even geometry) shader modification as well.
 // Or don't. Just use reflection on fragment shader, so you can link vertex_out with fragment_in (Interpolants). Vertex shader can have #ifdefs for different outs (or just pass a macro with binding index), which you can easily control (in order to prevent OutputNotonsumed validation error (which is also maybeok to leave)).
-// TODO: Printf
 
 FT_BEGIN_NAMESPACE
+
+struct Config
+{
+	std::string PreviousOpenShaderFile;
+	float CodeFontSize;
+};
+
+static const std::string ConfigFilePath = GetAbsolutePath("foton.ini");
+
+static bool TryApplyConfig(Config& outConfig)
+{
+	std::string configJson = ReadFile(ConfigFilePath);
+
+	if (configJson.length() == 0)
+	{
+		FT_LOG("Config json file doesn't exist, new one will be created %s.\n", ConfigFilePath.c_str());
+		return false;
+	}
+
+	rapidjson::Document documentJson;
+	documentJson.Parse(configJson.c_str());
+	if (!documentJson.IsObject())
+	{
+		FT_LOG("Failed parsing a json document config json file %s.\n", ConfigFilePath.c_str());
+		return false;
+	}
+
+	const rapidjson::Value& previousOpenShaderFileJson = documentJson["PreviousOpenShaderFile"];
+	if (!previousOpenShaderFileJson.IsString())
+	{
+		FT_LOG("Failed parsing PreviousOpenShaderFile from config json file %s.\n", ConfigFilePath.c_str());
+		return false;
+	}
+	outConfig.PreviousOpenShaderFile = GetAbsolutePath(previousOpenShaderFileJson.GetString());
+
+	const rapidjson::Value& codeFontSizeJson = documentJson["CodeFontSize"];
+	if (!codeFontSizeJson.IsFloat())
+	{
+		FT_LOG("Failed parsing CodeFontSize from config json file %s.\n", ConfigFilePath.c_str());
+		return false;
+	}
+	outConfig.CodeFontSize = codeFontSizeJson.GetFloat();
+
+	return true;
+}
+
+static void SaveConfig(const Config& inConfig)
+{
+	rapidjson::Document documentJson(rapidjson::kObjectType);
+
+	const std::string shaderRelativePath = GetRelativePath(inConfig.PreviousOpenShaderFile);
+	rapidjson::Value filePathJson(shaderRelativePath.c_str(), documentJson.GetAllocator());
+	documentJson.AddMember("PreviousOpenShaderFile", filePathJson, documentJson.GetAllocator());
+	documentJson.AddMember("CodeFontSize", inConfig.CodeFontSize, documentJson.GetAllocator());
+
+	rapidjson::StringBuffer buffer;
+	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+	documentJson.Accept(writer);
+
+	std::string configJson = buffer.GetString();
+
+	WriteFile(ConfigFilePath, configJson);
+}
 
 void Application::Run()
 {
 	FileExplorer::Initialize();
+	ShaderCompiler::Initialize();
 
 	m_Window = new Window(this);
 	m_Renderer = nullptr;
 	m_UserInterface = nullptr;
 	
 	std::string fragmentShaderPath;
-	if (FileExplorer::SaveShaderDialog(fragmentShaderPath))
+
+	Config config{};
+	const bool configSuccessfullyLoaded = TryApplyConfig(config);
+	fragmentShaderPath = config.PreviousOpenShaderFile;
+
+	if (configSuccessfullyLoaded || FileExplorer::SaveShaderDialog(fragmentShaderPath))
 	{
 		ShaderFile* fragmentShaderFile = new ShaderFile(fragmentShaderPath);
 
-		const char* defaultFragmentShaderCode = GetDefaultFragmentShader(fragmentShaderFile->GetLanguage());
-		fragmentShaderFile->UpdateSourceCode(defaultFragmentShaderCode);
-
 		m_Renderer = new Renderer(m_Window, fragmentShaderFile);
-		
+		m_Renderer->TryApplyMetaData();
+
 		m_UserInterface = new UserInterface(this);
-		m_UserInterface->SetEditorText(defaultFragmentShaderCode);
+		m_UserInterface->SetEditorText(fragmentShaderFile->GetSourceCode());
 		m_UserInterface->SetEditorLanguage(fragmentShaderFile->GetLanguage());
 
+		if (configSuccessfullyLoaded)
+		{
+			m_UserInterface->SetEditorText(fragmentShaderFile->GetSourceCode());
+		}
+		else
+		{
+			const char* defaultFragmentShaderCode = GetDefaultFragmentShader(fragmentShaderFile->GetLanguage());
+			m_UserInterface->SetEditorText(defaultFragmentShaderCode);
+		}
+
+		if (configSuccessfullyLoaded)
+		{
+			m_UserInterface->SetCodeFontSize(config.CodeFontSize);
+		}
+
 		MainLoop();
+
+		m_Renderer->SaveMetaData();
+
+		Config config;
+		config.PreviousOpenShaderFile = fragmentShaderPath;
+		config.CodeFontSize = m_UserInterface->GetCodeFontSize();
+		SaveConfig(config);
 	}
 
 	Cleanup();
@@ -54,6 +141,7 @@ void Application::SaveFragmentShader()
 {
 	ShaderFile* fragmentShaderFile = m_Renderer->GetFragmentShaderFile();
 	fragmentShaderFile->UpdateSourceCode(m_UserInterface->GetEditorText());
+	m_Renderer->SaveMetaData();
 	FT_LOG("Shader saved to file %s.\n", fragmentShaderFile->GetPath().c_str());
 }
 
@@ -85,7 +173,7 @@ bool Application::RecompileFragmentShader()
 	return true;
 }
 
-void Application::NewShader(const std::string& inPath, const std::string& inCode)
+void Application::NewShader(const std::string& inPath)
 {
 	ShaderFile* newShaderFile = new ShaderFile(inPath);
 
@@ -97,6 +185,7 @@ void Application::NewShader(const std::string& inPath, const std::string& inCode
 	m_UserInterface->SetEditorLanguage(newShaderFile->GetLanguage());
 
 	RecompileFragmentShader();
+	m_Renderer->SaveMetaData();
 
 	FT_LOG("New shader file %s created.\n", inPath.c_str());
 }
@@ -118,6 +207,11 @@ void Application::LoadShader(const std::string& inPath)
 
 	RecompileFragmentShader();
 
+	if (!m_Renderer->TryApplyMetaData())
+	{
+		FT_LOG("Failed parsing meta data.");
+	}
+
 	FT_LOG("Shader file %s loaded.\n", inPath.c_str());
 }
 
@@ -136,7 +230,7 @@ void Application::NewShaderMenuItem()
 	std::string shaderFilePath;
 	if (FileExplorer::SaveShaderDialog(shaderFilePath))
 	{
-		NewShader(shaderFilePath, "");
+		NewShader(shaderFilePath);
 	}
 }
 
@@ -151,14 +245,6 @@ void Application::OpenShaderMenuItem()
 
 void Application::SaveShaderMenuItem()
 {
-	ShaderFile* fragmentShaderFile = m_Renderer->GetFragmentShaderFile();
-	const std::string& fragmentShaderSourceCode = m_UserInterface->GetEditorText();
-
-	if (fragmentShaderSourceCode.compare(fragmentShaderFile->GetSourceCode()) == 0)
-	{
-		return;
-	}
-
 	RecompileFragmentShader();
 	SaveFragmentShader();
 }
@@ -179,7 +265,7 @@ void Application::SaveAsShaderMenuItem()
 	if (FileExplorer::SaveShaderDialog(shaderFilePath, currentShaderFileExtension))
 	{
 		const std::string& textToSave = m_UserInterface->GetEditorText();
-		NewShader(shaderFilePath, m_Renderer->GetFragmentShaderFile()->GetSourceCode());
+		NewShader(shaderFilePath);
 	}
 }
 
@@ -206,10 +292,11 @@ void Application::MainLoop()
 
 void Application::Cleanup()
 {
-	FileExplorer::Terminate();
 	delete(m_UserInterface);
 	delete(m_Renderer);
 	delete(m_Window);
+	ShaderCompiler::Finalize();
+	FileExplorer::Terminate();
 }
 
 FT_END_NAMESPACE

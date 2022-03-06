@@ -24,6 +24,8 @@ const ShaderFileExtension g_SupportedShaderFileExtensions[] =
 	{ ShaderLanguage::HLSL, "hlsl", "HLSL"}
 };
 
+class ResourceContainer;
+
 class ShaderFile
 {
 public:

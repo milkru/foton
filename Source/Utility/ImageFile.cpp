@@ -6,9 +6,10 @@
 FT_BEGIN_NAMESPACE
 
 ImageFile::ImageFile(const std::string& inPath)
+	: m_Path(inPath)
 {
-	m_Pixels = stbi_load(inPath.c_str(), &m_Width, &m_Height, nullptr, STBI_rgb_alpha);
-	FT_CHECK(m_Pixels, "Failed to load %s image.", inPath.c_str());
+	m_Pixels = stbi_load(m_Path.c_str(), &m_Width, &m_Height, nullptr, STBI_rgb_alpha);
+	FT_CHECK(m_Pixels, "Failed to load %s image.", m_Path.c_str());
 }
 
 ImageFile::~ImageFile()

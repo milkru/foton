@@ -28,6 +28,7 @@ public:
 	VkBuffer GetBuffer() const { return m_Buffer; }
 	const VkDescriptorBufferInfo* GetDescriptorInfo() const { return &m_DescriptorInfo; }
 	size_t GetSize() const { return m_Size; }
+	void* GetHostVisibleData() const { return m_HostVisibleData; }
 
 private:
 	const Device* m_Device;
