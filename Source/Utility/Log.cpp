@@ -32,7 +32,8 @@ void ImGuiLogger::Draw(const char* title)
 	ImGui::SetWindowFontScale(1.0f);
 
 	ImGui::Separator();
-	ImGui::BeginChild("scrolling", ImVec2(0, 0), false, ImGuiWindowFlags_HorizontalScrollbar);
+	ImGui::BeginChild("scrolling", ImVec2(0, 0), false,
+		ImGuiWindowFlags_AlwaysHorizontalScrollbar | ImGuiWindowFlags_AlwaysVerticalScrollbar);
 
 	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
 	ImGui::TextUnformatted(s_TextBuffer.begin());

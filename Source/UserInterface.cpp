@@ -183,6 +183,22 @@ void UserInterface::SetCodeFontSize(const float inCodeFontSize)
 	m_CodeFontSize = inCodeFontSize;
 }
 
+void UserInterface::SetShowBindings(const bool inShowBindings)
+{
+	m_ShowBindings = inShowBindings;
+}
+
+void UserInterface::SetShowOutput(const bool inShowOutput)
+{
+	m_ShowOutput = inShowOutput;
+}
+
+void UserInterface::SetShowWhiteSpaces(const bool inShowWhiteSpaces)
+{
+	m_ShowWhiteSpaces = inShowWhiteSpaces;
+	m_Editor.SetShowWhitespaces(m_ShowWhiteSpaces);
+}
+
 void UserInterface::ClearErrorMarkers()
 {
 	TextEditor::ErrorMarkers ems;

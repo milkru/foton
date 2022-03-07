@@ -24,11 +24,14 @@ struct Config
 {
 	std::string PreviousOpenShaderFile;
 	float CodeFontSize;
+	bool EnableBindingsWindow;
+	bool EnableOutputWindow;
+	bool ShowWhiteSpaces;
 };
 
 static const std::string ConfigFilePath = GetAbsolutePath("foton.ini");
 
-static bool TryApplyConfig(Config& outConfig)
+static bool LoadConfig(Config& outConfig)
 {
 	std::string configJson = ReadFile(ConfigFilePath);
 
@@ -62,6 +65,30 @@ static bool TryApplyConfig(Config& outConfig)
 	}
 	outConfig.CodeFontSize = codeFontSizeJson.GetFloat();
 
+	const rapidjson::Value& enableBindingsMenuJson = documentJson["EnableBindingsWindow"];
+	if (!enableBindingsMenuJson.IsBool())
+	{
+		FT_LOG("Failed parsing EnableBindingsWindow from config json file %s.\n", ConfigFilePath.c_str());
+		return false;
+	}
+	outConfig.EnableBindingsWindow = enableBindingsMenuJson.GetBool();
+
+	const rapidjson::Value& enableOutputWindowJson = documentJson["EnableOutputWindow"];
+	if (!enableOutputWindowJson.IsBool())
+	{
+		FT_LOG("Failed parsing EnableOutputWindow from config json file %s.\n", ConfigFilePath.c_str());
+		return false;
+	}
+	outConfig.EnableOutputWindow = enableOutputWindowJson.GetBool();
+
+	const rapidjson::Value& showWhiteSpacesJson = documentJson["ShowWhiteSpaces"];
+	if (!showWhiteSpacesJson.IsBool())
+	{
+		FT_LOG("Failed parsing ShowWhiteSpaces from config json file %s.\n", ConfigFilePath.c_str());
+		return false;
+	}
+	outConfig.ShowWhiteSpaces = showWhiteSpacesJson.GetBool();
+
 	return true;
 }
 
@@ -73,6 +100,9 @@ static void SaveConfig(const Config& inConfig)
 	rapidjson::Value filePathJson(shaderRelativePath.c_str(), documentJson.GetAllocator());
 	documentJson.AddMember("PreviousOpenShaderFile", filePathJson, documentJson.GetAllocator());
 	documentJson.AddMember("CodeFontSize", inConfig.CodeFontSize, documentJson.GetAllocator());
+	documentJson.AddMember("EnableBindingsWindow", inConfig.EnableBindingsWindow, documentJson.GetAllocator());
+	documentJson.AddMember("EnableOutputWindow", inConfig.EnableOutputWindow, documentJson.GetAllocator());
+	documentJson.AddMember("ShowWhiteSpaces", inConfig.ShowWhiteSpaces, documentJson.GetAllocator());
 
 	rapidjson::StringBuffer buffer;
 	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
@@ -94,9 +124,9 @@ void Application::Run()
 	
 	std::string fragmentShaderPath;
 
-	Config config{};
-	const bool configSuccessfullyLoaded = TryApplyConfig(config);
-	fragmentShaderPath = config.PreviousOpenShaderFile;
+	Config loadConfig{};
+	const bool configSuccessfullyLoaded = LoadConfig(loadConfig);
+	fragmentShaderPath = loadConfig.PreviousOpenShaderFile;
 
 	if (configSuccessfullyLoaded || FileExplorer::SaveShaderDialog(fragmentShaderPath))
 	{
@@ -121,17 +151,24 @@ void Application::Run()
 
 		if (configSuccessfullyLoaded)
 		{
-			m_UserInterface->SetCodeFontSize(config.CodeFontSize);
+			m_UserInterface->SetCodeFontSize(loadConfig.CodeFontSize);
+			m_UserInterface->SetShowBindings(loadConfig.EnableBindingsWindow);
+			m_UserInterface->SetShowOutput(loadConfig.EnableOutputWindow);
+			m_UserInterface->SetShowWhiteSpaces(loadConfig.ShowWhiteSpaces);
 		}
 
 		MainLoop();
 
 		m_Renderer->SaveMetaData();
 
-		Config config;
-		config.PreviousOpenShaderFile = fragmentShaderPath;
-		config.CodeFontSize = m_UserInterface->GetCodeFontSize();
-		SaveConfig(config);
+		Config saveConfig;
+		saveConfig.PreviousOpenShaderFile = fragmentShaderPath;
+		saveConfig.CodeFontSize = m_UserInterface->GetCodeFontSize();
+		saveConfig.EnableBindingsWindow = m_UserInterface->IsShowBindings();
+		saveConfig.EnableOutputWindow = m_UserInterface->IsShowOutput();
+		saveConfig.ShowWhiteSpaces = m_UserInterface->IsShowWhiteSpaces();
+
+		SaveConfig(saveConfig);
 	}
 
 	Cleanup();

@@ -22,6 +22,9 @@ public:
 	void SetEditorText(const std::string& inText);
 	void SetEditorLanguage(const ShaderLanguage inLanguage);
 	void SetCodeFontSize(const float inCodeFontSize);
+	void SetShowBindings(const bool inShowBindings);
+	void SetShowOutput(const bool inShowOutput);
+	void SetShowWhiteSpaces(const bool inShowWhiteSpaces);
 	void DisplayErrorMarkers(const std::string& message);
 	void ClearErrorMarkers();
 	void ToggleEnabled();
@@ -29,6 +32,9 @@ public:
 public:
 	std::string GetEditorText() const;
 	float GetCodeFontSize() const { return m_CodeFontSize; }
+	bool IsShowBindings() const { return m_ShowBindings; }
+	bool IsShowOutput() const { return m_ShowOutput; }
+	bool IsShowWhiteSpaces() const { return m_ShowWhiteSpaces; }
 
 private:
 	void ApplyImGuiStyle();
