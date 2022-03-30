@@ -42,12 +42,12 @@ private:
 	void ImguiMenuBar();
 	void ImguiDockSpace();
 	void ImguiBindingsWindow();
-	void DrawVectorInput(const SpvReflectTypeDescription* inReflectTypeDescription, unsigned char* inProxyMemory, unsigned char* inVectorState, const char* inName);
-	void DrawStruct(const SpvReflectBlockVariable* inReflectBlock, unsigned char* inProxyMemory, unsigned char* inVectorState, const char* inName);
-	void DrawMatrix(const SpvReflectBlockVariable* inReflectBlock, unsigned char* inProxyMemory, unsigned char* inVectorState, const char* inName);
-	void DrawImage(const Binding& inBinding);
-	void DrawSampler(const SamplerInfo& inSamplerInfo, const Binding& inBinding);
-	void DrawUniformBufferInput(const SpvReflectBlockVariable* inReflectBlock, unsigned char* inProxyMemory, unsigned char* inVectorState, const uint32_t inArrayDimension = 0, const char* inArrayNameSuffix = "");
+	void DrawVectorInput(const SpvReflectTypeDescription* inReflectTypeDescription, unsigned char* inProxyMemory, unsigned char* inVectorState, const char* inName, bool inDraw);
+	void DrawStruct(const SpvReflectBlockVariable* inReflectBlock, unsigned char* inProxyMemory, unsigned char* inVectorState, const char* inName, bool inDraw);
+	void DrawMatrix(const SpvReflectBlockVariable* inReflectBlock, unsigned char* inProxyMemory, unsigned char* inVectorState, const char* inName, bool inDraw);
+	void DrawImage(const Binding& inBinding, bool inDraw);
+	void DrawSampler(const SamplerInfo& inSamplerInfo, const Binding& inBinding, bool inDraw);
+	void DrawUniformBufferInput(const SpvReflectBlockVariable* inReflectBlock, unsigned char* inProxyMemory, unsigned char* inVectorState, bool inDraw, const uint32_t inArrayDimension = 0, const char* inArrayNameSuffix = "");
 
 private:
 	Application* m_Application;

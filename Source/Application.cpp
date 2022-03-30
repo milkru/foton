@@ -162,7 +162,7 @@ void Application::Run()
 		m_Renderer->SaveMetaData();
 
 		Config saveConfig;
-		saveConfig.PreviousOpenShaderFile = fragmentShaderPath;
+		saveConfig.PreviousOpenShaderFile = m_Renderer->GetFragmentShaderFile()->GetPath();
 		saveConfig.CodeFontSize = m_UserInterface->GetCodeFontSize();
 		saveConfig.EnableBindingsWindow = m_UserInterface->IsShowBindings();
 		saveConfig.EnableOutputWindow = m_UserInterface->IsShowOutput();

@@ -175,7 +175,6 @@ void UserInterface::SetEditorLanguage(const ShaderLanguage inLanguage)
 	default:
 		FT_FAIL("Unsupported ShaderLanguage.");
 	}
-
 }
 
 void UserInterface::SetCodeFontSize(const float inCodeFontSize)
@@ -593,7 +592,7 @@ void ComboWithoutPreview(int* currentItemIndex, const char** data, int items_cou
 	}
 }
 
-void UserInterface::DrawVectorInput(const SpvReflectTypeDescription* inReflectTypeDescription, unsigned char* inProxyMemory, unsigned char* inVectorState, const char* inName)
+void UserInterface::DrawVectorInput(const SpvReflectTypeDescription* inReflectTypeDescription, unsigned char* inProxyMemory, unsigned char* inVectorState, const char* inName, bool inDraw)
 {
 	ImGui::PushID(inName);
 
@@ -607,7 +606,10 @@ void UserInterface::DrawVectorInput(const SpvReflectTypeDescription* inReflectTy
 		static const char* items[] = { "Constant", "Time in Seconds" };
 		if (*currentItemIndex == 0)
 		{
-			ImGui::DragScalarN(inName, vectorDataType.ComponentDataType, inProxyMemory, vectorDataType.ComponentCount, dragSpeed);
+			if (inDraw)
+			{
+				ImGui::DragScalarN(inName, vectorDataType.ComponentDataType, inProxyMemory, vectorDataType.ComponentCount, dragSpeed);
+			}
 		}
 		else if (*currentItemIndex == 1)
 		{
@@ -616,15 +618,21 @@ void UserInterface::DrawVectorInput(const SpvReflectTypeDescription* inReflectTy
 			float* elapsedTimeMemory = (float*) inProxyMemory;
 			*elapsedTimeMemory = elapsedTime;
 
-			ImGui::Text("Time in Seconds (%.2f s)", elapsedTime);
+			if (inDraw)
+			{
+				ImGui::Text("Time in Seconds (%.2f s)", elapsedTime);
+			}
 		}
 		else
 		{
 			*currentItemIndex = 0;
 		}
 
-		ImGui::SameLine();
-		ComboWithoutPreview(currentItemIndex, items, IM_ARRAYSIZE(items));
+		if (inDraw)
+		{
+			ImGui::SameLine();
+			ComboWithoutPreview(currentItemIndex, items, IM_ARRAYSIZE(items));
+		}
 	}
 	else if (vectorDataType.ComponentCount == 1 && (vectorDataType.ComponentDataType == ImGuiDataType_S32 || vectorDataType.ComponentDataType == ImGuiDataType_U32))
 	{
@@ -666,11 +674,18 @@ void UserInterface::DrawVectorInput(const SpvReflectTypeDescription* inReflectTy
 
 		if (*currentItemIndex == 0)
 		{
-			ImGui::DragScalarN(inName, vectorDataType.ComponentDataType, inProxyMemory, vectorDataType.ComponentCount, dragSpeed);
+			if (inDraw)
+			{
+				ImGui::DragScalarN(inName, vectorDataType.ComponentDataType, inProxyMemory, vectorDataType.ComponentCount, dragSpeed);
+			}
 		}
 		else
 		{
-			ImGui::Text(items[*currentItemIndex]);
+			if (inDraw)
+			{
+				ImGui::Text(items[*currentItemIndex]);
+			}
+
 			uint32_t* keyMemory = (uint32_t*)inProxyMemory;
 
 			ImGuiIO& io = ImGui::GetIO();
@@ -707,9 +722,11 @@ void UserInterface::DrawVectorInput(const SpvReflectTypeDescription* inReflectTy
 			}
 		}
 
-		ImGui::SameLine();
-
-		ComboWithoutPreview(currentItemIndex, items, IM_ARRAYSIZE(items));
+		if (inDraw)
+		{
+			ImGui::SameLine();
+			ComboWithoutPreview(currentItemIndex, items, IM_ARRAYSIZE(items));
+		}
 	}
 	else if (vectorDataType.ComponentCount == 2 && vectorDataType.ComponentDataType == ImGuiDataType_Float)
 	{
@@ -717,7 +734,10 @@ void UserInterface::DrawVectorInput(const SpvReflectTypeDescription* inReflectTy
 
 		if (*currentItemIndex == 0)
 		{
-			ImGui::DragScalarN(inName, vectorDataType.ComponentDataType, inProxyMemory, vectorDataType.ComponentCount, dragSpeed);
+			if (inDraw)
+			{
+				ImGui::DragScalarN(inName, vectorDataType.ComponentDataType, inProxyMemory, vectorDataType.ComponentCount, dragSpeed);
+			}
 		}
 		else if (*currentItemIndex == 1)
 		{
@@ -725,7 +745,10 @@ void UserInterface::DrawVectorInput(const SpvReflectTypeDescription* inReflectTy
 			ImVec2* mousePositionMemory = (ImVec2*)inProxyMemory;
 			*mousePositionMemory = mousePosition;
 
-			ImGui::Text("Mouse Position (%.1f, %.1f)", mousePosition.x, mousePosition.y);
+			if (inDraw)
+			{
+				ImGui::Text("Mouse Position (%.1f, %.1f)", mousePosition.x, mousePosition.y);
+			}
 		}
 		else if (*currentItemIndex == 2)
 		{
@@ -733,15 +756,21 @@ void UserInterface::DrawVectorInput(const SpvReflectTypeDescription* inReflectTy
 			ImVec2* mouseDeltaMemory = (ImVec2*)inProxyMemory;
 			*mouseDeltaMemory = mouseDelta;
 
-			ImGui::Text("Mouse Delta (%.4f, %.4f)", mouseDelta.x, mouseDelta.y);
+			if (inDraw)
+			{
+				ImGui::Text("Mouse Delta (%.4f, %.4f)", mouseDelta.x, mouseDelta.y);
+			}
 		}
 		else
 		{
 			*currentItemIndex = 0;
 		}
 
-		ImGui::SameLine();
-		ComboWithoutPreview(currentItemIndex, items, IM_ARRAYSIZE(items));
+		if (inDraw)
+		{
+			ImGui::SameLine();
+			ComboWithoutPreview(currentItemIndex, items, IM_ARRAYSIZE(items));
+		}
 	}
 	else if (vectorDataType.ComponentCount == 2 && (vectorDataType.ComponentDataType == ImGuiDataType_S32 || vectorDataType.ComponentDataType == ImGuiDataType_U32))
 	{
@@ -749,7 +778,10 @@ void UserInterface::DrawVectorInput(const SpvReflectTypeDescription* inReflectTy
 
 		if (*currentItemIndex == 0)
 		{
-			ImGui::DragScalarN(inName, vectorDataType.ComponentDataType, inProxyMemory, vectorDataType.ComponentCount, dragSpeed);
+			if (inDraw)
+			{
+				ImGui::DragScalarN(inName, vectorDataType.ComponentDataType, inProxyMemory, vectorDataType.ComponentCount, dragSpeed);
+			}
 		}
 		else if (*currentItemIndex == 1)
 		{
@@ -764,96 +796,132 @@ void UserInterface::DrawVectorInput(const SpvReflectTypeDescription* inReflectTy
 			*widthMemory = width;
 			*heightMemory = height;
 
-			ImGui::Text("Screen Resolution (%d, %d)", width, height);
+			if (inDraw)
+			{
+				ImGui::Text("Screen Resolution (%d, %d)", width, height);
+			}
 		}
 		else
 		{
 			*currentItemIndex = 0;
 		}
 
-		ImGui::SameLine();
-		ComboWithoutPreview(currentItemIndex, items, IM_ARRAYSIZE(items));
+		if (inDraw)
+		{
+			ImGui::SameLine();
+			ComboWithoutPreview(currentItemIndex, items, IM_ARRAYSIZE(items));
+		}
 	}
 	else if (vectorDataType.ComponentCount == 3 && vectorDataType.ComponentDataType == ImGuiDataType_Float && inReflectTypeDescription->op == SpvOpTypeVector)
 	{
-		ImGui::ColorEdit3(inName, (float*)inProxyMemory,
-			ImGuiColorEditFlags_Float |
-			ImGuiColorEditFlags_HDR |
-			ImGuiColorEditFlags_DisplayRGB |
-			ImGuiColorEditFlags_AlphaPreview);
+		if (inDraw)
+		{
+			ImGui::ColorEdit3(inName, (float*)inProxyMemory,
+				ImGuiColorEditFlags_Float |
+				ImGuiColorEditFlags_HDR |
+				ImGuiColorEditFlags_DisplayRGB |
+				ImGuiColorEditFlags_AlphaPreview);
+		}
 	}
 	else if (vectorDataType.ComponentCount == 4 && vectorDataType.ComponentDataType == ImGuiDataType_Float && inReflectTypeDescription->op == SpvOpTypeVector)
 	{
-		ImGui::ColorEdit4(inName, (float*)inProxyMemory,
-			ImGuiColorEditFlags_Float |
-			ImGuiColorEditFlags_HDR |
-			ImGuiColorEditFlags_DisplayRGB |
-			ImGuiColorEditFlags_AlphaPreview);
+		if (inDraw)
+		{
+			ImGui::ColorEdit4(inName, (float*)inProxyMemory,
+				ImGuiColorEditFlags_Float |
+				ImGuiColorEditFlags_HDR |
+				ImGuiColorEditFlags_DisplayRGB |
+				ImGuiColorEditFlags_AlphaPreview);
+		}
 	}
 	else
 	{
-		ImGui::DragScalarN(inName, vectorDataType.ComponentDataType, inProxyMemory, vectorDataType.ComponentCount, dragSpeed);
+		if (inDraw)
+		{
+			ImGui::DragScalarN(inName, vectorDataType.ComponentDataType, inProxyMemory, vectorDataType.ComponentCount, dragSpeed);
+		}
 	}
 
 	ImGui::PopID();
 }
 
-void UserInterface::DrawStruct(const SpvReflectBlockVariable* inReflectBlock, unsigned char* inProxyMemory, unsigned char* inVectorState, const char* inName)
+void UserInterface::DrawStruct(const SpvReflectBlockVariable* inReflectBlock, unsigned char* inProxyMemory, unsigned char* inVectorState, const char* inName, bool inDraw)
 {
-	if (ImGui::TreeNode(inName))
+	bool isTreeOpen = false;
+	if (inDraw)
 	{
-		for (uint32_t memberIndex = 0; memberIndex < inReflectBlock->member_count; ++memberIndex)
-		{
-			const SpvReflectBlockVariable* memberReflectBlock = &(inReflectBlock->members[memberIndex]);
-			DrawUniformBufferInput(memberReflectBlock, inProxyMemory, inVectorState);
-			inProxyMemory += memberReflectBlock->padded_size;
-			inVectorState += memberReflectBlock->padded_size;
-		}
+		isTreeOpen = ImGui::TreeNode(inName);
+	}
 
+	const bool shouldDraw = isTreeOpen && inDraw;
+
+	for (uint32_t memberIndex = 0; memberIndex < inReflectBlock->member_count; ++memberIndex)
+	{
+		const SpvReflectBlockVariable* memberReflectBlock = &(inReflectBlock->members[memberIndex]);
+		DrawUniformBufferInput(memberReflectBlock, inProxyMemory, inVectorState, shouldDraw);
+		inProxyMemory += memberReflectBlock->padded_size;
+		inVectorState += memberReflectBlock->padded_size;
+	}
+
+	if (isTreeOpen)
+	{
 		ImGui::TreePop();
 	}
 }
 
-void UserInterface::DrawMatrix(const SpvReflectBlockVariable* inReflectBlock, unsigned char* inProxyMemory, unsigned char* inVectorState, const char* inName)
+void UserInterface::DrawMatrix(const SpvReflectBlockVariable* inReflectBlock, unsigned char* inProxyMemory, unsigned char* inVectorState, const char* inName, bool inDraw)
 {
-	if (ImGui::TreeNode(inName))
+	bool isTreeOpen = false;
+	if (inDraw)
 	{
-		const SpvReflectNumericTraits numericTraits = inReflectBlock->type_description->traits.numeric;
+		isTreeOpen = ImGui::TreeNode(inName);
+	}
 
-		uint32_t stride = 0;
-		switch (inReflectBlock->type_description->op)
-		{
-		case SpvOpTypeArray:
-			stride = inReflectBlock->type_description->traits.array.stride;
-			break;
+	const bool shouldDraw = isTreeOpen && inDraw;
 
-		case SpvOpTypeMatrix:
-			stride = inReflectBlock->padded_size;
-			break;
+	const SpvReflectNumericTraits numericTraits = inReflectBlock->type_description->traits.numeric;
 
-		default:
-			FT_FAIL("Unsupported matrix SpvOp.");
-		}
+	uint32_t stride = 0;
+	switch (inReflectBlock->type_description->op)
+	{
+	case SpvOpTypeArray:
+		stride = inReflectBlock->type_description->traits.array.stride;
+		break;
 
-		for (uint32_t matrixRowIndex = 0; matrixRowIndex < numericTraits.matrix.row_count; ++matrixRowIndex)
-		{
-			std::string rowName = inName;
-			rowName += "[";
-			rowName += std::to_string(matrixRowIndex);;
-			rowName += "]";
+	case SpvOpTypeMatrix:
+		stride = inReflectBlock->padded_size;
+		break;
 
-			DrawVectorInput(inReflectBlock->type_description, inProxyMemory, inVectorState, rowName.c_str());
+	default:
+		FT_FAIL("Unsupported matrix SpvOp.");
+	}
 
-			inProxyMemory += stride / numericTraits.matrix.row_count;
-			inVectorState += stride / numericTraits.matrix.row_count;
-		}
+	for (uint32_t matrixRowIndex = 0; matrixRowIndex < numericTraits.matrix.row_count; ++matrixRowIndex)
+	{
+		std::string rowName = inName;
+		rowName += "[";
+		rowName += std::to_string(matrixRowIndex);;
+		rowName += "]";
 
+		DrawVectorInput(inReflectBlock->type_description, inProxyMemory, inVectorState, rowName.c_str(), shouldDraw);
+
+		inProxyMemory += stride / numericTraits.matrix.row_count;
+		inVectorState += stride / numericTraits.matrix.row_count;
+	}
+
+	if (isTreeOpen)
+	{
 		ImGui::TreePop();
 	}
 }
 
-void UserInterface::DrawImage(const Binding& inBinding)
+void UserInterface::DrawImage(const Binding& inBinding, bool inDraw)
 {
+	if (!inDraw)
+	{
+		return;
+	}
+
 	ImGui::PushID(inBinding.DescriptorSetBinding.binding);
 
 	if (ImGui::Button(" Load Image "))
@@ -870,8 +938,13 @@ void UserInterface::DrawImage(const Binding& inBinding)
 	ImGui::PopID();
 }
 
-void UserInterface::DrawSampler(const SamplerInfo& inSamplerInfo, const Binding& inBinding)
+void UserInterface::DrawSampler(const SamplerInfo& inSamplerInfo, const Binding& inBinding, bool inDraw)
 {
+	if (!inDraw)
+	{
+		return;
+	}
+
 	ImGui::PushID(inBinding.DescriptorSetBinding.binding);
 
 	SamplerInfo newSamplerInfo{};
@@ -896,10 +969,13 @@ void UserInterface::DrawSampler(const SamplerInfo& inSamplerInfo, const Binding&
 		}
 	}
 
-	ImGui::Spacing();
+	if (inDraw)
+	{
+		ImGui::Spacing();
+	}
 
 	{
-		// TODO: This wont work for Cube maps. How does Cube map and image arrays addressing even works? Test it.
+		// TODO: This won't work for Cube maps. How does Cube map and image arrays addressing even work? Test it.
 		// TODO: Also handle arrays of images (not image arrays).
 
 		const char* samplerAddresses[] = { "Repeat", "Mirrored Repeat", "Clamp to Edge", "Clamp to Border"
@@ -941,7 +1017,10 @@ void UserInterface::DrawSampler(const SamplerInfo& inSamplerInfo, const Binding&
 		inSamplerInfo.AddressModeV == SamplerAddressMode::ClampToBorder ||
 		inSamplerInfo.AddressModeW == SamplerAddressMode::ClampToBorder)
 	{
-		ImGui::Spacing();
+		if (inDraw)
+		{
+			ImGui::Spacing();
+		}
 
 		const char* samplerBorderColors[] = { "Transparent Black", "Opaque Black", "Opaque White" };
 		const static int samplerBorderColorsSize = IM_ARRAYSIZE(samplerBorderColors);
@@ -965,7 +1044,7 @@ void UserInterface::DrawSampler(const SamplerInfo& inSamplerInfo, const Binding&
 	}
 }
 
-void UserInterface::DrawUniformBufferInput(const SpvReflectBlockVariable* inReflectBlock, unsigned char* inProxyMemory, unsigned char* inVectorState, const uint32_t inArrayDimension, const char* inArrayNameSuffix)
+void UserInterface::DrawUniformBufferInput(const SpvReflectBlockVariable* inReflectBlock, unsigned char* inProxyMemory, unsigned char* inVectorState, bool inDraw, const uint32_t inArrayDimension, const char* inArrayNameSuffix)
 {
 	if (inReflectBlock == nullptr)
 	{
@@ -978,7 +1057,7 @@ void UserInterface::DrawUniformBufferInput(const SpvReflectBlockVariable* inRefl
 	{
 		std::string structTreeName = inReflectBlock->name;
 		structTreeName += inArrayNameSuffix;
-		DrawStruct(inReflectBlock, inProxyMemory, inVectorState, structTreeName.c_str());
+		DrawStruct(inReflectBlock, inProxyMemory, inVectorState, structTreeName.c_str(), inDraw);
 
 		break;
 	}
@@ -989,61 +1068,70 @@ void UserInterface::DrawUniformBufferInput(const SpvReflectBlockVariable* inRefl
 
 		std::string arrayTreeName = inReflectBlock->name;
 		arrayTreeName += inArrayNameSuffix;
-		if (ImGui::TreeNode(arrayTreeName.c_str()))
+
+		bool isTreeOpen = false;
+		if (inDraw)
 		{
-			const uint32_t arraySize = arrayTraits.dims[inArrayDimension];
-			if (inArrayDimension == arrayTraits.dims_count - 1)
+			isTreeOpen = ImGui::TreeNode(arrayTreeName.c_str());
+		}
+
+		const bool shouldDraw = isTreeOpen && inDraw;
+
+		const uint32_t arraySize = arrayTraits.dims[inArrayDimension];
+		if (inArrayDimension == arrayTraits.dims_count - 1)
+		{
+			for (uint32_t arrayElementIndex = 0; arrayElementIndex < arraySize; ++arrayElementIndex)
 			{
-				for (uint32_t arrayElementIndex = 0; arrayElementIndex < arraySize; ++arrayElementIndex)
-				{
-					std::string arrayElementName = arrayTreeName;
-					arrayElementName += "[";
-					arrayElementName += std::to_string(arrayElementIndex);;
-					arrayElementName += "]";
+				std::string arrayElementName = arrayTreeName;
+				arrayElementName += "[";
+				arrayElementName += std::to_string(arrayElementIndex);;
+				arrayElementName += "]";
 
-					if (inReflectBlock->type_description->type_flags & SPV_REFLECT_TYPE_FLAG_STRUCT)
-					{
-						DrawStruct(inReflectBlock, inProxyMemory, inVectorState, arrayElementName.c_str());
-						// If the outer struct which is directly bound as a uniform buffer, is an array, it's stride is 0 on GLSL for some reason.
-						inProxyMemory += arrayTraits.stride == 0 ? inReflectBlock->padded_size : arrayTraits.stride;
-						inVectorState += arrayTraits.stride == 0 ? inReflectBlock->padded_size : arrayTraits.stride;
-					}
-					else if (inReflectBlock->type_description->type_flags & SPV_REFLECT_TYPE_FLAG_MATRIX)
-					{
-						DrawMatrix(inReflectBlock, inProxyMemory, inVectorState, arrayElementName.c_str());
-						inProxyMemory += arrayTraits.stride;
-						inVectorState += arrayTraits.stride;
-					}
-					else
-					{
-						DrawVectorInput(inReflectBlock->type_description, inProxyMemory, inVectorState, arrayElementName.c_str());
-						inProxyMemory += arrayTraits.stride;
-						inVectorState += arrayTraits.stride;
-					}
-				}
-			}
-			else
-			{
-				uint32_t elementCount = 1;
-				for (uint32_t arrayDimension = inArrayDimension + 1; arrayDimension < arrayTraits.dims_count; ++arrayDimension)
+				if (inReflectBlock->type_description->type_flags & SPV_REFLECT_TYPE_FLAG_STRUCT)
 				{
-					elementCount *= arrayTraits.dims[arrayDimension];
-				}
-
-				for (uint32_t arrayElementIndex = 0; arrayElementIndex < arraySize; ++arrayElementIndex)
-				{
-					std::string nameSuffix = inArrayNameSuffix;
-					nameSuffix += "[";
-					nameSuffix += std::to_string(arrayElementIndex);;
-					nameSuffix += "]";
-					DrawUniformBufferInput(inReflectBlock, inProxyMemory, inVectorState, inArrayDimension + 1, nameSuffix.c_str());
-
+					DrawStruct(inReflectBlock, inProxyMemory, inVectorState, arrayElementName.c_str(), shouldDraw);
 					// If the outer struct which is directly bound as a uniform buffer, is an array, it's stride is 0 on GLSL for some reason.
-					inProxyMemory += elementCount * (arrayTraits.stride == 0 ? inReflectBlock->padded_size : arrayTraits.stride);
-					inVectorState += elementCount * (arrayTraits.stride == 0 ? inReflectBlock->padded_size : arrayTraits.stride);
+					inProxyMemory += arrayTraits.stride == 0 ? inReflectBlock->padded_size : arrayTraits.stride;
+					inVectorState += arrayTraits.stride == 0 ? inReflectBlock->padded_size : arrayTraits.stride;
+				}
+				else if (inReflectBlock->type_description->type_flags & SPV_REFLECT_TYPE_FLAG_MATRIX)
+				{
+					DrawMatrix(inReflectBlock, inProxyMemory, inVectorState, arrayElementName.c_str(), shouldDraw);
+					inProxyMemory += arrayTraits.stride;
+					inVectorState += arrayTraits.stride;
+				}
+				else
+				{
+					DrawVectorInput(inReflectBlock->type_description, inProxyMemory, inVectorState, arrayElementName.c_str(), shouldDraw);
+					inProxyMemory += arrayTraits.stride;
+					inVectorState += arrayTraits.stride;
 				}
 			}
+		}
+		else
+		{
+			uint32_t elementCount = 1;
+			for (uint32_t arrayDimension = inArrayDimension + 1; arrayDimension < arrayTraits.dims_count; ++arrayDimension)
+			{
+				elementCount *= arrayTraits.dims[arrayDimension];
+			}
 
+			for (uint32_t arrayElementIndex = 0; arrayElementIndex < arraySize; ++arrayElementIndex)
+			{
+				std::string nameSuffix = inArrayNameSuffix;
+				nameSuffix += "[";
+				nameSuffix += std::to_string(arrayElementIndex);;
+				nameSuffix += "]";
+				DrawUniformBufferInput(inReflectBlock, inProxyMemory, inVectorState, shouldDraw, inArrayDimension + 1, nameSuffix.c_str());
+
+				// If the outer struct which is directly bound as a uniform buffer, is an array, it's stride is 0 on GLSL for some reason.
+				inProxyMemory += elementCount * (arrayTraits.stride == 0 ? inReflectBlock->padded_size : arrayTraits.stride);
+				inVectorState += elementCount * (arrayTraits.stride == 0 ? inReflectBlock->padded_size : arrayTraits.stride);
+			}
+		}
+
+		if (isTreeOpen)
+		{
 			ImGui::TreePop();
 		}
 		
@@ -1052,18 +1140,21 @@ void UserInterface::DrawUniformBufferInput(const SpvReflectBlockVariable* inRefl
 
 	case SpvOpTypeMatrix:
 	{
-		DrawMatrix(inReflectBlock, inProxyMemory, inVectorState, inReflectBlock->name);
+		DrawMatrix(inReflectBlock, inProxyMemory, inVectorState, inReflectBlock->name, inDraw);
 		break;
 	}
 
 	default:
 	{
-		DrawVectorInput(inReflectBlock->type_description, inProxyMemory, inVectorState, inReflectBlock->name);
+		DrawVectorInput(inReflectBlock->type_description, inProxyMemory, inVectorState, inReflectBlock->name, inDraw);
 		break;
 	}
 	}
 
-	ImGui::Spacing();
+	if (inDraw)
+	{
+		ImGui::Spacing();
+	}
 }
 
 void UserInterface::ImguiBindingsWindow()
@@ -1092,67 +1183,74 @@ void UserInterface::ImguiBindingsWindow()
 			reflectDescriptorBinding.name = reflectDescriptorBinding.type_description->type_name;
 		}
 
-		if (ImGui::CollapsingHeader(reflectDescriptorBinding.name))
+		const bool isHeaderOpen = ImGui::CollapsingHeader(reflectDescriptorBinding.name);
+
+		if (isHeaderOpen)
 		{
 			ImGui::Indent();
+		}
 
-			switch (descriptor.Resource.Type)
-			{
-			case ResourceType::CombinedImageSampler:
-			{
-				DrawImage(descriptor.Binding);
+		switch (descriptor.Resource.Type)
+		{
+		case ResourceType::CombinedImageSampler:
+		{
+			DrawImage(descriptor.Binding, isHeaderOpen);
 
+			if (isHeaderOpen)
+			{
 				ImGui::Spacing();
 				ImGui::Separator();
 				ImGui::Spacing();
-
-				SamplerInfo samplerInfo = descriptor.Resource.Handle.CombinedImageSampler->GetSampler()->GetInfo();
-				DrawSampler(samplerInfo, descriptor.Binding);
-
-				break;
 			}
 
-			case ResourceType::Image:
-			{
-				DrawImage(descriptor.Binding);
+			SamplerInfo samplerInfo = descriptor.Resource.Handle.CombinedImageSampler->GetSampler()->GetInfo();
+			DrawSampler(samplerInfo, descriptor.Binding, isHeaderOpen);
 
-				break;
-			}
-
-			case ResourceType::UniformBuffer:
-			{
-				SpvReflectBlockVariable* reflectBlockVariable = &reflectDescriptorBinding.block;
-				if (m_Renderer->GetFragmentShaderFile()->GetLanguage() == ShaderLanguage::HLSL)
-				{
-					reflectBlockVariable->name = reflectBlockVariable->type_description->type_name;
-				}
-
-				ImGui::PushID(descriptor.Binding.DescriptorSetBinding.binding);
-				const UniformBuffer* uniformBuffer = descriptor.Resource.Handle.UniformBuffer;
-				unsigned char* proxyMemory = uniformBuffer->GetProxyMemory();
-				unsigned char* vectorState = uniformBuffer->GetVectorState();
-				DrawUniformBufferInput(reflectBlockVariable, proxyMemory, vectorState);
-				ImGui::PopID();
-
-				break;
-			}
-
-			case ResourceType::Sampler:
-			{
-				SamplerInfo samplerInfo = descriptor.Resource.Handle.Sampler->GetInfo();
-				DrawSampler(samplerInfo, descriptor.Binding);
-
-				break;
-			}
-
-			default:
-				FT_FAIL("Unsupported ResourceType.");
-			}
-
-			ImGui::Unindent();
+			break;
 		}
 
-		ImGui::Spacing();
+		case ResourceType::Image:
+		{
+			DrawImage(descriptor.Binding, isHeaderOpen);
+
+			break;
+		}
+
+		case ResourceType::UniformBuffer:
+		{
+			SpvReflectBlockVariable* reflectBlockVariable = &reflectDescriptorBinding.block;
+			if (m_Renderer->GetFragmentShaderFile()->GetLanguage() == ShaderLanguage::HLSL)
+			{
+				reflectBlockVariable->name = reflectBlockVariable->type_description->type_name;
+			}
+
+			ImGui::PushID(descriptor.Binding.DescriptorSetBinding.binding);
+			const UniformBuffer* uniformBuffer = descriptor.Resource.Handle.UniformBuffer;
+			unsigned char* proxyMemory = uniformBuffer->GetProxyMemory();
+			unsigned char* vectorState = uniformBuffer->GetVectorState();
+			DrawUniformBufferInput(reflectBlockVariable, proxyMemory, vectorState, isHeaderOpen);
+			ImGui::PopID();
+
+			break;
+		}
+
+		case ResourceType::Sampler:
+		{
+			SamplerInfo samplerInfo = descriptor.Resource.Handle.Sampler->GetInfo();
+			DrawSampler(samplerInfo, descriptor.Binding, isHeaderOpen);
+
+			break;
+		}
+
+		default:
+			FT_FAIL("Unsupported ResourceType.");
+		}
+
+		if (isHeaderOpen)
+		{
+			ImGui::Unindent();
+			ImGui::Spacing();
+		}
 	}
 
 	ImGui::End();
