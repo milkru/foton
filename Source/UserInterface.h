@@ -5,7 +5,7 @@ FT_BEGIN_NAMESPACE
 class Application;
 class Window;
 class Renderer;
-struct Binding;
+struct Descriptor;
 struct SamplerInfo;
 enum class ShaderLanguage : uint8_t;
 
@@ -45,8 +45,8 @@ private:
 	void DrawVectorInput(const SpvReflectTypeDescription* inReflectTypeDescription, unsigned char* inProxyMemory, unsigned char* inVectorState, const char* inName, bool inDraw);
 	void DrawStruct(const SpvReflectBlockVariable* inReflectBlock, unsigned char* inProxyMemory, unsigned char* inVectorState, const char* inName, bool inDraw);
 	void DrawMatrix(const SpvReflectBlockVariable* inReflectBlock, unsigned char* inProxyMemory, unsigned char* inVectorState, const char* inName, bool inDraw);
-	void DrawImage(const Binding& inBinding, bool inDraw);
-	void DrawSampler(const SamplerInfo& inSamplerInfo, const Binding& inBinding, bool inDraw);
+	void DrawImage(const Descriptor& inDescriptor, bool inDraw);
+	void DrawSampler(const SamplerInfo& inSamplerInfo, const Descriptor& inDescriptor, bool inDraw);
 	void DrawUniformBufferInput(const SpvReflectBlockVariable* inReflectBlock, unsigned char* inProxyMemory, unsigned char* inVectorState, bool inDraw, const uint32_t inArrayDimension = 0, const char* inArrayNameSuffix = "");
 
 private:

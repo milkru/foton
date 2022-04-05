@@ -161,12 +161,12 @@ bool Renderer::TryApplyMetaData()
 
 	WaitQueueToFinish();
 
-	uint32_t binding = 0;
+	uint32_t descriptorIndex = 0;
 	for (const auto& descriptorJson : descriptorsJson.GetArray())
 	{
-		if (binding >= m_ResourceContainer->GetDescriptors().size())
+		if (descriptorIndex >= m_ResourceContainer->GetDescriptors().size())
 		{
-			FT_LOG("Failed parsing binding indices from json file %s.\n", metaDataFilePath.c_str());
+			FT_LOG("Failed parsing descriptorIndex indices from json file %s.\n", metaDataFilePath.c_str());
 			return false;
 		}
 
@@ -198,8 +198,8 @@ bool Renderer::TryApplyMetaData()
 			}
 
 			// TODO: Validate ImagePath and Sampler.
-			m_ResourceContainer->UpdateImage(binding, imagePath);
-			m_ResourceContainer->UpdateSampler(binding, samplerInfo);
+			m_ResourceContainer->UpdateImage(descriptorIndex, imagePath);
+			m_ResourceContainer->UpdateSampler(descriptorIndex, samplerInfo);
 			break;
 		}
 
@@ -213,7 +213,7 @@ bool Renderer::TryApplyMetaData()
 			}
 
 			// TODO: Validate ImagePath.
-			m_ResourceContainer->UpdateImage(binding, imagePath);
+			m_ResourceContainer->UpdateImage(descriptorIndex, imagePath);
 			break;
 		}
 
@@ -227,7 +227,7 @@ bool Renderer::TryApplyMetaData()
 			}
 
 			// TODO: Validate Sampler.
-			m_ResourceContainer->UpdateSampler(binding, samplerInfo);
+			m_ResourceContainer->UpdateSampler(descriptorIndex, samplerInfo);
 			break;
 		}
 
@@ -242,7 +242,7 @@ bool Renderer::TryApplyMetaData()
 				return false;
 			}
 
-			m_ResourceContainer->UpdateUniformBuffer(binding, size, proxyMemory, vectorState);
+			m_ResourceContainer->UpdateUniformBuffer(descriptorIndex, size, proxyMemory, vectorState);
 			break;
 		}
 
@@ -251,7 +251,7 @@ bool Renderer::TryApplyMetaData()
 			return false;
 		}
 
-		++binding;
+		++descriptorIndex;
 	}
 
 	RecreateDescriptorSet();
@@ -276,14 +276,14 @@ void Renderer::SaveMetaData()
 	WriteFile(metaDataFilePath, metaDataJson);
 }
 
-void Renderer::UpdateImageDescriptor(const uint32_t inBindingIndex, const std::string& inPath)
+void Renderer::UpdateImageDescriptor(const uint32_t inDescriptorIndex, const std::string& inPath)
 {
-	m_ResourceContainer->UpdateImage(inBindingIndex, inPath);
+	m_ResourceContainer->UpdateImage(inDescriptorIndex, inPath);
 }
 
-void Renderer::UpdateSamplerDescriptor(const uint32_t inBindingIndex, const SamplerInfo& inSamplerInfo)
+void Renderer::UpdateSamplerDescriptor(const uint32_t inDescriptorIndex, const SamplerInfo& inSamplerInfo)
 {
-	m_ResourceContainer->UpdateSampler(inBindingIndex, inSamplerInfo);
+	m_ResourceContainer->UpdateSampler(inDescriptorIndex, inSamplerInfo);
 }
 
 void Renderer::RecreateDescriptorSet()

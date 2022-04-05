@@ -238,6 +238,8 @@ void ResourceContainer::UpdateBindings(std::vector<Binding> inBindings)
 		Descriptor& descriptor = m_Descriptors[descriptorIndex];
 		Resource& resource = descriptor.Resource;
 
+		descriptor.Index = descriptorIndex;
+
 		const Binding& newBinding = inBindings[descriptorIndex];
 		descriptor.Binding = newBinding;
 
@@ -248,11 +250,11 @@ void ResourceContainer::UpdateBindings(std::vector<Binding> inBindings)
 	}
 }
 
-void ResourceContainer::UpdateImage(const uint32_t inBindingIndex, const std::string& inPath)
+void ResourceContainer::UpdateImage(const uint32_t inDescriptorIndex, const std::string& inPath)
 {
-	FT_CHECK(inBindingIndex < m_Descriptors.size(), "BindingIndex is out of bounds.");
+	FT_CHECK(inDescriptorIndex < m_Descriptors.size(), "BindingIndex is out of bounds.");
 
-	Resource& resource = m_Descriptors[inBindingIndex].Resource;
+	Resource& resource = m_Descriptors[inDescriptorIndex].Resource;
 	const ImageFile imageFile(inPath);
 
 	switch (resource.Type)
@@ -276,11 +278,11 @@ void ResourceContainer::UpdateImage(const uint32_t inBindingIndex, const std::st
 	}
 }
 
-void ResourceContainer::UpdateSampler(const uint32_t inBindingIndex, const SamplerInfo& inSamplerInfo)
+void ResourceContainer::UpdateSampler(const uint32_t inDescriptorIndex, const SamplerInfo& inSamplerInfo)
 {
-	FT_CHECK(inBindingIndex < m_Descriptors.size(), "BindingIndex is out of bounds.");
+	FT_CHECK(inDescriptorIndex < m_Descriptors.size(), "BindingIndex is out of bounds.");
 
-	Resource& resource = m_Descriptors[inBindingIndex].Resource;
+	Resource& resource = m_Descriptors[inDescriptorIndex].Resource;
 
 	switch (resource.Type)
 	{
@@ -303,12 +305,12 @@ void ResourceContainer::UpdateSampler(const uint32_t inBindingIndex, const Sampl
 	}
 }
 
-void ResourceContainer::UpdateUniformBuffer(const uint32_t inBindingIndex, const size_t inSize,
+void ResourceContainer::UpdateUniformBuffer(const uint32_t inDescriptorIndex, const size_t inSize,
 	unsigned char* inProxyMemory, unsigned char* inVectorState)
 {
-	FT_CHECK(inBindingIndex < m_Descriptors.size(), "BindingIndex is out of bounds.");
+	FT_CHECK(inDescriptorIndex < m_Descriptors.size(), "BindingIndex is out of bounds.");
 
-	Resource& resource = m_Descriptors[inBindingIndex].Resource;
+	Resource& resource = m_Descriptors[inDescriptorIndex].Resource;
 	FT_CHECK(resource.Type == ResourceType::UniformBuffer, "Tried updating non UniformBuffer resource.");
 
 	DeleteResource(resource);

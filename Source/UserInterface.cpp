@@ -915,14 +915,16 @@ void UserInterface::DrawMatrix(const SpvReflectBlockVariable* inReflectBlock, un
 	}
 }
 
-void UserInterface::DrawImage(const Binding& inBinding, bool inDraw)
+void UserInterface::DrawImage(const Descriptor& inDescriptor, bool inDraw)
 {
 	if (!inDraw)
 	{
 		return;
 	}
 
-	ImGui::PushID(inBinding.DescriptorSetBinding.binding);
+	const Binding& binding = inDescriptor.Binding;
+
+	ImGui::PushID(binding.DescriptorSetBinding.binding);
 
 	if (ImGui::Button(" Load Image "))
 	{
@@ -930,7 +932,7 @@ void UserInterface::DrawImage(const Binding& inBinding, bool inDraw)
 		if (FileExplorer::OpenImageDialog(imagePath))
 		{
 			m_Renderer->WaitQueueToFinish();
-			m_Renderer->UpdateImageDescriptor(inBinding.DescriptorSetBinding.binding, imagePath);
+			m_Renderer->UpdateImageDescriptor(inDescriptor.Index, imagePath);
 			m_Renderer->RecreateDescriptorSet();
 		}
 	}
@@ -938,14 +940,16 @@ void UserInterface::DrawImage(const Binding& inBinding, bool inDraw)
 	ImGui::PopID();
 }
 
-void UserInterface::DrawSampler(const SamplerInfo& inSamplerInfo, const Binding& inBinding, bool inDraw)
+void UserInterface::DrawSampler(const SamplerInfo& inSamplerInfo, const Descriptor& inDescriptor, bool inDraw)
 {
 	if (!inDraw)
 	{
 		return;
 	}
 
-	ImGui::PushID(inBinding.DescriptorSetBinding.binding);
+	const Binding& binding = inDescriptor.Binding;
+
+	ImGui::PushID(binding.DescriptorSetBinding.binding);
 
 	SamplerInfo newSamplerInfo{};
 
@@ -986,7 +990,7 @@ void UserInterface::DrawSampler(const SamplerInfo& inSamplerInfo, const Binding&
 		const static int samplerAddressesSize = IM_ARRAYSIZE(samplerAddresses);
 		static_assert(samplerAddressesSize == static_cast<int>(SamplerAddressMode::Count), "Update SamplerAddressMode names array.");
 
-		const SpvDim imageDimension = inBinding.ReflectDescriptorBinding.image.dim;
+		const SpvDim imageDimension = binding.ReflectDescriptorBinding.image.dim;
 
 		if (imageDimension == SpvDim1D || imageDimension == SpvDim2D || imageDimension == SpvDim3D)
 		{
@@ -1039,7 +1043,7 @@ void UserInterface::DrawSampler(const SamplerInfo& inSamplerInfo, const Binding&
 	if (inSamplerInfo != newSamplerInfo)
 	{
 		m_Renderer->WaitQueueToFinish();
-		m_Renderer->UpdateSamplerDescriptor(inBinding.DescriptorSetBinding.binding, newSamplerInfo);
+		m_Renderer->UpdateSamplerDescriptor(inDescriptor.Index, newSamplerInfo);
 		m_Renderer->RecreateDescriptorSet();
 	}
 }
@@ -1194,7 +1198,7 @@ void UserInterface::ImguiBindingsWindow()
 		{
 		case ResourceType::CombinedImageSampler:
 		{
-			DrawImage(descriptor.Binding, isHeaderOpen);
+			DrawImage(descriptor, isHeaderOpen);
 
 			if (isHeaderOpen)
 			{
@@ -1204,14 +1208,14 @@ void UserInterface::ImguiBindingsWindow()
 			}
 
 			SamplerInfo samplerInfo = descriptor.Resource.Handle.CombinedImageSampler->GetSampler()->GetInfo();
-			DrawSampler(samplerInfo, descriptor.Binding, isHeaderOpen);
+			DrawSampler(samplerInfo, descriptor, isHeaderOpen);
 
 			break;
 		}
 
 		case ResourceType::Image:
 		{
-			DrawImage(descriptor.Binding, isHeaderOpen);
+			DrawImage(descriptor, isHeaderOpen);
 
 			break;
 		}
@@ -1237,7 +1241,7 @@ void UserInterface::ImguiBindingsWindow()
 		case ResourceType::Sampler:
 		{
 			SamplerInfo samplerInfo = descriptor.Resource.Handle.Sampler->GetInfo();
-			DrawSampler(samplerInfo, descriptor.Binding, isHeaderOpen);
+			DrawSampler(samplerInfo, descriptor, isHeaderOpen);
 
 			break;
 		}

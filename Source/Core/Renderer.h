@@ -30,8 +30,8 @@ public:
 	void OnFragmentShaderRecompiled(const std::vector<uint32_t>& inSpvCode);
 	bool TryApplyMetaData();
 	void SaveMetaData();
-	void UpdateImageDescriptor(const uint32_t inBindingIndex, const std::string& inPath);
-	void UpdateSamplerDescriptor(const uint32_t inBindingIndex, const SamplerInfo& inSamplerInfo);
+	void UpdateImageDescriptor(const uint32_t inDescriptorIndex, const std::string& inPath);
+	void UpdateSamplerDescriptor(const uint32_t inDescriptorIndex, const SamplerInfo& inSamplerInfo);
 	void UpdateUniformBuffersDeviceMemory(uint32_t inCurrentImage);
 	void RecreateDescriptorSet();
 

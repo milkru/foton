@@ -4,3 +4,4 @@ External/*
 !External/bootstrap.json
 !External/LICENSE
 foton.ini
+GenerateProjectFiles.bat
