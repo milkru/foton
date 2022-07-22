@@ -1,5 +1,5 @@
 ## About
-Shader editor made using `Vulkan` which supports both `GLSL` and `HLSL` shaders. Project is written for the `C++11` standard and `x64` system. Currently the code is tested only on `Windows`, using `MSVC` (Visual Studio) compiler. `Linux` and `Mac` are not completely supported at the moment, but it should be easy to port, since all third party libraries are cross platform.
+Shader editor made using `Vulkan` which supports both `GLSL` and `HLSL` shaders. Currently supports only screen space shaders, similar to `ShaderToy`. Project is written for the `C++11` standard and `x64` system. Currently the code is tested only on `Windows`, using `MSVC` (Visual Studio) compiler. `Linux` and `Mac` are not completely supported at the moment, but it should be easy to port, since all third party libraries are cross platform.
 
 ![Example](https://github.com/milkru/data_resources/blob/main/foton/universe.png "Example")
 
