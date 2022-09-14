@@ -3,7 +3,7 @@ Shader editor made using `Vulkan` which supports both `GLSL` and `HLSL` shaders.
 
 ![Example](https://github.com/milkru/data_resources/blob/main/foton/universe.png "Example")
 
-## Feature overview
+## Features
 * Rendering backend written using `Vulkan 1.0`
 * GUI mostly written using [Dear ImGui](https://github.com/ocornut/imgui)
 * Window handling using [GLFW](https://github.com/glfw/glfw)
